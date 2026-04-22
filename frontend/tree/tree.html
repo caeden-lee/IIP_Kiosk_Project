@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESG Digital Tree</title>
+    <link rel="stylesheet" href="tree.css">
+    <script src="tree.js" defer></script>
+</head>
+<body>
+    <div id="treeContainer">
+        <div class="tree-title">
+            <h1>🌳 ESG Digital Tree</h1>
+            <p>Growing with every visitor's contribution</p>
+        </div>
+        
+        <!-- image paths now root-relative -->
+        <img id="treeImage" src="/assets/Tree/stage4.png" alt="ESG Tree">
+        <img id="treeImageLeaves" src="/assets/Tree/stage4leaves.png" alt="ESG Tree Leaves">
+        
+        <div id="ovalOverlay"></div>
+        <div id="leavesContainer"></div>
+        
+        <div class="loading" id="loadingMessage">
+            Loading tree data...
+        </div>
+    </div>
+
+</body>
+</html>

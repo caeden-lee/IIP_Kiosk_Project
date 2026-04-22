@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.95, user-scalable=no">
+    
+    <style>
+        @media (max-width: 768px) {
+            :root {
+                --mobile-scale: 0.9;
+                --mobile-scale-inverse: 1.111;
+            }
+            
+            body {
+                transform: scale(var(--mobile-scale));
+                transform-origin: top left;
+                width: calc(100% * var(--mobile-scale-inverse));
+                min-height: calc(100vh * var(--mobile-scale-inverse));
+                position: relative;
+                left: 0;
+                top: 0;
+                transition: transform 0.2s ease;
+            }
+            
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+                z-index: 9999;
+                opacity: 1;
+                transition: opacity 0.3s ease;
+            }
+            
+            body.scale-applied::before {
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+        
+        .language-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 16px 0 20px 0;
+        }
+
+        .language-selector button {
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+            padding: 8px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .language-selector button:hover {
+            background: #f3f4f6;
+        }
+
+        .language-selector button.active {
+            background: #6366F1;
+            color: white;
+            border-color: #6366F1;
+        }
+    </style>
+
+    <link rel="stylesheet" href="feedback.css">
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landing-page" class="container">
+        <div class="card">
+            <div class="left-section">
+                <div class="brand">
+                    <div class="icon">✨</div>
+                    <span class="brand-text" id="brand-text">Community Feedback Portal</span>
+                </div>
+
+                <!-- done by Caeden -->
+                <div class="language-selector">
+                    <button type="button" onclick="setLanguage('en')" data-lang="en" class="active">English</button>  
+                    <button type="button" onclick="setLanguage('ms')" data-lang="ms">Bahasa Melayu</button>
+                    <button type="button" onclick="setLanguage('zh')" data-lang="zh">中文</button>
+                    <button type="button" onclick="setLanguage('ta')" data-lang="ta">தமிழ்</button>
+                </div>
+                <!---->
+                <h1 id="form-landing-title">Let's turn your ideas into reality</h1>
+                
+                <p class="subtitle" id="form-landing-subtitle">Share your thoughts and help us improve our services. Your feedback matters.</p>
+                
+                <button class="cta-button" id="start-feedback-btn" onclick="showConsentPage()">
+                    Start Feedback Form
+                    <span class="arrow">→</span>
+                </button>
+
+                <button class="pledgeboard-button" id="view-pledgeboards-btn" onclick="viewPledgeboard()" style="margin-top: 15px; background: linear-gradient(135deg, #10B981, #059669); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
+                    📜 View Pledgeboards
+                </button>
+            </div>
+            
+            <div class="right-section">
+                <div class="qr-header">
+                    <span class="qr-icon">📱</span>
+                    <span id="qr-header-text">Scan for Mobile Feedback</span>
+                </div>
+                
+                <div class="qr-code" id="dynamic-qr">
+                    <svg class="qr-image" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="200" height="200" fill="white"/>
+                        <rect x="10" y="10" width="50" height="50" fill="black"/>
+                        <rect x="20" y="20" width="30" height="30" fill="white"/>
+                        <rect x="25" y="25" width="20" height="20" fill="black"/>
+                        <rect x="140" y="10" width="50" height="50" fill="black"/>
+                        <rect x="150" y="20" width="30" height="30" fill="white"/>
+                        <rect x="155" y="25" width="20" height="20" fill="black"/>
+                        <rect x="10" y="140" width="50" height="50" fill="black"/>
+                        <rect x="20" y="150" width="30" height="30" fill="white"/>
+                        <rect x="25" y="155" width="20" height="20" fill="black"/>
+                    </svg>
+                </div>
+                
+                <p class="qr-description" id="qr-description-text">Point your mobile camera here to open the feedback form on your phone</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consent Page -->
+    <div id="consent-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div class="consent-icon">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#6366F1"/>
+                    <path d="M20 10C17.8 10 16 11.8 16 14V16H14C12.9 16 12 16.9 12 18V28C12 29.1 12.9 30 14 30H26C27.1 30 28 29.1 28 28V18C28 16.9 27.1 16 26 16H24V14C24 11.8 22.2 10 20 10ZM20 12C21.1 12 22 12.9 22 14V16H18V14C18 12.9 18.9 12 20 12ZM14 18H26V28H14V18ZM20 21C18.9 21 18 21.9 18 23C18 24.1 18.9 25 20 25C21.1 25 22 24.1 22 23C22 21.9 21.1 21 20 21Z" fill="white"/>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="consent-title">Data Retention Consent</h2>
+            <p class="consent-description" id="consent-description">Before we begin, please choose how long you'd like us to keep your feedback data</p>
+            
+            <div class="retention-options">
+                <div class="retention-option" onclick="selectOption('7days', this)">
+                    <div class="option-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="#6366F1" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="#6366F1" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="option-title" id="option-7days-title">7 Days</h3>
+                    <p class="option-description" id="option-7days-description">Your feedback data will be deleted after 7 days.</p>
+                </div>
+                
+                <div class="retention-option" onclick="selectOption('longterm', this)">
+                    <div class="option-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3.5 12H8.5M15.5 12H20.5M12 3.5V8.5M12 15.5V20.5" stroke="#A855F7" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 12L12 12.01" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="option-title" id="option-longterm-title">Long-Term</h3>
+                    <p class="option-description" id="option-longterm-description">Keep my data long-term for extended impact tracking</p>
+                </div>
+            </div>
+            
+            <div class="privacy-notice">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="8" cy="8" r="7" stroke="#94A3B8" stroke-width="1.5"/>
+                    <path d="M8 4V8M8 11V11.5" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <p id="privacy-notice-text">7 day Retention: Your photo and email is retained for 7 days then deleted. Your name and pledge may be displayed publicly.</p>
+            </div>
+            
+            <button class="consent-button" onclick="showDetailsPage()" disabled id="proceedBtn">
+                <span id="continue-feedback-form-text">Continue to Feedback Form</span>
+                <span class="arrow">→</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Details Page -->
+    <div id="details-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div class="consent-icon" style="background: #10b981;">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#10b981"/>
+                    <path d="M20 12C17.79 12 16 13.79 16 16C16 18.21 17.79 20 20 20C22.21 20 24 18.21 24 16C24 13.79 22.21 12 20 12ZM20 22C16.67 22 10 23.67 10 27V28C10 28.55 10.45 29 11 29H29C29.55 29 30 28.55 30 28V27C30 23.67 23.33 22 20 22Z" fill="white"/>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="details-title">Your Details</h2>
+            <p class="consent-description" id="details-description">Please provide your name and email to continue</p>
+            
+            <form class="details-form" onsubmit="submitDetails(event)">
+                <div class="form-group">
+                    <label for="user-name" id="name-label">Name</label>
+                    <input type="text" id="user-name" placeholder="Enter your name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="user-email" id="email-label">Email Address</label>
+                    <input type="email" id="user-email" placeholder="Enter your email" required>
+                </div>
+                
+                <button type="submit" class="consent-button">
+                    <span id="continue-to-feedback-text">Continue to Feedback</span>
+                    <span class="arrow">→</span>
+                </button>
+                
+                <button type="button" class="secondary-button" onclick="goBackToConsent()" style="margin-top: 15px;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="back-from-details-text">Back</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Form Page -->
+    <div id="feedback-page" class="container" style="display: none;">
+        <div class="feedback-form-card">
+            <div class="consent-icon" style="background: #10b981;">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#10b981"/>
+                    <path d="M28 12H12C10.9 12 10 12.9 10 14V26C10 27.1 10.9 28 12 28H28C29.1 28 30 27.1 30 26V14C30 12.9 29.1 12 28 12ZM28 26H12V14H28V26ZM14 20H26V22H14V20ZM14 16H26V18H14V16Z" fill="white"/>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="feedback-title">Share Your Feedback</h2>
+            <p class="consent-description" id="feedback-description">Your insights help us improve and serve you better</p>
+            
+            <form class="feedback-form" onsubmit="submitFeedback(event)">
+                <div id="questions-container"></div>
+
+                <button type="submit" class="consent-button">
+                    <span id="continue-to-pledge-text">Continue to Pledge</span>
+                    <span class="arrow">→</span>
+                </button>
+                
+                <button type="button" class="secondary-button" onclick="goBackToDetails()" style="margin-top: 15px;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="back-from-feedback-text">Back</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pledge Page -->
+    <div id="pledge-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div class="consent-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="url(#gradient)"/>
+                    <path d="M20 10L21.545 16.91H28.854L22.905 21.18L24.45 28.09L20 23.82L15.55 28.09L17.095 21.18L11.146 16.91H18.455L20 10Z" fill="white"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#667eea"/>
+                            <stop offset="100%" stop-color="#764ba2"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="pledge-title">Make Your Pledge</h2>
+            <p class="consent-description" id="pledge-description">Share your commitment to making a positive impact</p>
+
+            <div class="pledge-examples">
+                <p class="examples-header" id="pledge-examples-header">Pledge Examples:</p>
+                <ul class="examples-list">
+                    <li id="pledge-example-1">Carry a reusable bottle and cutlery every day</li>
+                    <li id="pledge-example-2">Sort waste properly and recycle whenever possible</li>
+                    <li id="pledge-example-3">Reduce food waste by taking only what I can finish</li>
+                </ul>
+            </div>
+
+            <form class="details-form" onsubmit="submitPledge(event)">
+                <div class="form-group">
+                    <label for="pledge-text" id="pledge-label">Your Pledge</label>
+                    <textarea id="pledge-text" rows="6" placeholder="I pledge to..." required maxlength="500"></textarea>
+                    <div class="char-counter">
+                        <span id="char-count">0</span>/<span id="characters-text">500 characters</span>
+                    </div>
+                </div>
+                
+                <div class="privacy-notice">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 2L3 5V7.5C3 10.81 5.53 13.87 8 14.5C10.47 13.87 13 10.81 13 7.5V5L8 2Z" fill="#667eea"/>
+                    </svg>
+                    <p id="pledge-privacy-text">Your pledge will be displayed on our pledgeboard, inspiring others to take action</p>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button type="submit" class="consent-button" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        <span id="continue-to-photo-text">Continue to Photo</span>
+                        <span class="arrow">→</span>
+                    </button>
+                    
+                    <button type="button" class="secondary-button" onclick="goBackToFeedback()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span id="back-from-pledge-text">Back</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Photo Capture Page -->
+    <div id="photo-page" class="container" style="display: none;">
+        <div class="photo-card">
+            <div class="consent-icon" style="background: #667eea;">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#667eea"/>
+                    <path d="M16 12L13 15H9C7.9 15 7 15.9 7 17V27C7 28.1 7.9 29 9 29H31C32.1 29 33 28.1 33 27V17C33 15.9 32.1 15 31 15H27L24 12H16ZM20 25C17.24 25 15 22.76 15 20C15 17.24 17.24 15 20 15C22.76 15 25 17.24 25 20C25 22.76 22.76 25 20 25Z" fill="white"/>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="photo-title">Capture Your Photo</h2>
+            <p class="consent-description" id="photo-description">Your photo will sent to you through email</p>
+            
+            <div class="photo-preview">
+                <div id="camera-container" class="camera-view">
+                    <video id="video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <canvas id="photo-canvas" style="display: none;"></canvas>
+                    <div id="countdown-overlay" style="display: none;">
+                        <span id="countdown-text">6</span>
+                    </div>
+                    <div class="corner top-left"></div>
+                    <div class="corner top-right"></div>
+                    <div class="corner bottom-left"></div>
+                    <div class="corner bottom-right"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <button id="capture-btn" class="consent-button" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="10" cy="10" r="3" fill="white"/>
+                        <path d="M10 2C8.9 2 8 2.9 8 4H5C3.9 4 3 4.9 3 6V16C3 17.1 3.9 18 5 18H15C16.1 18 17 17.1 17 16V6C17 4.9 16.1 4 15 4H12C12 2.9 11.1 2 10 2Z" stroke="white" stroke-width="1.5"/>
+                    </svg>
+                    <span id="capture-photo-text">Capture Photo</span>
+                </button>
+                
+                <button type="button" class="secondary-button" onclick="goBackToPledge()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="back-from-photo-text">Back</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Page -->
+    <div id="file-upload-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div class="consent-icon" style="background: #667eea;">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#667eea"/>
+                    <path d="M16 12L13 15H9C7.9 15 7 15.9 7 17V27C7 28.1 7.9 29 9 29H31C32.1 29 33 28.1 33 27V17C33 15.9 32.1 15 31 15H27L24 12H16ZM20 25C17.24 25 15 22.76 15 20C15 17.24 17.24 15 20 15C22.76 15 25 17.24 25 20C25 22.76 22.76 25 20 25Z" fill="white"/>
+                </svg>
+            </div>
+
+            <h2 class="consent-title" id="upload-title">Upload Your Photo</h2>
+            <p class="consent-description" id="upload-description">Please take a photo using your camera and upload it</p>
+
+            <div class="upload-instructions">
+                <div class="instruction-step">
+                    <div class="step-number">1</div>
+                    <div class="step-text" id="upload-step-1">Tap the button below to open your camera</div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-number">2</div>
+                    <div class="step-text" id="upload-step-2">Take a clear photo of yourself</div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-number">3</div>
+                    <div class="step-text" id="upload-step-3">Tap "Use Photo" to upload</div>
+                </div>
+            </div>
+
+            <div class="file-upload-area" onclick="document.getElementById('photo-input').click()">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 19V5C21 3.9 20.1 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19Z" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16.5 12C16.5 14.4853 14.4853 16.5 12 16.5C9.51472 16.5 7.5 14.4853 7.5 12C7.5 9.51472 9.51472 7.5 12 7.5C14.4853 7.5 16.5 9.51472 16.5 12Z" stroke="#6366F1" stroke-width="2"/>
+                    <path d="M8.5 3H3V8.5" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h3 id="upload-camera-text">Tap to Open Camera</h3>
+                <p class="upload-hint" id="upload-hint-text">Your photo will be part of our community tree</p>
+                <input
+                    type="file"
+                    id="photo-input"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                    onchange="handlePhotoUpload(event)"
+                >
+            </div>
+
+            <div id="photo-preview" style="display: none; margin: 20px 0;">
+                <div class="preview-frame">
+                    <img id="uploaded-photo-preview" src="" alt="Uploaded Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <button id="upload-continue-btn" class="consent-button" onclick="continueToStyleFromUpload()" disabled style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <span id="continue-to-style-text">Continue to Style Selection</span>
+                    <span class="arrow">→</span>
+                </button>
+                
+                <button type="button" class="secondary-button" onclick="goBackToPledge()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="back-from-upload-text">Back</span>
+                </button>
+
+                <button class="secondary-button" onclick="retakePhotoFromUpload()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 10C4 6.69 6.69 4 10 4C13.31 4 16 6.69 16 10C16 13.31 13.31 16 10 16" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M10 2V6M10 2L8 4M10 2L12 4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="retake-upload-text">Retake/Upload New Photo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Style Page -->
+    <div id="style-page" class="container" style="display: none;">
+        <div class="style-card">
+            <div class="consent-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="url(#styleGradient)"/>
+                    <path d="M20 8C13.37 8 8 13.37 8 20C8 26.63 13.37 32 20 32C26.63 32 32 26.63 32 20C32 13.37 26.63 8 20 8ZM14 16C14 14.9 14.9 14 16 14C17.1 14 18 14.9 18 16C18 17.1 17.1 18 16 18C14.9 18 14 17.1 14 16ZM24 26H16V24H24V26ZM24 18C22.9 18 22 17.1 22 16C22 14.9 22.9 14 24 14C25.1 14 26 14.9 26 16C26 17.1 25.1 18 24 18Z" fill="white"/>
+                    <defs>
+                        <linearGradient id="styleGradient" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#667eea"/>
+                            <stop offset="100%" stop-color="#764ba2"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="style-title" style="color: #5568d3;">Choose Your Style</h2>
+            <p class="consent-description" id="style-description">Select your preferred overlay style for your RP memory photo!</p>
+            
+            <div class="theme-preview">
+                <div class="preview-frame" id="theme-preview">
+                    <div class="overlay-container">
+                        <img id="preview-photo" class="photo-background" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;"/>
+                        <img id="selected-overlay" class="overlay-image" src="" alt="Overlay" style="width: 100%; height: 100%; object-fit: contain;"/>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="themes-section">
+                <h3 id="available-overlays-title" style="font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #1e293b;">Available Overlays</h3>
+                <div class="theme-grid" id="overlay-options"></div>
+                
+                <div class="selected-theme-display">
+                    <span style="font-weight: 600; color: #047857;"><span id="selected-label-text">Selected:</span> <span id="selected-overlay-name">Nature Overlay</span></span>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 30px;">
+                <button class="consent-button" onclick="confirmStyle()" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 10L9 12L13 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="use-style-continue-text">Use This Photo & Style & Continue</span>
+                </button>
+                
+                <button class="secondary-button" onclick="retakePhotoFromStyle()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 10C4 6.69 6.69 4 10 4C13.31 4 16 6.69 16 10C16 13.31 13.31 16 10 16" stroke="#667eea" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M10 2V6M10 2L8 4M10 2L12 4" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="retake-photo-text">Retake Photo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Page -->
+    <div id="confirmation-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div class="consent-icon" style="background: #34d399;">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="20" fill="#34d399"/>
+                    <path d="M16 20L18 22L24 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            
+            <h2 class="consent-title" id="confirmation-title" style="color: #059669;">Confirm Submission</h2>
+            <p class="consent-description" id="confirmation-description">Please review your information before submitting:</p>
+            
+            <div class="submission-details">
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-name-label">Name:</span>
+                    <span class="detail-value" id="confirm-name"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-email-label">Email:</span>
+                    <span class="detail-value" id="confirm-email"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-questions-label">Questions Answered:</span>
+                    <span class="detail-value" id="confirm-questions"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-theme-label">Theme:</span>
+                    <span class="detail-value" id="confirm-theme"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-retention-label">Data Retention:</span>
+                    <span class="detail-value" id="confirm-retention"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-pledge-label">Pledge:</span>
+                    <span class="detail-value" id="confirm-pledge"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-photo-label">Photo:</span>
+                    <span class="detail-value" id="confirm-photo-ready">✅ Ready to be uploaded</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-email-photo-label">Email Photo:</span>
+                    <span class="detail-value" id="confirm-email-photo-ready">✅ Will be sent to your email</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-primary-consent-label">Primary Consent:</span>
+                    <span class="detail-value" id="confirm-primary-consent-ready">✅ Given</span>
+                </div>
+            </div>
+            
+            <div class="privacy-notice" style="background: #fef3c7; border-left: 3px solid #f59e0b;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 2L3 5V8C3 11 5.5 13.5 8 14C10.5 13.5 13 11 13 8V5L8 2Z" fill="#f59e0b"/>
+                </svg>
+                <p id="confirmation-note-text" style="color: #92400e;">💡 You can go back to change the theme if needed</p>
+            </div>
+            
+            <div style="display: flex; gap: 15px;">
+                <button class="consent-button" onclick="finalSubmit()" style="flex: 1; background: #34d399;">
+                    <span id="submit-feedback-text">Submit Feedback</span>
+                </button>
+                <button class="secondary-button" onclick="goBackToStyle()" style="flex: 1;">
+                    <span id="back-from-confirmation-text">Back</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thank You Page -->
+    <div id="thankyou-page" class="container" style="display: none;">
+        <div class="consent-card">
+            <div style="font-size: 80px; margin-bottom: 20px;">🌳</div>
+            
+            <h2 class="consent-title" id="thankyou-title" style="color: #059669;">Thank You! ☀️</h2>
+            
+            <p id="thankyou-message" style="font-size: 16px; color: #059669; margin: 30px 0; line-height: 1.8;">
+                Your feedback has been recorded and a new leaf has been added to our digital tree!
+            </p>
+            
+            <div class="success-notice">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="10" cy="10" r="9" fill="#34d399"/>
+                    <path d="M6 10L8.5 12.5L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div>
+                    <strong id="email-sent-title" style="color: #059669;">Your RP memory photo has been sent to your email!</strong>
+                    <p id="email-sent-description" style="margin: 5px 0 0 0; color: #10b981;">Please check your inbox within the next minute</p>
+                </div>
+            </div>
+            
+            <p id="thankyou-footer-text" style="font-size: 14px; color: #64748b; margin: 30px 0;">
+                Thank you for contributing to our sustainability journey at Republic Polytechnic!
+            </p>
+            
+            <button class="consent-button" id="submit-another-btn" onclick="submitAnother()" style="background: #34d399;">
+                Submit Another Feedback
+            </button>
+            
+            <button class="pledgeboard-button" id="thankyou-pledgeboards-btn" onclick="viewPledgeboard()" style="margin-top: 15px; background: linear-gradient(135deg, #10B981, #059669); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
+                📜 View Pledgeboards
+            </button>
+        </div>
+    </div>
+    
+    <script src="feedback.js"></script>
+</body>
+</html>

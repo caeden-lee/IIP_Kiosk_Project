@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Offline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .offline-container {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+        }
+
+        .offline-title {
+            font-size: 48px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .offline-subtitle {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 30px;
+            color: #cccccc;
+        }
+
+        .offline-message {
+            font-size: 16px;
+            color: #999999;
+            line-height: 1.6;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .offline-title {
+                font-size: 36px;
+            }
+
+            .offline-subtitle {
+                font-size: 20px;
+            }
+
+            .offline-message {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <h1 class="offline-title">Server Offline</h1>
+        <p class="offline-subtitle">Reconnecting...</p>
+        <p class="offline-message">This page will refresh automatically when the server is back.</p>
+    </div>
+
+    <script>
+        // Check server status every 5 seconds
+        const CHECK_INTERVAL = 5000; // 5 seconds
+
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/status', {
+                    method: 'GET',
+                    cache: 'no-cache',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    console.log('Server still offline, checking again in 5 seconds...');
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // When offline: gateway returns { online: false, ... }
+                // When online: kiosk returns { online: true, ... }
+                if (data.online === true) {
+                    console.log('Server is back online! Reloading...');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.log('Error checking server status:', error.message);
+                console.log('Server still offline, checking again in 5 seconds...');
+            }
+        }
+
+        // Check immediately, then every 5 seconds
+        checkServerStatus();
+        setInterval(checkServerStatus, CHECK_INTERVAL);
+
+        // Start checking immediately
+        checkServerStatus();
+
+        // Then check every 5 seconds
+        setInterval(checkServerStatus, CHECK_INTERVAL);
+
+        // Log to console
+        console.log('Waiting for server to come back online...');
+        console.log('This page will automatically refresh when the scheduled time begins.');
+    </script>
+</body>
+</html>

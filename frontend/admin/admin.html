@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Kiosk Admin</title>
+    <link rel="stylesheet" href="admin.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Login Page (DONE BY PRETI)--> 
+    <div id="login-page" class="login-container">
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zm-8-2h2v-4h4v-2h-4V7h-2v4H7v2h4v4z" fill="#4F46E5"/>
+                </svg>
+            </div>
+            <h1>Admin Login</h1>
+            <p class="login-subtitle">Access the feedback kiosk administration panel</p>
+            
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                </div>
+                
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard (DONE BY PRETI)-->
+    <div id="admin-dashboard" style="display: none;">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-left">
+                <h1>Feedback Kiosk Admin</h1>
+                <p>Manage visitor feedback and system settings</p>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-details">
+                        <span class="username" id="logged-username">systemadmin</span>
+                        <span class="user-role" id="logged-role">System Admin</span>
+                    </div>
+                    <div class="user-avatar">S</div>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Content (DONE BY PRETI)-->
+        <div class="admin-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section" id="main-section">
+                    <h3>MAIN</h3>
+                    <nav>
+                        <a href="#" class="nav-item active" onclick="showPage('dashboard')">
+                            <span class="nav-icon">📊</span>
+                            Dashboard
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('feedback-data')">
+                            <span class="nav-icon">💬</span>
+                            Feedback Data
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('digital-tree')">
+                            <span class="nav-icon">🌳</span>
+                            Digital Tree
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('pledgeboard')">
+                            <span class="nav-icon">📜</span>
+                            Pledgeboard
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('theme-settings')">
+                            <span class="nav-icon">🎨</span>
+                            Style & Theme Settings
+                        </a>
+                    </nav>
+                </div>
+                
+                <div class="sidebar-section" id="admin-section">
+                    <h3>ADMINISTRATION</h3>
+                    <nav>
+                        <a href="#" class="nav-item" onclick="showPage('overlay')">
+                            <span class="nav-icon">🎨</span>
+                            Overlay Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('questions')">
+                            <span class="nav-icon">❓</span>
+                            Question Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('users')">
+                            <span class="nav-icon">👥</span>
+                            User Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('vip')">
+                            <span class="nav-icon">👑</span>
+                            VIP Management
+                        <a href="#" class="nav-item" onclick="showPage('email-management')">
+                            <span class="nav-icon">📧</span>
+                            Email Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('form-management')">
+                            <span class="nav-icon">📝</span>
+                            Form Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('archive')">
+                            <span class="nav-icon">📚</span>
+                            Archive
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('audit')">
+                            <span class="nav-icon">📋</span>
+                            Audit Logs
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('data-export')">
+                            <span class="nav-icon">📦</span>
+                            Data Export
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('timer-countdown')">
+                            <span class="nav-icon">🕔</span>
+                            Timer Countdown
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('server-schedule')">
+                            <span class="nav-icon">❗</span>
+                            Server Schedule
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Page Content (DONE BY PRETI)-->
+            <main class="page-content">
+                <!-- Dashboard Page (DONE BY PRETI)-->
+                <div id="dashboard-page" class="page active">
+                    <div class="page-header">
+                        <div>
+                            <h2>Dashboard</h2>
+                            <p>Real-time overview of system statistics and performance</p>
+                        </div>
+                        <button class="refresh-btn" onclick="refreshDashboard()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+
+                    <!-- Key Metrics Grid -->
+                    <div class="dashboard-metrics-grid">
+                        <!-- This Month's Feedback Card -->
+                        <div class="metric-card metric-purple">
+                            <div class="metric-header">
+                                <div class="metric-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="feedback-month-value">0</div>
+                            <div class="metric-label">Total Feedback</div>
+                            <div class="metric-subtitle">This month</div>
+                        </div>
+
+                        <!-- Today's Feedback Card -->
+                        <div class="metric-card metric-blue">
+                            <div class="metric-header">
+                                <div class="metric-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                    </svg>
+                                </div>
+                                <span class="metric-badge">Today</span>
+                            </div>
+                            <div class="metric-value" id="feedback-today-value">0</div>
+                            <div class="metric-label">Today's Feedback</div>
+                            <div class="metric-subtitle">Submissions today</div>
+                        </div>
+
+
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="dashboard-charts-section">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Feedback Trends</h3>
+                                <div class="chart-controls">
+                                    <button class="chart-control-btn active" onclick="updateChartRange('week')">Week</button>
+                                    <button class="chart-control-btn" onclick="updateChartRange('month')">Month</button>
+                                    <button class="chart-control-btn" onclick="updateChartRange('year')">Year</button>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="visitorTrendsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Feedback Breakdown</h3>
+                                <p class="chart-subtitle">Email, photos & storage types</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="feedbackDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status & Quick Actions -->
+                    <div class="dashboard-bottom-section">
+                        <!-- System Status -->
+                        <div class="status-card">
+                            <div class="status-header">
+                                <h3>System Status</h3>
+                                <span id="overall-system-status" class="status-indicator status-online">
+                                    <span class="status-dot"></span>
+                                    All Systems Operational
+                                </span>
+                            </div>
+                            <div class="status-grid">
+                                <div class="status-item">
+                                    <div class="status-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="status-item-content">
+                                        <span class="status-item-label">Kiosk Server</span>
+                                        <span id="kiosk-server-status" class="status-badge status-checking">Checking...</span>
+                                    </div>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="status-item-content">
+                                        <span class="status-item-label">Database</span>
+                                        <span id="database-status" class="status-badge status-checking">Checking...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="quick-actions-card">
+                            <div class="quick-actions-header">
+                                <h3>Quick Actions</h3>
+                                <p>Frequently used admin tasks</p>
+                            </div>
+                            <div class="quick-actions-grid">
+                                <button class="quick-action-btn" onclick="showPage('feedback-data')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    <span>View Feedback</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="showPage('digital-tree')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2v6"></path>
+                                        <path d="m12 8-8 6h16z"></path>
+                                        <path d="m4 14 8 8"></path>
+                                        <path d="m20 14-8 8"></path>
+                                    </svg>
+                                    <span>Digital Tree</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="showPage('pledgeboard')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    <span>Pledgeboard</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="showPage('data-export')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span>Export Data</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="showPage('questions')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                    <span>Manage Questions</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="showPage('users')">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    </svg>
+                                    <span>User Management</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Last Updated -->
+                    <div class="dashboard-footer">
+                        <p class="last-updated">Last updated: Loading...</p>
+                    </div>
+                </div>
+                
+                <!-- Feedback Data Page (DONE BY PRETI)-->
+                <div id="feedback-data-page" class="page">
+                    <div class="page-header">
+                        <h2>Feedback Data</h2>
+                        <p>Manage and review visitor feedback submissions</p>
+                    </div>
+
+                    <div class="feedback-section">
+                        <div class="section-header">
+                            <h3>Visitor Feedback</h3>
+                            <div class="header-actions">
+                                <button class="btn-secondary" onclick="toggleFeedbackAdvancedFilters()">
+                                    <span id="feedback-filter-toggle-icon">▼</span> Advanced Filters
+                                </button>
+                                <button class="btn-primary" onclick="refreshFeedbackData()">🔄 Refresh</button>
+                            </div>
+                        </div>
+
+                        <!-- Global Search (DONE BY PRETI)-->
+                        <div class="toolbar">
+                            <input type="text" id="feedback-search-input" class="search-input" 
+                                   placeholder="🔍 Search across all columns (name, email, pledge, visits, date)..." 
+                                   oninput="filterFeedbackData()">
+                            <div class="toolbar-buttons">
+                                <button class="btn-secondary" onclick="clearAllFeedbackFilters()">Clear Filters</button>
+                                <button class="btn-secondary" onclick="decryptAllEmails()" id="decrypt-emails-btn" style="display: none;">🔓 Decrypt All</button>
+                                <button class="btn-warning" onclick="reEncryptAllEmails()" id="re-encrypt-btn" style="display: none;">🔒 Re-encrypt All</button>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Filter Panel (DONE BY PRETI)-->
+                        <div id="feedback-advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
+                            <div class="filter-grid">
+                                <!-- Date Range Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">📅 Date Range</label>
+                                    <div class="date-range-inputs">
+                                        <input type="date" id="feedback-filter-date-from" class="filter-date" onchange="filterFeedbackData()">
+                                        <span class="date-separator">to</span>
+                                        <input type="date" id="feedback-filter-date-to" class="filter-date" onchange="filterFeedbackData()">
+                                    </div>
+                                    <button class="btn-link" onclick="setFeedbackDateRangePreset('today')">Today</button>
+                                    <button class="btn-link" onclick="setFeedbackDateRangePreset('week')">This Week</button>
+                                    <button class="btn-link" onclick="setFeedbackDateRangePreset('month')">This Month</button>
+                                </div>
+
+                                <!-- Email Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">📧 Email Status</label>
+                                    <select id="feedback-filter-email" class="filter-select" onchange="filterFeedbackData()">
+                                        <option value="">All</option>
+                                        <option value="has_email">Has Email</option>
+                                        <option value="no_email">No Email</option>
+                                    </select>
+                                </div>
+
+                                <!-- Visits Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">👥 Visit Count</label>
+                                    <select id="feedback-filter-visits" class="filter-select" onchange="filterFeedbackData()">
+                                        <option value="">All Visits</option>
+                                        <option value="1">1 Visit</option>
+                                        <option value="2">2 Visits</option>
+                                        <option value="3">3 Visits</option>
+                                        <option value="4">4 Visits</option>
+                                        <option value="5">5 Visits</option>
+                                        <option value="6+">6+ Visits</option>
+                                    </select>
+                                </div>
+
+                                <!-- Data Retention Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">⏱️ Data Retention</label>
+                                    <select id="feedback-filter-retention" class="filter-select" onchange="filterFeedbackData()">
+                                        <option value="">All Types</option>
+                                        <option value="7days">7 Days</option>
+                                        <option value="longterm">Long-Term Use</option>
+                                    </select>
+                                </div>
+
+                                <!-- Results Count (DONE BY PRETI)-->
+                                <div class="filter-group filter-results">
+                                    <label class="filter-label">📊 Results</label>
+                                    <div class="results-display">
+                                        <span id="feedback-filtered-count">0</span> / <span id="feedback-total-count">0</span> records
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Info Bar (DONE BY PRETI)-->
+                        <div class="results-info-bar" id="feedback-results-info-bar" style="display: none;">
+                            <span class="info-text">
+                                <strong id="feedback-active-filters-count">0</strong> filter(s) active - 
+                                Showing <strong id="feedback-results-count">0</strong> of <strong id="feedback-total-records">0</strong> records
+                            </span>
+                        </div>
+
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortFeedbackData('name')" class="sortable">
+                                            Name <span class="sort-indicator" id="feedback-sort-name"></span>
+                                        </th>
+                                        <th onclick="sortFeedbackData('email')" class="sortable">
+                                            Email <span class="sort-indicator" id="feedback-sort-email"></span>
+                                        </th>
+                                        <th onclick="sortFeedbackData('total_visits')" class="sortable">
+                                            Visits <span class="sort-indicator" id="feedback-sort-total_visits"></span>
+                                        </th>
+                                        <th>Pledge</th>
+                                        <th>Questions & Answers</th>
+                                        <th onclick="sortFeedbackData('data_retention_days')" class="sortable">
+                                            Data Retention <span class="sort-indicator" id="feedback-sort-data_retention_days"></span>
+                                        </th>
+                                        <th>Raw Photo</th>
+                                        <th>Processed Photo</th>
+                                        <th onclick="sortFeedbackData('created_at')" class="sortable">
+                                            Date <span class="sort-indicator" id="feedback-sort-created_at"></span>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="feedback-table-body">
+                                    <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
+                                    <tr>
+                                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
+                                            Loading feedback data...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div class="pagination" style="margin-top: 20px;">
+                                <button onclick="prevFeedbackPage()" id="prev-feedback-btn" disabled>← Previous</button>
+                                <span id="feedback-page-info">Page 1 of 0 (0 total)</span>
+                                <button onclick="nextFeedbackPage()" id="next-feedback-btn">Next →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Digital Tree Page (DONE BY PRETI)-->
+                <div id="digital-tree-page" class="page">
+                    <div class="page-header">
+                        <h2>Digital Tree</h2>
+                        <p>View visitor tree data and statistics</p>
+                    </div>
+
+                    <div class="tree-section">
+                        <div class="section-header">
+                            <h3>Tree Management</h3>
+                            <button class="btn-primary" onclick="refreshTreeData()">🔄 Refresh</button>
+                        </div>
+
+                        <div class="tree-info">
+                            <h4>Current Year Visitors: <span id="tree-count">0</span></h4>
+                            <p>The digital tree shows visitors from <span id="current-year"></span> only.</p>
+                        </div>
+
+                        <table class="simple-table">
+                            <thead> 
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Visit Count</th>
+                                    <th>Last Visit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
+                                <tr>
+                                    <td colspan="3" style="text-align: center; padding: 40px; color: #64748b;">
+                                        Loading tree data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+
+                <!-- Pledgeboard Page (DONE BY PRETI)-->
+                <div id="pledgeboard-page" class="page">
+                    <div class="page-header">
+                        <h2>Pledgeboard</h2>
+                        <p>View and manage pledge popularity and engagement</p>
+                    </div>
+
+                    <div class="pledgeboard-section">
+                        <div class="section-header">
+                            <h3>Pledges & Likes</h3>
+                            <button class="btn-primary" onclick="loadAdminPledgeboard()">🔄 Refresh</button>
+                        </div>
+
+                        <div class="pledgeboard-info">
+                            <h4>Current Month Pledges: <span id="pledgeboard-count">0</span></h4>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #64748b;">Showing pledges and likes from this month only</p>
+                        </div>
+
+                        <div class="toolbar">
+                            <input type="text" id="pledgeboard-search-input" class="search-input" 
+                                   placeholder="🔍 Search pledges by name or content..." 
+                                   oninput="filterPledgeboardData()">
+                            <div class="toolbar-buttons">
+                                <button class="btn-secondary" onclick="clearPledgeboardSearch()">Clear Search</button>
+                            </div>
+                        </div>
+
+                        <table class="simple-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Rank</th>
+                                    <th style="width: 200px;">Name</th>
+                                    <th>Pledge</th>
+                                    <th style="width: 100px; text-align: center;">Likes</th>
+                                    <th style="width: 150px;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pledgeboard-table-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                                        Loading pledgeboard data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="pagination" style="margin-top: 20px;">
+                            <button onclick="prevPledgeboardPage()" id="prev-pledgeboard-btn" disabled>← Previous</button>
+                            <span id="pledgeboard-page-info">Page 1 of 0 (0 total)</span>
+                            <button onclick="nextPledgeboardPage()" id="next-pledgeboard-btn">Next →</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Overlay Management Page (DONE BY PRETI)-->
+                <div id="overlay-page" class="page">
+                    <div class="page-header">
+                        <h2>Overlay Management</h2>
+                        <p>Manage photo overlay themes for the kiosk</p>
+                    </div>
+
+                    <div class="overlay-section">
+                        <div class="section-header">
+                            <h3>Available Overlays</h3>
+                            <button class="btn-primary" onclick="showAddOverlayModal()">+ Add Overlay</button>
+                        </div>
+
+                        <!-- This is the container that will be populated by JavaScript (DONE BY PRETI)-->
+                        <div class="overlay-grid">
+                            <!-- Overlay cards will be dynamically inserted here (DONE BY PRETI)-->
+                            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b;">
+                                Loading overlays...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Management Page (DONE BY PRETI)-->
+                <div id="questions-page" class="page">
+                    <div class="page-header">
+                        <h2>Question Management</h2>
+                        <p>Manage feedback questions and their options</p>
+                    </div>
+
+                    <div class="user-section">
+                        <div class="section-header">
+                            <h3>Feedback Questions</h3>
+                            <button class="btn-primary" onclick="showAddQuestionModal()">+ Add Question</button>
+                        </div>
+
+                        <div id="questions-container">
+                            <!-- Questions will be loaded here dynamically (DONE BY PRETI)-->
+                            <div style="text-align: center; padding: 40px; color: #64748b;">
+                                Loading questions...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management Page (DONE BY PRETI)-->
+                <div id="users-page" class="page">
+                    <div class="page-header">
+                        <h2>User Management</h2>
+                        <p>Manage admin users and permissions</p>
+                    </div>
+
+                    <!-- Tab Navigation (DONE BY PRETI)-->
+                    <div class="user-tabs">
+                        <button class="user-tab active" onclick="switchUserTab('active')">
+                            👤 Active Users
+                        </button>
+                        <button class="user-tab" onclick="switchUserTab('deleted')">
+                            🗑️ Deleted Users
+                        </button>
+                    </div>
+
+                    <!-- Active Users Section (DONE BY PRETI)-->
+                    <div id="active-users-section" class="user-section">
+                        <div class="section-header">
+                            <h3>Active Admin Users</h3>
+                            <button class="btn-primary" onclick="addUser()">+ Add User</button>
+                        </div>
+                        
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="active-users-tbody">
+                                    <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">
+                                            Loading active users...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Deleted Users Section (DONE BY PRETI)-->
+                    <div id="deleted-users-section" class="user-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>Deleted Admin Users</h3>
+                            <div class="header-info">
+                                <span style="color: #64748b; font-size: 14px;">
+                                    These users have been soft-deleted and can be restored
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="deleted-users-tbody">
+                                    <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">
+                                            Loading deleted users...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIP Management (DONE BY ZAH) -->
+                <div id="vip-page" class="page">
+                    <div class="page-header">
+                        <h2>VIP Management</h2>
+                        <p>VIPs will appear as a golden leaf on the tree.</p>
+                    </div>
+
+                    <!-- VIP Card -->
+                    <div class="vip-card">
+                        <div class="vip-card-header">
+                            <div>
+                                <h3>VIP List</h3>
+                                <p class="vip-subtext">Add names exactly as they appear in the tree (case-insensitive).</p>
+                            </div>
+
+                            <button class="vip-add-btn" onclick="addVip()">
+                                + Add VIP
+                            </button>
+                        </div>
+
+                        <!-- Status / Info row -->
+                        <div class="vip-info-row">
+                            <div class="vip-info-pill">
+                                👑 Golden Leaf Enabled
+                            </div>
+                            <div class="vip-count" id="vip-count">
+                                Loading...
+                            </div>
+                        </div>
+
+                        <!-- VIP List -->
+                        <div class="vip-list" id="vip-list">
+                            <div class="vip-empty">
+                                Loading VIPs...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+              
+                <!-- Archive Page (DONE BY PRETI)-->
+                <div id="archive-page" class="page">
+                    <div class="page-header">
+                        <h2>Archive</h2>
+                        <p>View and manage archived feedback (older than 3 months)</p>
+                    </div>
+
+                    <div class="feedback-section">
+                        <div class="section-header">
+                            <h3>Archived Feedback</h3>
+                            <div class="header-actions">
+                                <button class="btn-secondary" onclick="toggleArchiveAdvancedFilters()">
+                                    <span id="archive-filter-toggle-icon">▼</span> Advanced Filters
+                                </button>
+                                <button class="btn-primary" onclick="refreshArchiveData()">🔄 Refresh</button>
+                            </div>
+                        </div>
+
+                        <!-- DELETION CONTROLS (System Admin Only) (DONE BY PRETI)-->
+                        <div id="archive-deletion-controls" class="deletion-controls-section" style="display: none;">
+                            <div class="deletion-header">
+                                <h4>🗑️ Permanent Data Deletion</h4>
+                                <span class="deletion-badge">System Admin Only</span>
+                            </div>
+                            
+                            <div class="deletion-controls">
+                                <!-- Selected Items Deletion (DONE BY PRETI)-->
+                                <div class="deletion-group">
+                                    <label class="deletion-label">Selected Items:</label>
+                                    <div class="deletion-actions">
+                                        <span id="selected-count" class="selected-count">0 selected</span>
+                                        <button class="btn-warning btn-sm" onclick="deleteSelectedArchive()" id="delete-selected-btn" disabled>
+                                            🗑️ Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Date Range Deletion (DONE BY PRETI)-->
+                                <div class="deletion-group">
+                                    <label class="deletion-label">Bulk Delete by Date:</label>
+                                    <div class="deletion-date-controls">
+                                        <label>Delete all archived before:</label>
+                                        <input type="date" id="bulk-delete-date" class="deletion-date-input">
+                                        <select id="bulk-delete-quick" class="deletion-select" onchange="setQuickDeleteDate(this.value)">
+                                            <option value="">Quick Select...</option>
+                                            <option value="3months">3 Months Ago</option>
+                                            <option value="6months">6 Months Ago</option>
+                                            <option value="1year">1 Year Ago</option>
+                                            <option value="2years">2 Years Ago</option>
+                                            <option value="3years">3 Years Ago</option>
+                                        </select>
+                                        <button class="btn-danger btn-sm" onclick="previewBulkDelete()" id="preview-delete-btn">
+                                            👁️ Preview
+                                        </button>
+                                        <button class="btn-danger btn-sm" onclick="bulkDeleteByDate()" id="bulk-delete-btn" disabled>
+                                            🗑️ Delete by Date
+                                        </button>
+                                    </div>
+                                    <div id="preview-count" class="preview-count" style="display: none;">
+                                        ⚠️ This will delete <strong id="preview-number">0</strong> records
+                                    </div>
+                                </div>
+
+                                <!-- Warning Message (DONE BY PRETI)-->
+                                <div class="deletion-warning">
+                                    ⚠️ <strong>Warning:</strong> Deletion is permanent and cannot be undone. 
+                                    Please ensure you have exported a backup before proceeding.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Global Search (DONE BY PRETI)-->
+                        <div class="toolbar">
+                            <input type="text" id="archive-search-input" class="search-input" 
+                                placeholder="🔍 Search across all columns (name, email, pledge, visits, date)..." 
+                                oninput="filterArchiveData()">
+                            <div class="toolbar-buttons">
+                                <button class="btn-secondary" onclick="clearAllArchiveFilters()">Clear Filters</button>
+                                <button class="btn-secondary" onclick="decryptAllArchiveEmails()" id="decrypt-archive-emails-btn">🔓 Decrypt Page</button>
+                                <button class="btn-warning" onclick="reEncryptAllArchiveEmails()" id="re-encrypt-archive-btn" style="display: none;">🔒 Re-encrypt All</button>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Filter Panel (DONE BY PRETI)-->
+                        <div id="archive-advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
+                            <div class="filter-grid">
+                                <!-- Date Range Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">📅 Date Range</label>
+                                    <div class="date-range-inputs">
+                                        <input type="date" id="archive-filter-date-from" class="filter-date" onchange="filterArchiveData()">
+                                        <span class="date-separator">to</span>
+                                        <input type="date" id="archive-filter-date-to" class="filter-date" onchange="filterArchiveData()">
+                                    </div>
+                                    <button class="btn-link" onclick="setArchiveDateRangePreset('today')">Today</button>
+                                    <button class="btn-link" onclick="setArchiveDateRangePreset('week')">This Week</button>
+                                    <button class="btn-link" onclick="setArchiveDateRangePreset('month')">This Month</button>
+                                </div>
+
+                                <!-- Email Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">📧 Email Status</label>
+                                    <select id="archive-filter-email" class="filter-select" onchange="filterArchiveData()">
+                                        <option value="">All</option>
+                                        <option value="has_email">Has Email</option>
+                                        <option value="no_email">No Email</option>
+                                    </select>
+                                </div>
+
+                                <!-- Visits Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">👥 Visit Count</label>
+                                    <select id="archive-filter-visits" class="filter-select" onchange="filterArchiveData()">
+                                        <option value="">All Visits</option>
+                                        <option value="1">1 Visit</option>
+                                        <option value="2">2 Visits</option>
+                                        <option value="3">3 Visits</option>
+                                        <option value="4">4 Visits</option>
+                                        <option value="5">5 Visits</option>
+                                        <option value="6+">6+ Visits</option>
+                                    </select>
+                                </div>
+
+                                <!-- Data Retention Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">⏱️ Data Retention</label>
+                                    <select id="archive-filter-retention" class="filter-select" onchange="filterArchiveData()">
+                                        <option value="">All Types</option>
+                                        <option value="7days">7 Days</option>
+                                        <option value="longterm">Long-Term Use</option>
+                                    </select>
+                                </div>
+
+                                <!-- Results Count (DONE BY PRETI)-->
+                                <div class="filter-group filter-results">
+                                    <label class="filter-label">📊 Results</label>
+                                    <div class="results-display">
+                                        <span id="archive-filtered-count">0</span> / <span id="archive-total-count">0</span> records
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Info Bar (DONE BY PRETI)-->
+                        <div class="results-info-bar" id="archive-results-info-bar" style="display: none;">
+                            <span class="info-text">
+                                <strong id="archive-active-filters-count">0</strong> filter(s) active - 
+                                Showing <strong id="archive-results-count">0</strong> of <strong id="archive-total">0</strong> records
+                            </span>
+                        </div>
+
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="checkbox-col">
+                                            <input type="checkbox" id="select-all-archive" onclick="toggleSelectAllArchive(this)" title="Select All">
+                                        </th>
+                                        <th onclick="sortArchiveData('name')" class="sortable">
+                                            Name <span class="sort-indicator" id="archive-sort-name"></span>
+                                        </th>
+                                        <th onclick="sortArchiveData('email')" class="sortable">
+                                            Email <span class="sort-indicator" id="archive-sort-email"></span>
+                                        </th>
+                                        <th onclick="sortArchiveData('total_visits')" class="sortable">
+                                            Visits <span class="sort-indicator" id="archive-sort-total_visits"></span>
+                                        </th>
+                                        <th>Pledge</th>
+                                        <th>Questions & Answers</th>
+                                        <th onclick="sortArchiveData('data_retention')" class="sortable">
+                                            Data Retention <span class="sort-indicator" id="archive-sort-data_retention"></span>
+                                        </th>
+                                        <th>Raw Photo</th>
+                                        <th>Processed Photo</th>
+                                        <th onclick="sortArchiveData('created_at')" class="sortable">
+                                            Date <span class="sort-indicator" id="archive-sort-created_at"></span>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="archive-table-body">
+                                    <tr>
+                                        <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
+                                            No archived feedback found. Feedback older than 3 months will appear here.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div class="pagination" style="margin-top: 20px;">
+                                <button onclick="prevArchivePage()" id="prev-archive-btn" disabled>← Previous</button>
+                                <span id="archive-page-info">Page 1 of 0 (0 total)</span>
+                                <button onclick="nextArchivePage()" id="next-archive-btn">Next →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Audit Logs Page (DONE BY PRETI)-->
+                <div id="audit-page" class="page">
+                    <div class="page-header">
+                        <h2>Audit Logs</h2>
+                        <p>Important system actions and security events</p>
+                    </div>
+
+                    <div class="audit-section">
+                        <div class="section-header">
+                            <h3>Recent Activity</h3>
+                            <div class="header-actions">
+                                <button class="btn-secondary" onclick="toggleAdvancedFilters()">
+                                    <span id="filter-toggle-icon">▼</span> Advanced Filters
+                                </button>
+                                <button class="btn-primary" onclick="loadAuditLogs()">🔄 Refresh</button>
+                            </div>
+                        </div>
+
+                        <!-- Global Search (DONE BY PRETI)-->
+                        <div class="toolbar">
+                            <input type="text" id="audit-search-input" class="search-input" 
+                                   placeholder="🔍 Search across all columns (user, action, target, IP, date)..." 
+                                   oninput="filterAuditLogs()">
+                            <div class="toolbar-buttons">
+                                <button class="btn-secondary" onclick="clearAllFilters()">Clear Filters</button>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Filter Panel (DONE BY PRETI)-->
+                        <div id="advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
+                            <div class="filter-grid">
+                                <!-- Date Range Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">📅 Date Range</label>
+                                    <div class="date-range-inputs">
+                                        <input type="date" id="filter-date-from" class="filter-date" onchange="filterAuditLogs()">
+                                        <span class="date-separator">to</span>
+                                        <input type="date" id="filter-date-to" class="filter-date" onchange="filterAuditLogs()">
+                                    </div>
+                                    <button class="btn-link" onclick="setDateRangePreset('today')">Today</button>
+                                    <button class="btn-link" onclick="setDateRangePreset('week')">This Week</button>
+                                    <button class="btn-link" onclick="setDateRangePreset('month')">This Month</button>
+                                </div>
+
+                                <!-- Action Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">⚡ Action Type</label>
+                                    <select id="filter-action" class="filter-select" onchange="filterAuditLogs()">
+                                        <option value="">All Actions</option>
+                                        <option value="LOGIN">Login</option>
+                                        <option value="LOGOUT">Logout</option>
+                                        <option value="DELETE">Delete</option>
+                                        <option value="ADD">Add</option>
+                                        <option value="EDIT">Edit</option>
+                                        <option value="DOWNLOAD">Download</option>
+                                        <option value="VIEW">View</option>
+                                    </select>
+                                </div>
+
+                                <!-- User Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">👤 Admin User</label>
+                                    <select id="filter-user" class="filter-select" onchange="filterAuditLogs()">
+                                        <option value="">All Users</option>
+                                        <!-- Will be populated dynamically (DONE BY PRETI)-->
+                                    </select>
+                                </div>
+
+                                <!-- Target Type Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">🎯 Target Type</label>
+                                    <select id="filter-target-type" class="filter-select" onchange="filterAuditLogs()">
+                                        <option value="">All Targets</option>
+                                        <option value="user">User</option>
+                                        <option value="feedback">Feedback</option>
+                                        <option value="overlay">Overlay</option>
+                                        <option value="question">Question</option>
+                                    </select>
+                                </div>
+
+                                <!-- IP Address Filter (DONE BY PRETI)-->
+                                <div class="filter-group">
+                                    <label class="filter-label">🌐 IP Address</label>
+                                    <input type="text" id="filter-ip" class="filter-input" 
+                                           placeholder="e.g., 192.168.1.1" 
+                                           oninput="filterAuditLogs()">
+                                </div>
+
+                                <!-- Results Count (DONE BY PRETI)-->
+                                <div class="filter-group filter-results">
+                                    <label class="filter-label">📊 Results</label>
+                                    <div class="results-display">
+                                        <span id="filtered-count">0</span> / <span id="total-count">0</span> logs
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Info Bar (DONE BY PRETI)-->
+                        <div class="results-info-bar" id="results-info-bar" style="display: none;">
+                            <span class="info-text">
+                                <strong id="active-filters-count">0</strong> filter(s) active - 
+                                Showing <strong id="results-count">0</strong> of <strong id="total-logs">0</span> logs
+                            </span>
+                        </div>
+
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortAuditLogs('created_at')" class="sortable">
+                                            Time <span class="sort-indicator" id="sort-created_at"></span>
+                                        </th>
+                                        <th onclick="sortAuditLogs('admin_username')" class="sortable">
+                                            User <span class="sort-indicator" id="sort-admin_username"></span>
+                                        </th>
+                                        <th onclick="sortAuditLogs('action')" class="sortable">
+                                            Action <span class="sort-indicator" id="sort-action"></span>
+                                        </th>
+                                        <th>Target</th>
+                                        <th onclick="sortAuditLogs('ip_address')" class="sortable">
+                                            IP Address <span class="sort-indicator" id="sort-ip_address"></span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-logs-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                                            Loading audit logs...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div class="pagination" style="margin-top: 20px;">
+                                <button onclick="prevAuditPage()" id="prev-audit-btn" disabled>← Previous</button>
+                                <span id="audit-page-info">Page 1</span>
+                                <button onclick="nextAuditPage()" id="next-audit-btn">Next →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Export Page (DONE BY PRETI)-->
+                <div id="data-export-page" class="page">
+                    <!-- Password Panel (shown by default) (DONE BY PRETI)-->
+                    <div id="data-export-password-panel" class="data-export-password-panel">
+                        <div class="password-panel-card">
+                            <div class="panel-icon">🔓</div>
+                            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Data Export Access</h2>
+                            <p class="panel-subtitle">System Administrator verification required</p>
+                            
+                            <div class="warning-badge">
+                                ⚠️ Contains sensitive information – handle securely
+                            </div>
+                            
+                            <form id="data-export-unlock-form" onsubmit="unlockDataExport(event)">
+                                <div class="form-group">
+                                    <label for="export-username" >Username</label>
+                                    <input type="text" id="export-username" readonly style="background: #f8fafc; cursor: not-allowed;  color: black">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="export-password">Password</label>
+                                    <input type="password" id="export-password" placeholder="Enter your system admin password" required color: black">     
+                                </div>
+                                
+                                <button type="submit" class="btn-primary" style="width: 100%;">
+                                    🔓 Unlock Data Exports
+                                </button>
+                                
+                                <div id="export-unlock-error" class="error-message" style="display: none;"></div>
+                            </form>
+                            
+                            <div class="panel-info">
+                                <p><strong>For system administrators only.</strong></p>
+                                <p>Exports may contain personal data including:</p>
+                                <ul>
+                                    <li>User names and encrypted emails</li>
+                                    <li>Feedback responses and photos</li>
+                                    <li>Admin activity logs</li>
+                                </ul>
+                                <p style="margin-top: 10px;">Session expires after 30 minutes of inactivity.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export Cards (hidden by default) (DONE BY PRETI)-->
+                    <div id="data-export-cards" class="data-export-cards" style="display: none;">
+                        <div class="page-header">
+                            <h2>Data Export</h2>
+                            <p>System administrator area for exporting feedback data, photos and audit logs</p>
+                        </div>
+                        
+                        <div class="export-warning-bar">
+                            <div style="display: flex; align-items: center;">
+                                <span class="warning-icon">⚠️</span>
+                                <span>Contains sensitive information – handle securely</span>
+                            </div>
+                            <span class="session-info" id="export-session-info"></span>
+                        </div>
+                        
+                        <div class="export-grid">
+                            <!-- Card A: Full Feedback (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">📊</div>
+                                <h3 class="export-card-title">Full feedback data (all)</h3>
+                                <p class="export-card-description">
+                                    All feedback records with users, questions and answers. 
+                                    Includes both archived and not archived entries. Emails are decrypted.
+                                </p>
+                                <div class="export-card-meta">Format: CSV (.csv)</div>
+                                <button class="export-btn" onclick="downloadExport('feedback/full')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card B: Feedback Not Archived (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">✅</div>
+                                <h3 class="export-card-title">Feedback – not archived</h3>
+                                <p class="export-card-description">
+                                    Only active feedback where archive_status = not_archived, 
+                                    including all questions and answers. Emails are decrypted.
+                                </p>
+                                <div class="export-card-meta">Format: CSV (.csv)</div>
+                                <button class="export-btn" onclick="downloadExport('feedback/not-archived')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card C: Feedback Archived (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">📦</div>
+                                <h3 class="export-card-title">Feedback – archived</h3>
+                                <p class="export-card-description">
+                                    Only feedback where archive_status = archived, 
+                                    including all questions and answers. Emails are decrypted.
+                                </p>
+                                <div class="export-card-meta">Format: CSV (.csv)</div>
+                                <button class="export-btn" onclick="downloadExport('feedback/archived')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card D: All Photos (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">🖼️</div>
+                                <h3 class="export-card-title">All photos (raw & processed)</h3>
+                                <p class="export-card-description">
+                                    All files from uploads/photos and uploads/processed 
+                                    for every feedback record.
+                                </p>
+                                <div class="export-card-meta">Format: ZIP (with readme.txt)</div>
+                                <button class="export-btn" onclick="downloadExport('photos/all')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card E: Photos Not Archived (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">🌟</div>
+                                <h3 class="export-card-title">Photos – not archived feedback</h3>
+                                <p class="export-card-description">
+                                    Photos linked to feedback where archive_status = not_archived.
+                                </p>
+                                <div class="export-card-meta">Format: ZIP (with readme.txt)</div>
+                                <button class="export-btn" onclick="downloadExport('photos/not-archived')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card F: Photos Archived (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">📦</div>
+                                <h3 class="export-card-title">Photos – archived feedback</h3>
+                                <p class="export-card-description">
+                                    Photos linked to feedback where archive_status = archived.
+                                </p>
+                                <div class="export-card-meta">Format: ZIP (with readme.txt)</div>
+                                <button class="export-btn" onclick="downloadExport('photos/archived')">
+                                    Download
+                                </button>
+                            </div>
+                            
+                            <!-- Card G: Audit Log (DONE BY PRETI)-->
+                            <div class="export-card">
+                                <div class="export-card-icon">🧾</div>
+                                <h3 class="export-card-title">Audit log</h3>
+                                <p class="export-card-description">
+                                    Full history of admin actions and access logs.
+                                </p>
+                                <div class="export-card-meta">Format: CSV (.csv)</div>
+                                <button class="export-btn" onclick="downloadExport('audit-log')">
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theme Settings Page (DONE BY PRETI)-->
+                <div id="theme-settings-page" class="page">
+                    <div class="page-header">
+                        <h2>Style & Theme Settings</h2>
+                        <p>Customize colors and themes for the admin panel and all pages</p>
+                    </div>
+
+                    <div class="theme-settings-container">
+                        <!-- Left Sidebar: Section List (DONE BY PRETI)-->
+                        <div class="theme-sidebar">
+                            <div class="theme-sidebar-header">
+                                <h3>Sections</h3>
+                            </div>
+                            <div class="theme-section-list" id="theme-section-list">
+                                <div class="theme-section-item" onclick="loadThemeSection('saved-themes')">
+                                    <span class="theme-icon">💾</span>
+                                    <span class="theme-name">Saved Themes</span>
+                                </div>
+                                <!-- Dynamically populated (DONE BY PRETI)-->
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Theme Controls (DONE BY PRETI)-->
+                        <div class="theme-panel">
+                            <div class="theme-panel-header">
+                                <h3 id="current-section-title">Admin Overall Theme</h3>
+                                <div class="theme-actions">
+                                    <button class="btn-secondary" onclick="resetSectionToGlobal()" id="reset-to-global-btn" style="display: none;">
+                                        Reset to Global Theme
+                                    </button>
+                                    <button class="btn-secondary" onclick="resetAllToDefaults()">
+                                        Reset All to Defaults
+                                    </button>
+                                    <button class="btn-primary" onclick="saveThemeSettings()">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div> 
+                            <!-- Override Toggle (for non-global sections) (DONE BY PRETI)-->
+                            <div class="theme-override-toggle" id="override-toggle-container" style="display: none;">
+                                <label class="toggle-switch" for="use-global-theme" title="Toggle to use Admin Overall Theme">
+                                    <input type="checkbox" id="use-global-theme" onchange="toggleGlobalThemeOverride()" aria-label="Use Admin Overall Theme for this section">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <label for="use-global-theme" class="toggle-label">Use Admin Overall Theme for this section</label>
+                            </div>
+
+                            <!-- Theme Settings Form (DONE BY PRETI)-->
+                            <div class="theme-settings-form" id="theme-settings-form">
+                                <div id="saved-themes-panel" class="theme-panel" style="display: none;">
+                                    <div class="theme-panel-header">
+                                        <h3>💾 Saved Themes</h3>
+                                        <p>Save and manage your custom theme presets (Maximum 6 themes)</p>
+                                    </div>
+
+                                    <!-- Save Current Theme Section (DONE BY PRETI)-->
+                                    <div class="saved-themes-save-section">
+                                        <div class="save-theme-header">
+                                            <h4>💾 Save Current Theme</h4>
+                                            <p>Save your current design settings as a new theme preset</p>
+                                        </div>
+                                        
+                                        <div class="save-theme-form">
+                                            <div class="form-group">
+                                                <label for="new-theme-name">Theme Name *</label>
+                                                <input 
+                                                    type="text" 
+                                                    id="new-theme-name" 
+                                                    class="form-control" 
+                                                    placeholder="e.g., Dark Blue Professional, Sunset Orange, etc."
+                                                    maxlength="100"
+                                                />
+                                                <small class="form-text">Give your theme a descriptive name (max 100 characters)</small>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id="set-active-on-save"
+                                                        checked
+                                                    />
+                                                    <span>Set as active theme after saving</span>
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="save-theme-actions">
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-primary" 
+                                                    onclick="saveCurrentTheme()"
+                                                >
+                                                    💾 Save Theme
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-secondary" 
+                                                    onclick="clearSaveThemeForm()"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Saved Themes List (DONE BY PRETI)-->
+                                    <div class="saved-themes-list-section">
+                                        <div class="saved-themes-header">
+                                            <h4>📚 Your Saved Themes (<span id="saved-themes-count">0</span>/6)</h4>
+                                            <button 
+                                                type="button" 
+                                                class="btn btn-sm btn-secondary" 
+                                                onclick="refreshSavedThemes()"
+                                            >
+                                                🔄 Refresh
+                                            </button>
+                                        </div>
+                                        
+                                        <div id="saved-themes-list" class="saved-themes-grid">
+                                            <!-- Saved themes will be dynamically loaded here (DONE BY PRETI)-->
+                                            <div class="no-themes-message">
+                                                <p>No saved themes yet. Save your first theme above!</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Dynamically populated based on selected section (DONE BY PRETI)-->
+                            </div>
+
+                            <!-- Preview Area (optional) (DONE BY PRETI)-->
+                            <div class="theme-preview" id="theme-preview">
+                                <h4>Preview</h4>
+                                <div class="preview-content">
+                                    <div class="preview-card">
+                                        <h5>Sample Card Title</h5>
+                                        <p>This is sample text to preview the theme colors.</p>
+                                        <button class="preview-btn-primary">Primary Button</button>
+                                        <button class="preview-btn-secondary">Secondary Button</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+
+                <!-- Email Management Page (DONE BY NADHIRAH)-->
+                <div id="email-management-page" class="page">
+
+                    <div class="page-header">
+                        <h2>Email Management</h2>
+                        <p>Manage SMTP settings and email configurations</p>
+                    </div>
+
+                    <div class="overlay-section user-section">
+
+                        <div class="section-header">
+                            <h3>SMTP Configuration</h3>
+                            <div class="header-actions">
+                                <button class="btn-secondary" type="button" onclick="loadEmailConfig()">Reset</button>
+                                <button class="btn-primary" type="button" onclick="saveEmailConfig()">Save</button>
+                            </div>
+                        </div>
+
+                        <!-- Provider -->
+                        <div class="form-group">
+                            <label for="email-provider">Provider</label>
+                            <select id="email-provider" onchange="renderEmailFields()">
+                                <option value="gmail">Gmail</option>
+                                <option value="outlook">Outlook (Office365)</option>
+                                <option value="custom">Custom SMTP</option>
+                            </select>
+                        </div>
+
+                        <!-- Sender Email -->
+                        <div class="form-group">
+                            <label for="sender-email">Sender Email (From)</label>
+                            <input
+                                id="sender-email"
+                                type="email"
+                                placeholder="e.g. noreply@yourdomain.com"
+                            />
+                        </div>
+
+                        <!-- Dynamic Provider Fields -->
+                        <div id="email-fields"></div>
+
+                        <div class="email-divider"></div>
+
+                        <!-- Test Email -->
+                        <div class="form-group">
+                            <label for="email-test-to">Test Email (optional)</label>
+                            <div class="email-test-row">
+                                <input
+                                    id="email-test-to"
+                                    type="email"
+                                    placeholder="Send a test email to..."
+                                />
+                                <button
+                                    class="btn-secondary"
+                                    type="button"
+                                    onclick="sendTestEmail()"
+                                >
+                                    Send Test Email
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div id="email-status" style="margin-top: 12px;"></div>
+                    </div>
+                </div>
+
+                <!--  Management Page (DONE BY NADHIRAH)-->
+                <div id="form-management-page" class="page">
+
+                    <div class="page-header">
+                        <h2>Form Management</h2>
+                        <p>Manage form background, landing title, and subtitle</p>
+                    </div>
+
+                    <!-- OUTER CARD (same as Question Management) -->
+                    <div class="overlay-section user-section">
+
+                        <div class="section-header">
+                            <h3> Settings</h3>
+                            <div class="header-actions">
+                                <button class="btn-secondary" onclick="loadFormUISettings()">Reset</button>
+                                <button class="btn-primary" onclick="saveFormUISettings()">Save</button>
+                            </div>
+                        </div>
+
+                        <!-- CONTENT MUST STAY INSIDE user-section -->
+                        <div class="form-group">
+                            <label for="fm-bg">Background</label>
+                            <select id="fm-bg">
+                                <option value="linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 50%, #f0f9ff 100%)">
+                                Default Gradient
+                                </option>
+                                <option value="#ffffff">White</option>
+                                <option value="#f1f5f9">Light Gray</option>
+                                <option value="#0f172a">Dark</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fm-title">Landing Title</label>
+                            <input id="fm-title" type="text" maxlength="100">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fm-subtitle">Landing Subtitle</label>
+                            <input id="fm-subtitle" type="text" maxlength="200">
+                        </div>
+
+                        <div id="fm-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
+                </div>
+                </div>
+                <!-- Timer Countdown Page (DONE BY BERNISSA) -->
+                <div id="timer-countdown-page" class="page">
+                    <div class="page-header">
+                        <h2>Timer Countdown</h2>
+                        <p>
+                            Configure the countdown duration for automated photo capturing in the feedback form.
+                        </p>
+                    </div>
+
+                    <div class="timer-countdown-section">
+                        <div class="section-header">
+                            <h3>Automated Photo Capture Timer</h3>
+                            <!-- Refresh button (DONE BY BERNISSA) -->
+                            <button class="btn-primary" id="refresh-timer-btn" onclick="loadTimerCountdownSetting()">
+                                🔄 Refresh
+                            </button>
+                        </div>
+
+                        <div class="toolbar">
+                            <!-- Countdown input (DONE BY BERNISSA) -->
+                            <div class="timer-input-group">
+                                <label class="filter-label" for="timer-countdown-seconds">
+                                    Countdown (seconds)
+                                </label>
+
+                                <input type="text" id="timer-countdown-seconds" class="filter-input" min="0" step="1" oninput="validateTimerCountdown()"/>
+                                <p class="text-muted font-size-13">
+                                    Whole numbers only. Use <strong>0</strong> to disable countdown.
+                                </p>
+                            </div>
+
+                            <!-- Save button (DONE BY BERNISSA) -->
+                            <div class="toolbar-buttons">
+                                <button
+                                    class="btn-primary"
+                                    id="save-timer-countdown-btn"
+                                    onclick="saveTimerCountdownSetting()"
+                                    disabled
+                                >
+                                    💾 Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Server Schedule Page (DONE BY BERNISSA) -->
+                <div id="server-schedule-page" class="page">
+                    <div class="page-header">
+                        <h2>Server Schedule Management</h2>
+                        <p>Configure automated server start/stop schedules</p>
+                    </div>
+
+                    <div class="schedule-section">
+                        <div class="section-header">
+                            <h3>Schedules</h3>
+                            <button class="btn-primary" onclick="showAddScheduleModal()">
+                                + Add Schedule
+                            </button>
+                        </div>
+
+                        <!-- Schedules table (DONE BY BERNISSA) -->
+                        <div class="data-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Schedule Name</th>
+                                        <th>Type</th>
+                                        <th>Days/Date</th>
+                                        <th>Start Time</th>
+                                        <th>Stop Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="schedules-table-body">
+                                    <tr>
+                                        <td colspan="7" class="schedule-loading">
+                                            Loading schedules...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Server control mode (DONE BY BERNISSA) -->
+                        <div class="server-mode-control">
+                            <h4>Server Control Mode</h4>
+                            <div class="mode-toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-mode-toggle" onchange="toggleServerMode()" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <div class="mode-info">
+                                    <span id="mode-status" class="mode-auto">🤖 AUTO MODE</span>
+                                    <p id="mode-description">Schedules control the server automatically</p>
+                                </div>
+                            </div>
+                            <div class="status-indicator" id="server-status-indicator">
+                                <span class="status-loading">⏳ Checking status...</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick actions -->
+                        <div class="quick-actions">
+                            <h4>Quick Actions</h4>
+                            
+                            <!-- Schedule control buttons -->
+                            <div class="action-section">
+                                <p class="section-label">Schedule Control:</p>
+                                <div class="action-buttons">
+                                    <button class="btn-secondary" onclick="enableAllSchedules()">
+                                        ✅ Enable All Schedules
+                                    </button>
+                                    <button class="btn-secondary" onclick="disableAllSchedules()">
+                                        ⏸️ Disable All Schedules
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Server control buttons -->
+                            <div class="action-section">
+                                <p class="section-label">Manual Server Control:</p>
+                                <div class="action-buttons">
+                                    <button class="btn-secondary" onclick="startServer()" id="start-btn" disabled>
+                                        ▶️ Start Server
+                                    </button>
+                                    <button class="btn-danger" onclick="stopServer()" id="stop-btn" disabled>
+                                        ⏹️ Stop Server
+                                    </button>
+                                </div>
+                                <p class="mode-hint" id="mode-hint">
+                                    ⚠️ Switch to MANUAL MODE to use Start/Stop buttons
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule modal (DONE BY BERNISSA) -->
+                <div id="schedule-modal" class="modal schedule-modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Add New Schedule</h3>
+                        </div>
+                        <div class="modal-body">
+                            <form id="schedule-form" onsubmit="event.preventDefault(); saveSchedule();">
+                                <div class="form-group">
+                                    <label for="schedule-name">Schedule Name *</label>
+                                    <input type="text" id="schedule-name" name="schedule-name" 
+                                        placeholder="e.g., Morning Start Schedule" required>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="schedule-type">Schedule Type *</label>
+                                        <select id="schedule-type" name="schedule-type" required onchange="updateFormFields()">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="specific_date">Specific Date</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="start-time">Start Time *</label>
+                                        <input type="time" id="start-time" name="start-time" required 
+                                            oninput="validateTimes()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="end-time">Stop Time *</label>
+                                        <input type="time" id="end-time" name="end-time" required 
+                                            oninput="validateTimes()">
+                                    </div>
+                                </div>
+                                
+                                <!-- Weekly schedule options (DONE BY BERNISSA) -->
+                                <div id="weekly-days-section" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Days of Week *</label>
+                                        <div class="days-selection">
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-1" name="day" value="1">
+                                                <label for="day-1">S</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-2" name="day" value="2">
+                                                <label for="day-2">M</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-3" name="day" value="3">
+                                                <label for="day-3">T</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-4" name="day" value="4">
+                                                <label for="day-4">W</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-5" name="day" value="5">
+                                                <label for="day-5">T</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-6" name="day" value="6">
+                                                <label for="day-6">F</label>
+                                            </div>
+                                            <div class="day-checkbox">
+                                                <input type="checkbox" id="day-7" name="day" value="7">
+                                                <label for="day-7">S</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Specific date option (DONE BY BERNISSA) -->
+                                <div id="specific-date-section" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="specific-date">Specific Date *</label>
+                                        <input type="date" id="specific-date" name="specific-date">
+                                    </div>
+                                </div>
+                                
+                                <!-- Status toggle (DONE BY BERNISSA) -->
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="is-active" name="is-active" checked>
+                                        <span>Activate this schedule immediately</span>
+                                    </label>
+                                </div>
+                                
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-secondary" onclick="closeModal('schedule-modal')">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="btn-primary modal-submit-btn">
+                                        Create Schedule
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="server-status-modal" class="modal" style="display: none;">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Server Status</h3>
+                            <button class="modal-close" onclick="closeModal('server-status-modal')">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="server-status-info">
+                                <div class="status-item">
+                                    <span>Feedback Server:</span>
+                                    <span id="modal-server-status" class="status-badge">Checking...</span>
+                                </div>
+                                <div class="status-item">
+                                    <span>Server PID:</span>
+                                    <span id="modal-server-pid">-</span>
+                                </div>
+                                <div class="status-item">
+                                    <span>Server Port:</span>
+                                    <span id="modal-server-port">-</span>
+                                </div>
+                                <div class="status-item">
+                                    <span>Last Updated:</span>
+                                    <span id="modal-last-updated">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-secondary" onclick="closeModal('server-status-modal')">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification container (DONE BY BERNISSA) -->
+                <div id="notification-container"></div>
+            </main>
+    <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+/* =========================
+   RESET
+   ========================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* =========================
+   FULL SCREEN
+   ========================= */
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+/* =========================
+   BACKGROUND (TRUE 4:1)
+   ========================= */
+body {
+    background-image: url('/assets/Tree/BackGround.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;       /* Safe for true 4:1 */
+    background-color: #05070a;    /* Fallback */
+    overflow: hidden;
+    font-family: 'Arial', sans-serif;
+}
+
+/* =========================
+   TREE CONTAINER
+   ========================= */
+#treeContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* =========================
+   TREE IMAGES
+   ========================= */
+#treeImage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2200px;
+    height: auto;
+    z-index: 1;
+}
+
+/*
+  IMPORTANT:
+  stage4leaves.png MUST be measurable for JS,
+  but must NEVER be visible.
+*/
+#treeImageLeaves {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2200px;
+    height: auto;
+    z-index: 0;
+
+    display: block !important;
+    opacity: 0 !important;       /* NEVER visible */
+    pointer-events: none;
+}
+
+/* =========================
+   LEAVES
+   ========================= */
+.leaf {
+    position: absolute;
+    z-index: 10;
+    cursor: default;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+#leavesContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.leaf-name {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    pointer-events: none;
+    max-width: 80%;
+    word-wrap: break-word;
+    line-height: 1.2;
+}
+
+/* =========================
+   TITLE
+   ========================= */
+.tree-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px 30px;
+    border-radius: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.tree-title h1 {
+    color: #2d5016;
+    font-size: 2em;
+    margin: 0;
+}
+
+.tree-title p {
+    color: #666;
+    margin: 5px 0 0 0;
+    font-size: 1em;
+}
+
+/* =========================
+   LOADING MESSAGE
+   ========================= */
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 1.5em;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1000;
+}
+
+/* =========================
+   OVAL DEBUG OVERLAY
+   ========================= */
+/*
+  Debug only.
+  To see it:
+  - set border alpha to 0.8
+  - set background alpha to 0.08
+*/
+#ovalOverlay {
+    position: absolute;
+    border-radius: 50%;
+    border: 3px dashed rgba(255, 0, 0, 0);     /* hidden by default */
+    background: rgba(255, 0, 0, 0);            /* hidden by default */
+    pointer-events: none;
+    z-index: 9999;
+}
