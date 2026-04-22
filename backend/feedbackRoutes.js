@@ -276,11 +276,36 @@ router.post('/submit-feedback', async (req, res) => {
                     const bgTime = Date.now() - bgStartTime;
                     console.log(`🔄 Database completed in ${bgTime}ms`);
                     
-                    // Send email AFTER database is committed
+                    // ==================== BADGE EMAIL INTEGRATION ====================
+                    // Done by XY - Automatic badge awarding after feedback submission
+                    // - Awards appropriate badge based on pledge content analysis
+                    // - Sends congratulation email with badge icon and customized message
+                    // - Works independently of photo upload (badge awarded for participation)
+                    // - Runs asynchronously to not delay user response
+                    if (userData.email && userData.email.includes('@') && result && result.feedbackId) {
+                        setImmediate(async () => {
+                            try {
+                                const badgeResult = await emailService.sendBadgeEmail(
+                                    userData.email,
+                                    userData
+                                );
+
+                                if (badgeResult.success) {
+                                    console.log(`🏆 Badge "${badgeResult.badge}" email sent to ${userData.email}`);
+                                } else {
+                                    console.error(`❌ Badge email failed:`, badgeResult.error);
+                                }
+                            } catch (badgeError) {
+                                console.error(`❌ Badge email exception:`, badgeError.message);
+                            }
+                        });
+                    }
+                    
+                    // Send thank-you email AFTER database is committed (only if photo exists)
                     if (shouldQueueEmail && result && result.feedbackId) {
                         const photoToSend = userData.processedPhotoId || userData.photoId;
                         
-                        console.log(`📧 Starting email for ${userData.email}...`);
+                        console.log(`📧 Starting thank-you email for ${userData.email}...`);
                         
                         setImmediate(async () => {
                             try {
@@ -292,7 +317,7 @@ router.post('/submit-feedback', async (req, res) => {
                                 );
                                 
                                 if (emailResult.success) {
-                                    console.log(`✅ Email sent to ${userData.email}`);
+                                    console.log(`✅ Thank-you email sent to ${userData.email}`);
                                     
                                     // Update email flag (separate query, non-blocking)
                                     db.run(
@@ -307,10 +332,10 @@ router.post('/submit-feedback', async (req, res) => {
                                         }
                                     );
                                 } else {
-                                    console.error(`❌ Email failed:`, emailResult.error);
+                                    console.error(`❌ Thank-you email failed:`, emailResult.error);
                                 }
                             } catch (emailError) {
-                                console.error(`❌ Email exception:`, emailError.message);
+                                console.error(`❌ Thank-you email exception:`, emailError.message);
                             }
                         });
                     }
@@ -850,6 +875,11 @@ router.get('/countdown-timer', (req, res) => {
             countdown_seconds: safeSeconds
         });
     });
+});
+
+// Serve the languages.json file
+router.get('/languages/languages.json', (req, res) => {
+    res.sendFile(path.join(__dirname, '../languages.json'));
 });
 
 module.exports = router;
