@@ -326,6 +326,9 @@
             <h2 class="consent-title" id="photo-title">Capture Your Photo</h2>
             <p class="consent-description" id="photo-description">Your photo will sent to you through email</p>
             
+            <!-- facial detection (Done by Yu Kang) -->
+            <p id="face-detection-status" class="face-detection-status info">Preparing face detection...</p>
+
             <div class="photo-preview">
                 <div id="camera-container" class="camera-view">
                     <video id="video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
@@ -607,6 +610,8 @@
         </div>
     </div>
     
+    <!-- facial detection (Done by Yu Kang) -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="feedback.js"></script>
 </body>
 </html>

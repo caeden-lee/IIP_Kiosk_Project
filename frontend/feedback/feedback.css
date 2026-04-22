@@ -592,6 +592,31 @@ textarea::placeholder {
     margin: 30px 0;
 }
 
+
+/* facial detection (Done by Yu Kang) */
+.face-detection-status {
+    margin: 12px auto 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.face-detection-status.info {
+    color: #475569;
+}
+
+.face-detection-status.loading {
+    color: #1d4ed8;
+}
+
+.face-detection-status.success {
+    color: #047857;
+}
+
+.face-detection-status.error {
+    color: #b91c1c;
+}
+
+
 /* Camera view and framing corners */
 .camera-view {
     width: 960px;

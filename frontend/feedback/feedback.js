@@ -105,6 +105,96 @@ let countdownSeconds = null; // Loaded from backend when needed (DONE BY BERNISS
 let overlayData = {}; // Store full overlay data including file paths from database 
 let isMirrored = false; // to invert camera done by nick
 
+
+// facial detection (Done by Yu Kang)
+const FACE_API_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+let faceDetectionReady = false;
+let faceDetectionLoadPromise = null;
+
+function updateFaceDetectionStatus(message, type = 'info') {
+    const statusElement = document.getElementById('face-detection-status');
+    if (!statusElement) return;
+
+    statusElement.textContent = message;
+    statusElement.className = `face-detection-status ${type}`;
+}
+
+async function ensureFaceDetectionReady() {
+    if (faceDetectionReady) {
+        return true;
+    }
+
+    if (faceDetectionLoadPromise) {
+        return faceDetectionLoadPromise;
+    }
+
+    if (typeof faceapi === 'undefined') {
+        throw new Error('face-api.js is not loaded.');
+    }
+
+    updateFaceDetectionStatus('Loading face detection...', 'loading');
+
+    faceDetectionLoadPromise = faceapi.nets.tinyFaceDetector
+        .loadFromUri(FACE_API_MODEL_URL)
+        .then(() => {
+            faceDetectionReady = true;
+            updateFaceDetectionStatus('Face detection ready.', 'success');
+            return true;
+        })
+        .catch((error) => {
+            console.error('Failed to load face detection model:', error);
+            updateFaceDetectionStatus('Face detection unavailable. Check network and try again.', 'error');
+            throw new Error('Unable to load face detection model. Please check internet access and retry.');
+        })
+        .finally(() => {
+            faceDetectionLoadPromise = null;
+        });
+
+    return faceDetectionLoadPromise;
+}
+
+async function detectFaceInCurrentFrame() {
+    await ensureFaceDetectionReady();
+
+    const video = document.getElementById('video');
+    if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        throw new Error('Camera preview is not ready yet.');
+    }
+
+    const detection = await faceapi.detectSingleFace(
+        video,
+        new faceapi.TinyFaceDetectorOptions({
+            inputSize: 320,
+            scoreThreshold: 0.5
+        })
+    );
+
+    return Boolean(detection);
+}
+
+async function capturePhotoIfFaceDetected() {
+    try {
+        updateFaceDetectionStatus('Checking for face...', 'loading');
+
+        const faceDetected = await detectFaceInCurrentFrame();
+        if (!faceDetected) {
+            updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
+            alert('No face detected. Please position your face clearly in the camera frame and capture again.');
+            return false;
+        }
+
+        updateFaceDetectionStatus('Face detected. Capturing photo...', 'success');
+        takePhoto();
+        return true;
+    } catch (error) {
+        console.error('Face detection check failed:', error);
+        updateFaceDetectionStatus('Face detection failed. Please try again.', 'error');
+        alert(`Face detection failed: ${error.message}`);
+        return false;
+    }
+}
+
+
 // ==================== 2. INITIALIZATION & SETUP FUNCTIONS ====================
 
 // Load dynamic QR code from server
@@ -813,6 +903,9 @@ async function initializeCamera() {
         const video = document.getElementById('video');
         video.srcObject = stream;
 
+        // facial detection (Done by Yu Kang)
+        await ensureFaceDetectionReady();
+
         // Show camera
         document.getElementById('camera-container').style.display = 'block';
 
@@ -861,7 +954,9 @@ async function capturePhoto() {
         
         // If admin set to 0, take photo immediately (no countdown overlay)
         if (countdown === 0) {
-            takePhoto();
+
+            // facial detection (Done by Yu Kang)
+            await capturePhotoIfFaceDetected();
             captureBtn.disabled = false;
             return;
         }
@@ -879,8 +974,9 @@ async function capturePhoto() {
                 countdownOverlay.style.display = 'none';
                 console.log('Countdown finished, taking photo...');
                 
-                // Take the photo
-                takePhoto();
+                // facial detection (Done by Yu Kang)
+                // Take the photo only when a face is detected
+                await capturePhotoIfFaceDetected();
                 
                 // Re-enable capture button
                 captureBtn.disabled = false;
