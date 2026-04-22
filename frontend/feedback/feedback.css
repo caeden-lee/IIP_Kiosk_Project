@@ -607,6 +607,10 @@ textarea::placeholder {
     aspect-ratio: 16 / 9;
     overflow: hidden;
 }
+/* Mirror camera (invert horizontally) done by nick */
+.mirror {
+    transform: scaleX(-1);
+}
 
 .corner {
     position: absolute;

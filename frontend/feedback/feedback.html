@@ -341,23 +341,33 @@
             </div>
             
             <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
-                <button id="capture-btn" class="consent-button" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="10" cy="10" r="3" fill="white"/>
-                        <path d="M10 2C8.9 2 8 2.9 8 4H5C3.9 4 3 4.9 3 6V16C3 17.1 3.9 18 5 18H15C16.1 18 17 17.1 17 16V6C17 4.9 16.1 4 15 4H12C12 2.9 11.1 2 10 2Z" stroke="white" stroke-width="1.5"/>
-                    </svg>
-                    <span id="capture-photo-text">Capture Photo</span>
-                </button>
-                
-                <button type="button" class="secondary-button" onclick="goBackToPledge()">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span id="back-from-photo-text">Back</span>
-                </button>
-            </div>
-        </div>
-    </div>
+
+    <!-- NEW Mirror Button done by nick-->
+    <button id="invert-btn" class="secondary-button">
+        🔄 Mirror View
+    </button>
+
+    <!-- Existing Capture Button -->
+    <button id="capture-btn" class="consent-button" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="3" fill="white"/>
+            <path d="M10 2C8.9 2 8 2.9 8 4H5C3.9 4 3 4.9 3 6V16C3 17.1 3.9 18 5 18H15C16.1 18 17 17.1 17 16V6C17 4.9 16.1 4 15 4H12C12 2.9 11.1 2 10 2Z"
+            stroke="white" stroke-width="1.5"/>
+        </svg>
+        <span id="capture-photo-text">Capture Photo</span>
+    </button>
+
+    <!-- Existing Back Button -->
+    <button type="button" class="secondary-button" onclick="goBackToPledge()">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13"
+            stroke="#667eea"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+        </svg>
+        <span id="back-from-photo-text">Back</span>
+    </button>
 
     <!-- File Upload Page -->
     <div id="file-upload-page" class="container" style="display: none;">

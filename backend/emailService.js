@@ -3,6 +3,258 @@ const fs = require('fs');
 const path = require('path');
 const { getEmailConfig } = require('./emailConfigStore');
 
+// ==================== BADGE SYSTEM IMPLEMENTATION ====================
+// Done by XY - Complete badge awarding system for ESG Kiosk
+//
+// SUMMARY OF CHANGES:
+// 1. Added comprehensive badge configurations with 5 different badge types
+// 2. Implemented dynamic badge determination based on pledge content analysis
+// 3. Created customized HTML email templates with image icons for each badge
+// 4. Integrated badge email sending into feedback submission workflow
+// 5. Added keyword-based categorization (Environmental > Social > Governance > General)
+//
+// BADGE TYPES:
+// - Feedback Contributor: Default for completing feedback form
+// - Eco Warrior: For environmental pledges (sustainability, green, climate, etc.)
+// - Social Champion: For social responsibility pledges (community, diversity, volunteer, etc.)
+// - Governance Guardian: For governance/ethics pledges (transparency, accountability, etc.)
+// - Commitment Champion: For general pledge commitments
+//
+// TECHNICAL FEATURES:
+// - Image-based badge icons from Icons8
+// - Responsive HTML email templates with gradients and styling
+// - Priority-based badge selection algorithm
+// - Automatic email sending after feedback submission
+// - Error handling and logging for email delivery
+//
+// FILES MODIFIED:
+// - backend/emailService.js: Added badge configs, determination logic, sendBadgeEmail function
+// - backend/feedbackRoutes.js: Integrated badge email sending in submission workflow
+// - backend/badgeSystem.js: Created auxiliary badge system module (for reference)
+//
+// INTEGRATION:
+// - Badge emails sent automatically after successful feedback submission
+// - No photo requirement - badges awarded for pledge content analysis
+// - Fallback to Feedback Contributor badge if no pledge provided
+// ==================== BADGE CONFIGURATIONS ==================== Done by XY
+const BADGE_CONFIGS = {
+    'feedback-completer': {
+        name: 'Feedback Contributor',
+        description: 'For completing the feedback form',
+        subject: 'Congratulations on Earning Your Feedback Contributor Badge!',
+        icon: '📝',
+        imageUrl: 'https://img.icons8.com/fluency/96/feedback.png',
+        color: '#10b981',
+        textTemplate: `Hello!\n\nCongratulations on completing the feedback form! You've earned the "Feedback Contributor" badge.\n\nKeep up the great work!\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: #f8fafc; padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        <img src="https://img.icons8.com/fluency/72/ffffff/feedback.png" alt="Feedback badge" style="width: 48px; height: 48px;" />
+                    </div>
+                    <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Feedback Contributor</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#006937; margin-top: 0;">Congratulations!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations on completing the feedback form! You've earned the <strong>"Feedback Contributor"</strong> badge for sharing your valuable insights.</p>
+                    <p>Your feedback helps us improve and serve you better. Keep up the great work!</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: #10b981; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🏆 Achievement Unlocked
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                </div>
+            </div>
+        `
+    },
+    'eco-warrior': {
+        name: 'Eco Warrior',
+        description: 'For making an environmental pledge',
+        subject: 'Congratulations on Earning Your Eco Warrior Badge!',
+        icon: '🌱',
+        imageUrl: 'https://img.icons8.com/fluency/96/leaf.png',
+        color: '#059669',
+        textTemplate: `Hello!\n\nCongratulations! By making an environmental pledge, you've earned the "Eco Warrior" badge.\n\nYour commitment to sustainability makes a real difference!\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #059669, #047857); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);">
+                        <img src="https://img.icons8.com/fluency/72/ffffff/leaf.png" alt="Eco Warrior badge" style="width: 48px; height: 48px;" />
+                    </div>
+                    <div style="background: linear-gradient(135deg, #059669, #047857); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Eco Warrior</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#059669; margin-top: 0;">Congratulations, Eco Warrior!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By making an environmental pledge, you've earned the <strong>"Eco Warrior"</strong> badge. You're now part of our sustainability champions!</p>
+                    <p>Your commitment to protecting our planet makes a real difference. Together, we can create a greener future!</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #059669, #047857); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🌍 Planet Protector 🛡️
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                </div>
+            </div>
+        `
+    },
+    'pledge-maker': {
+        name: 'Commitment Champion',
+        description: 'For making any pledge commitment',
+        subject: 'Congratulations on Earning Your Commitment Champion Badge!',
+        icon: '🤝',
+        imageUrl: 'https://img.icons8.com/fluency/96/handshake.png',
+        color: '#3b82f6',
+        textTemplate: `Hello!\n\nCongratulations on making a pledge commitment! You've earned the "Commitment Champion" badge.\n\nYour pledges help drive positive change!\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                        <img src="https://img.icons8.com/fluency/72/ffffff/handshake.png" alt="Commitment Champion badge" style="width: 48px; height: 48px;" />
+                    </div>
+                    <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Commitment Champion</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#3b82f6; margin-top: 0;">Congratulations, Commitment Champion!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations on making a pledge commitment! You've earned the <strong>"Commitment Champion"</strong> badge for taking concrete steps toward positive change.</p>
+                    <p>Your pledges help drive meaningful progress. Every commitment counts toward building a better future!</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            💪 Commitment Champion
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                </div>
+            </div>
+        `
+    },
+    'social-champion': {
+        name: 'Social Champion',
+        description: 'For making social responsibility pledges',
+        subject: 'Congratulations on Earning Your Social Champion Badge!',
+        icon: '🤝',
+        imageUrl: 'https://img.icons8.com/fluency/96/group.png',
+        color: '#f59e0b',
+        textTemplate: `Hello!\n\nCongratulations! By making a social responsibility pledge, you've earned the "Social Champion" badge.\n\nYour commitment to community and inclusion makes a real difference!\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
+                        <img src="https://img.icons8.com/fluency/72/ffffff/group.png" alt="Social Champion badge" style="width: 48px; height: 48px;" />
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Social Champion</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#f59e0b; margin-top: 0;">Congratulations, Social Champion!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By making a social responsibility pledge, you've earned the <strong>"Social Champion"</strong> badge. You're now part of our community champions!</p>
+                    <p>Your commitment to diversity, inclusion, and community support makes a real difference. Together, we can build stronger, more inclusive communities!</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🤝 Community Builder 🏘️
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                </div>
+            </div>
+        `
+    },
+    'governance-guardian': {
+        name: 'Governance Guardian',
+        description: 'For making governance and ethics pledges',
+        subject: 'Congratulations on Earning Your Governance Guardian Badge!',
+        icon: '⚖️',
+        imageUrl: 'https://img.icons8.com/fluency/96/justice-scale.png',
+        color: '#8b5cf6',
+        textTemplate: `Hello!\n\nCongratulations! By making a governance and ethics pledge, you've earned the "Governance Guardian" badge.\n\nYour commitment to transparency and accountability strengthens our society!\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #f3e8ff, #e9d5ff); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
+                        <img src="https://img.icons8.com/fluency/72/ffffff/justice-scale.png" alt="Governance Guardian badge" style="width: 48px; height: 48px;" />
+                    </div>
+                    <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Governance Guardian</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#8b5cf6; margin-top: 0;">Congratulations, Governance Guardian!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By making a governance and ethics pledge, you've earned the <strong>"Governance Guardian"</strong> badge. You're now part of our ethics champions!</p>
+                    <p>Your commitment to transparency, accountability, and ethical practices strengthens trust and integrity in our society. Every pledge counts toward better governance!</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            ⚖️ Ethics Champion 🛡️
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                </div>
+            </div>
+        `
+    }
+};
+
+// ==================== BADGE DETERMINATION LOGIC ====================
+// Done by XY - Intelligent badge selection algorithm
+// Analyzes pledge content using keyword matching with priority hierarchy:
+// 1. Environmental keywords → Eco Warrior
+// 2. Social keywords → Social Champion  
+// 3. Governance keywords → Governance Guardian
+// 4. Any pledge → Commitment Champion
+// 5. No pledge → Feedback Contributor
+function determineBadge(userData) {
+    // Priority: Eco Warrior > Social Champion > Governance Guardian > Commitment Champion > Feedback Completer
+    if (userData.pledge && userData.pledge.trim().length > 0) {
+        const pledgeLower = userData.pledge.toLowerCase();
+        
+        // Check if pledge contains environmental keywords
+        const ecoKeywords = ['environment', 'sustainability', 'eco', 'green', 'climate', 'carbon', 'recycle', 'waste', 'energy', 'renewable'];
+        const hasEcoContent = ecoKeywords.some(keyword => pledgeLower.includes(keyword));
+        
+        if (hasEcoContent) {
+            return 'eco-warrior';
+        }
+        
+        // Check if pledge contains social keywords
+        const socialKeywords = ['community', 'diversity', 'inclusion', 'social', 'equality', 'volunteer', 'charity', 'donate', 'help', 'support'];
+        const hasSocialContent = socialKeywords.some(keyword => pledgeLower.includes(keyword));
+        
+        if (hasSocialContent) {
+            return 'social-champion';
+        }
+        
+        // Check if pledge contains governance keywords
+        const governanceKeywords = ['ethics', 'transparency', 'governance', 'accountability', 'compliance', 'integrity', 'trust', 'responsible'];
+        const hasGovernanceContent = governanceKeywords.some(keyword => pledgeLower.includes(keyword));
+        
+        if (hasGovernanceContent) {
+            return 'governance-guardian';
+        }
+        
+        // Default pledge badge
+        return 'pledge-maker';
+    }
+    
+    // Default badge for completing feedback
+    return 'feedback-completer';
+}
+
 // ==================== EMAIL CONFIGURATION ====================
 let emailTransporter;
 let SENDER_EMAIL;
@@ -448,11 +700,59 @@ async function checkEmailService() {
     }
 }
 
+// ==================== BADGE EMAIL SENDING FUNCTION ====================
+// Done by XY - Sends customized badge congratulation emails
+// Features:
+// - Automatic badge determination based on user pledge content
+// - HTML email templates with badge-specific styling and icons
+// - Image-based badge representations
+// - Error handling and delivery confirmation
+// - Integrated into feedback submission workflow
+const sendBadgeEmail = async (recipientEmail, userData) => {
+    try {
+        if (!emailTransporter) {
+            await reloadEmailService();
+        }
+
+        // Determine which badge to award based on user actions
+        const badgeKey = determineBadge(userData);
+        const badgeConfig = BADGE_CONFIGS[badgeKey];
+
+        if (!badgeConfig) {
+            console.error(`Unknown badge key: ${badgeKey}`);
+            return { success: false, error: 'Unknown badge type' };
+        }
+
+        const mailOptions = {
+            from: `"RP ESG Centre" <${SENDER_EMAIL}>`,
+            to: recipientEmail,
+            subject: badgeConfig.subject,
+            text: badgeConfig.textTemplate,
+            html: badgeConfig.htmlTemplate
+        };
+
+        const info = await emailTransporter.sendMail(mailOptions);
+        console.log(`🏆 Badge "${badgeConfig.name}" email sent to ${recipientEmail}: ${info.messageId}`);
+        return { 
+            success: true, 
+            messageId: info.messageId,
+            badge: badgeConfig.name,
+            badgeKey: badgeKey
+        };
+    } catch (error) {
+        console.error('Error sending badge email:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = {
     initEmailService,
     reloadEmailService,
     sendThankYouEmail,
     sendEmailAndUpdateFlag,
+    sendBadgeEmail,
+    determineBadge,
+    BADGE_CONFIGS,
     testEmailService,
     checkEmailService
 };
