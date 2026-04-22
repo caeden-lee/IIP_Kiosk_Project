@@ -103,6 +103,7 @@ let inactivityTimer = null;
 const INACTIVITY_TIMEOUT = 300000; // 5 minutes (300,000 milliseconds)
 let countdownSeconds = null; // Loaded from backend when needed (DONE BY BERNISSA)
 let overlayData = {}; // Store full overlay data including file paths from database 
+let isMirrored = false; // to invert camera done by nick
 
 // ==================== 2. INITIALIZATION & SETUP FUNCTIONS ====================
 
@@ -202,6 +203,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (captureBtn) {
         captureBtn.addEventListener('click', capturePhoto);
     }
+    //for invert camera done by nick
+    const invertBtn = document.getElementById('invert-btn');
+if (invertBtn) {
+    invertBtn.addEventListener('click', toggleMirror);
+}
 
     // Load overlay options from database
     loadOverlayOptions();
@@ -901,7 +907,12 @@ function takePhoto() {
     
     // Draw current video frame to canvas
     const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (isMirrored) {
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+}
+
+context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Convert canvas to data URL
     photoData = canvas.toDataURL('image/png');
@@ -913,6 +924,21 @@ function takePhoto() {
     
     // Immediately go to style page (don't save photo yet)
     continueToStyle();
+}
+// mirror function done by nick
+function toggleMirror() {
+    const video = document.getElementById('video');
+    const invertBtn = document.getElementById('invert-btn');
+
+    isMirrored = !isMirrored;
+
+    if (isMirrored) {
+        video.classList.add('mirror');
+        invertBtn.textContent = '↩️ Normal View';
+    } else {
+        video.classList.remove('mirror');
+        invertBtn.textContent = '🔄 Mirror View';
+    }
 }
 
 // Continue to style page after photo capture
