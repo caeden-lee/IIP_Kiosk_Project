@@ -966,7 +966,7 @@ async function capturePhoto() {
         countdownOverlay.style.display = 'flex';
         console.log('Starting countdown:', countdown);
 
-        const countdownInterval = setInterval(() => {
+        const countdownInterval = setInterval(async () => {
             countdown--;
             
             if (countdown <= 0) {
