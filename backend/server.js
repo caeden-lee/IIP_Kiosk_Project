@@ -97,6 +97,26 @@ const QRCode = require('qrcode');
 const app = express();
 const PORT = 3000;
 
+// Bind host controls what network interfaces the server listens on. (Done By Yu Kang)
+// Default to 0.0.0.0 so phones on the same LAN can connect reliably. (Done By Yu Kang)
+function getBindHost() {
+    let bindHost = null;
+    const args = process.argv.slice(2);
+
+    for (const arg of args) {
+        if (arg.startsWith('--bind=')) {
+            bindHost = arg.split('=')[1];
+            break;
+        }
+    }
+
+    if (!bindHost && process.env.BIND_HOST) {
+        bindHost = process.env.BIND_HOST;
+    }
+
+    return bindHost || '0.0.0.0';
+}
+
 // ==================== 2. NETWORK INTERFACE FUNCTIONS ====================
 // CROSS-PLATFORM: os.networkInterfaces() works on Windows, Linux, and macOS
 // Automatically detects WiFi, Ethernet, and other network adapters
@@ -127,6 +147,7 @@ function getAllNetworkIPs() {
 function getSelectedIP() {
     // Priority: Command line argument > Environment variable > First available IP
     let selectedIP = null;
+    const preferredInterface = process.env.PREFERRED_INTERFACE || 'Wi-Fi 2';
     
     // Check command line arguments (e.g., node server.js --ip=192.168.1.100)
     const args = process.argv.slice(2);
@@ -161,6 +182,18 @@ function getSelectedIP() {
     // Use first available IP if none selected
     if (!selectedIP) {
         const availableIPs = getAllNetworkIPs();
+
+        // Prefer the configured interface (default: Wi-Fi 2) for mobile/QR access. (Done By Yu Kang)
+        const preferredIP = availableIPs.find(
+            ip => ip.interface.toLowerCase() === preferredInterface.toLowerCase()
+        );
+
+        if (preferredIP) {
+            selectedIP = preferredIP.address;
+            console.log(`📡 Using preferred interface IP: ${selectedIP} (${preferredIP.interface})`);
+            return selectedIP;
+        }
+
         if (availableIPs.length > 0) {
             selectedIP = availableIPs[0].address;
             console.log(`📡 Using first available IP: ${selectedIP} (${availableIPs[0].interface})`);
@@ -189,6 +222,7 @@ function getInterfaceForIP(ipAddress) {
 
 const localIP = getSelectedIP();
 const interfaceName = getInterfaceForIP(localIP);
+const bindHost = getBindHost();
 
 // ==================== 3. SSL CERTIFICATE CONFIGURATION ====================
 
@@ -308,6 +342,7 @@ app.get('/api/server-info', (req, res) => {
     
     res.json({
         ip: localIP,
+        bindHost: bindHost,
         interface: interfaceName,
         port: PORT,
         protocol: protocol,
@@ -448,12 +483,12 @@ function startServer() {
     if (sslOptions) {
         // Start HTTPS server
         const server = https.createServer(sslOptions, app);
-        server.listen(PORT, localIP, () => {
+        server.listen(PORT, bindHost, () => {
             printServerInfo(true);
         });
     } else {
         // Start HTTP server (fallback)
-        app.listen(PORT, localIP, () => {
+        app.listen(PORT, bindHost, () => {
             printServerInfo(false);
         });
     }
@@ -474,6 +509,7 @@ function printServerInfo(isHttps) {
     console.log('   FEEDBACK KIOSK SERVER');
     console.log('============================================');
     console.log(`💻 Platform: ${platformNames[platform] || platform}`);
+    console.log(`🔌 Bind Host: ${bindHost}`);
     console.log(`📡 Selected Interface: ${interfaceName}`);
     console.log(`📡 Selected IP: ${localIP}`);
     console.log(`🚀 ${protocol}: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}`);
@@ -570,12 +606,15 @@ if (args.includes('--help') || args.includes('-h')) {
     console.log('  node server.js [options]');
     console.log('\nOptions:');
     console.log('  --ip=<IP_ADDRESS>    Specify the IP address to bind to');
+    console.log('  --bind=<HOST>        Specify bind host (default: 0.0.0.0)');
     console.log('  --help, -h           Show this help message');
     console.log('\nExamples:');
     console.log('  node server.js --ip=192.168.1.100');
     console.log('  node server.js --ip=10.0.0.5');
     console.log('\nEnvironment Variables:');
     console.log('  SERVER_IP=<IP_ADDRESS>  Specify IP via environment variable');
+    console.log('  PREFERRED_INTERFACE=<NAME> Prefer adapter when auto-selecting IP (default: Wi-Fi 2)');
+    console.log('  BIND_HOST=<HOST>        Specify bind host (default: 0.0.0.0)');
     console.log('  PORT=<PORT_NUMBER>      Change port (default: 3000)');
     console.log('\nAvailable IPs:');
     const availableIPs = getAllNetworkIPs();
