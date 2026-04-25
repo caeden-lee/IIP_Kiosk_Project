@@ -242,11 +242,13 @@ router.post('/submit-feedback', async (req, res) => {
                 theme: theme,
                 retention: retention,
                 submittedAt: new Date().toISOString(),
-                emailQueued: false
+                emailQueued: false,
+                badgeEmailSent: false,
+                badgeEmailError: null
             }
         };
         
-        // Check if email should be queued
+        // Check if email should be queued for the photo thank-you email
         const shouldQueueEmail = userData.email && userData.email.includes('@') && 
                                (userData.photoId || userData.processedPhotoId);
         
@@ -255,12 +257,32 @@ router.post('/submit-feedback', async (req, res) => {
             responseData.data.emailQueuedMessage = 'Thank you email will be sent shortly';
         }
         
-        // Send response IMMEDIATELY
+        // If user provided a valid email, attempt badge email before returning response.
+        // This ensures the user sees the share options only after badge email has been processed.
+        // Added by XY: badge email send is performed before response so share UI can depend on success/failure.
+        if (userData.email && userData.email.includes('@')) {
+            try {
+                const badgeResult = await emailService.sendBadgeEmail(userData.email, userData);
+                responseData.data.badgeEmailSent = badgeResult.success;
+                responseData.data.badgeEmailBadges = badgeResult.badges || [];
+                responseData.data.badgeEmailError = badgeResult.success ? null : badgeResult.error;
+                responseData.data.badgeEmailMessage = badgeResult.success
+                    ? 'Your badge email has been sent.'
+                    : 'Badge email could not be sent at this time.';
+            } catch (emailError) {
+                console.error('❌ sendBadgeEmail failed before response:', emailError);
+                responseData.data.badgeEmailSent = false;
+                responseData.data.badgeEmailError = emailError.message;
+                responseData.data.badgeEmailMessage = 'Badge email could not be sent at this time.';
+            }
+        }
+        
+        // Send response after badge email attempt so the frontend can update share UI appropriately
         res.json(responseData);
         const responseTime = Date.now() - startTime;
         console.log(`✅ Response sent in ${responseTime}ms`);
         
-        // 2. AFTER sending response, process database and email in background
+        // 2. AFTER sending response, process database and background thank-you email
         setTimeout(async () => {
             console.log('🔄 Background processing started...');
             const bgStartTime = Date.now();
@@ -275,31 +297,6 @@ router.post('/submit-feedback', async (req, res) => {
                     console.log('✅ Feedback saved to database:', result);
                     const bgTime = Date.now() - bgStartTime;
                     console.log(`🔄 Database completed in ${bgTime}ms`);
-                    
-                    // ==================== BADGE EMAIL INTEGRATION ====================
-                    // Done by XY - Automatic badge awarding after feedback submission
-                    // - Awards appropriate badge based on pledge content analysis
-                    // - Sends congratulation email with badge icon and customized message
-                    // - Works independently of photo upload (badge awarded for participation)
-                    // - Runs asynchronously to not delay user response
-                    if (userData.email && userData.email.includes('@') && result && result.feedbackId) {
-                        setImmediate(async () => {
-                            try {
-                                const badgeResult = await emailService.sendBadgeEmail(
-                                    userData.email,
-                                    userData
-                                );
-
-                                if (badgeResult.success) {
-                                    console.log(`🏆 Badge "${badgeResult.badge}" email sent to ${userData.email}`);
-                                } else {
-                                    console.error(`❌ Badge email failed:`, badgeResult.error);
-                                }
-                            } catch (badgeError) {
-                                console.error(`❌ Badge email exception:`, badgeError.message);
-                            }
-                        });
-                    }
                     
                     // Send thank-you email AFTER database is committed (only if photo exists)
                     if (shouldQueueEmail && result && result.feedbackId) {

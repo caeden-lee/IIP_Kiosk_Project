@@ -288,7 +288,19 @@
                         <span id="char-count">0</span>/<span id="characters-text">500 characters</span>
                     </div>
                 </div>
-                
+                <!-- Added by XY: explicit pledge topic selector used for topic-specific badge mapping - done by XY -->
+                <div class="form-group">
+                    <label for="pledge-topic">Pledge Topic</label>
+                    <select id="pledge-topic" required>
+                        <option value="">Select a pledge topic</option>
+                        <option value="climate-change">Climate Change</option>
+                        <option value="renewable-energy">Renewable Energy</option>
+                        <option value="sustainable-living">Sustainable Living</option>
+                        <option value="ocean-conservation">Ocean Conservation</option>
+                        <option value="ethical-governance">Ethical Governance</option>
+                        <option value="community-impact">Community Impact</option>
+                    </select>
+                </div>
                 <div class="privacy-notice">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M8 2L3 5V7.5C3 10.81 5.53 13.87 8 14.5C10.47 13.87 13 10.81 13 7.5V5L8 2Z" fill="#667eea"/>
@@ -603,7 +615,33 @@
             <p id="thankyou-footer-text" style="font-size: 14px; color: #64748b; margin: 30px 0;">
                 Thank you for contributing to our sustainability journey at Republic Polytechnic!
             </p>
-            
+
+            <!-- Added by XY: social media sharing section for kiosk pledge visibility - done by XY -->
+            <div id="thankyou-share-section" class="social-share-section" style="margin-bottom: 20px; display: none;">
+                <h3 style="font-size: 18px; margin-bottom: 12px; color: #1f2937;">Share your pledge on social media</h3>
+                <p id="thankyou-share-status" style="font-size: 14px; color: #475569; margin-bottom: 16px; line-height: 1.6;">
+                    Invite others to join the sustainability movement after your badge email is confirmed.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+                    <button type="button" onclick="sharePledge('twitter')"
+                        style="flex: 1 1 200px; min-width: 180px; padding: 14px 18px; border-radius: 16px; border: none; color: white; background: #1da1f2; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(29,161,242,0.18);">
+                        Share on Twitter
+                    </button>
+                    <button type="button" onclick="sharePledge('whatsapp')"
+                        style="flex: 1 1 200px; min-width: 180px; padding: 14px 18px; border-radius: 16px; border: none; color: white; background: #25D366; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(37,211,102,0.18);">
+                        Share on WhatsApp
+                    </button>
+                    <button type="button" onclick="sharePledge('instagram')"
+                        style="flex: 1 1 200px; min-width: 180px; padding: 14px 18px; border-radius: 16px; border: none; color: white; background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%); font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(204,24,136,0.18);">
+                        Share on Instagram
+                    </button>
+                    <button type="button" onclick="copyShareText()"
+                        style="flex: 1 1 100%; min-width: 240px; padding: 14px 18px; border-radius: 16px; border: 1px solid #10B981; background: white; color: #047857; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(15,23,42,0.08);">
+                        Copy Share Text
+                    </button>
+                </div>
+            </div>
+
             <button class="consent-button" id="submit-another-btn" onclick="submitAnother()" style="background: #34d399;">
                 Submit Another Feedback
             </button>

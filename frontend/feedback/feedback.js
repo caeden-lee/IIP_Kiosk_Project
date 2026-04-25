@@ -777,9 +777,16 @@ function submitDetails(event) {
 }
 
 // Submit pledge and redirect to appropriate photo method
+// Added explicit pledge topic selection support and validation - done by XY
 function submitPledge(event) {
     event.preventDefault();
     userData.pledge = document.getElementById('pledge-text').value;
+    userData.pledgeTopic = document.getElementById('pledge-topic').value;
+
+    if (!userData.pledgeTopic) {
+        alert('Please select a pledge topic before continuing.');
+        return;
+    }
 
     document.getElementById('pledge-page').style.display = 'none';
 
@@ -1586,6 +1593,9 @@ function finalSubmit() {
         document.getElementById('confirmation-page').style.display = 'none';
         document.getElementById('thankyou-page').style.display = 'flex';
         
+        // Set up social share content for the thank-you page based on badge email status - done by XY
+        setupSocialShare(data);
+        
         // Reset button
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -1601,6 +1611,76 @@ function finalSubmit() {
         // Restart timer since submission failed
         startInactivityTimer();
     });
+}
+
+// Build share text and social media links for the final thank-you page
+// Added by XY: social media sharing implementation
+function getShareText() {
+    const pledgeText = (userData.pledge || '').trim();
+    const topicText = userData.pledgeTopic ? ` (${userData.pledgeTopic.replace('-', ' ')})` : '';
+    const pledgeMessage = pledgeText ? `I just pledged: "${pledgeText}"${topicText}.` : 'I just made a sustainability pledge.';
+    return `${pledgeMessage} Join me in supporting the Republic Polytechnic sustainability initiative! #RPGreen #Sustainability #ESG`;
+}
+
+function sharePledge(platform) {
+    const text = getShareText();
+    const encodedText = encodeURIComponent(text);
+    let shareUrl = '';
+
+    // Instagram share handling and share text fallback - done by XY
+    if (platform === 'twitter') {
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    } else if (platform === 'whatsapp') {
+        shareUrl = `https://wa.me/?text=${encodedText}`;
+    } else if (platform === 'instagram') {
+        if (navigator.share) {
+            navigator.share({
+                title: 'My RP ESG Pledge',
+                text: text,
+                url: window.location.href
+            }).catch(() => {
+                copyShareText();
+                alert('Instagram share is available by copying text and pasting it into your Instagram story or post.');
+            });
+            return;
+        }
+        copyShareText();
+        alert('Instagram cannot open directly. The share text has been copied so you can paste it into Instagram.');
+        return;
+    } else {
+        return;
+    }
+
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+}
+
+function copyShareText() {
+    const text = getShareText();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Share text copied to clipboard. Paste it into any social app!');
+        }).catch(() => {
+            alert('Unable to copy automatically. Please use manual share.');
+        });
+    } else {
+        alert('Clipboard not available. Please copy the text manually.');
+    }
+}
+
+function setupSocialShare(data) {
+    const shareSection = document.getElementById('thankyou-share-section');
+    const shareStatus = document.getElementById('thankyou-share-status');
+    if (!shareSection || !shareStatus) return;
+
+    // Configure the share section only after badge email status is known - done by XY
+    const emailStatusText = data?.badgeEmailSent
+        ? `Your badge email has been sent to ${data.email}. Share your pledge below!`
+        : data?.emailQueued
+            ? 'Your badge email is being queued and will be sent shortly. You can still share your pledge now.'
+            : 'Share your pledge with others and help grow the sustainability movement.';
+
+    shareStatus.textContent = emailStatusText;
+    shareSection.style.display = 'block';
 }
 
 // Reset everything and return to landing page for new submission

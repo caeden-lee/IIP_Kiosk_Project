@@ -7,35 +7,38 @@ const { getEmailConfig } = require('./emailConfigStore');
 // Done by XY - Complete badge awarding system for ESG Kiosk
 //
 // SUMMARY OF CHANGES:
-// 1. Added comprehensive badge configurations with 5 different badge types
-// 2. Implemented dynamic badge determination based on pledge content analysis
-// 3. Created customized HTML email templates with image icons for each badge
-// 4. Integrated badge email sending into feedback submission workflow
-// 5. Added keyword-based categorization (Environmental > Social > Governance > General)
+// 1. Added comprehensive badge configurations with multiple dedicated badge types
+// 2. Implemented explicit pledge topic selection and topic-to-badge mapping
+// 3. Updated dynamic badge determination to prefer selected topic over keyword fallback
+// 4. Created customized HTML email templates with image icons for each badge
+// 5. Integrated badge email sending into feedback submission workflow
 //
 // BADGE TYPES:
 // - Feedback Contributor: Default for completing feedback form
-// - Eco Warrior: For environmental pledges (sustainability, green, climate, etc.)
-// - Social Champion: For social responsibility pledges (community, diversity, volunteer, etc.)
-// - Governance Guardian: For governance/ethics pledges (transparency, accountability, etc.)
-// - Commitment Champion: For general pledge commitments
+// - Climate Champion: For climate-related pledge topics
+// - Renewable Innovator: For clean energy and renewable pledges
+// - Sustainable Living Advocate: For sustainable lifestyle pledges
+// - Ocean Guardian: For ocean conservation pledges
+// - Governance Guardian: For ethics and governance pledges
+// - Social Champion: For community and social impact pledges
+// - Commitment Champion: Generic pledge badge when no explicit topic is selected
 //
 // TECHNICAL FEATURES:
-// - Image-based badge icons from Icons8
-// - Responsive HTML email templates with gradients and styling
-// - Priority-based badge selection algorithm
-// - Automatic email sending after feedback submission
-// - Error handling and logging for email delivery
+// - Explicit topic selection from frontend pledge form
+// - Topic badge mapping with dedicated badge assignment
+// - Keyword fallback when no topic is selected
+// - HTML email templates and badge-specific imagery
+// - Badge email delivery integrated with feedback submission
 //
 // FILES MODIFIED:
-// - backend/emailService.js: Added badge configs, determination logic, sendBadgeEmail function
-// - backend/feedbackRoutes.js: Integrated badge email sending in submission workflow
-// - backend/badgeSystem.js: Created auxiliary badge system module (for reference)
+// - backend/emailService.js: Added explicit topic badge mapping and updated badge configs
+// - frontend/feedback/feedback.html: Added pledge topic selector
+// - frontend/feedback/feedback.js: Captured selected topic and validated topic choice on submit
 //
 // INTEGRATION:
-// - Badge emails sent automatically after successful feedback submission
-// - No photo requirement - badges awarded for pledge content analysis
-// - Fallback to Feedback Contributor badge if no pledge provided
+// - Selected pledge topic now determines the badge badge award
+// - Topic selection is required before proceeding from the pledge page
+// - Fallback keyword detection remains available for older pledge data
 // ==================== BADGE CONFIGURATIONS ==================== Done by XY
 const BADGE_CONFIGS = {
     'feedback-completer': {
@@ -68,6 +71,35 @@ const BADGE_CONFIGS = {
                         </div>
                     </div>
                     <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20a%20sustainability%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20making%20a%20difference.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20a%20sustainability%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20making%20a%20difference.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         `
@@ -102,6 +134,35 @@ const BADGE_CONFIGS = {
                         </div>
                     </div>
                     <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Eco%20Warrior%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20protecting%20our%20planet.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Eco%20Warrior%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20protecting%20our%20planet.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         `
@@ -136,12 +197,288 @@ const BADGE_CONFIGS = {
                         </div>
                     </div>
                     <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Commitment%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20taking%20action%20for%20a%20better%20future.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-block; background: #1da1f2; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold;">
+                                🐦 Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Commitment%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20taking%20action%20for%20a%20better%20future.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-block; background: #25d366; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold;">
+                                📱 WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-block; background: #e1306c; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold;">
+                                📸 Instagram
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `
+    },
+    'climate-champion': {
+        name: 'Climate Champion',
+        description: 'For pledges focused on climate action and lowering emissions',
+        subject: 'Congratulations on Earning Your Climate Champion Badge!',
+        icon: '🌎',
+        imageUrl: 'https://img.icons8.com/fluency/96/earth-globe.png',
+        color: '#0ea5e9',
+        textTemplate: `Hello!\n\nCongratulations on pledging climate action! You've earned the "Climate Champion" badge.\n\nYour commitment to the climate helps protect our planet.\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #ecfeff, #dbeafe); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);">
+                        <span style="font-size: 36px;">🌎</span>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Climate Champion</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#0ea5e9; margin-top: 0;">Congratulations, Climate Champion!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By choosing climate action, you've earned the <strong>"Climate Champion"</strong> badge. Your pledge supports a healthier, more resilient planet.</p>
+                    <p>Thank you for stepping up to reduce emissions and protect our climate.</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🌍 Climate Action Hero
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Climate%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20fighting%20climate%20change.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Climate%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20fighting%20climate%20change.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `
+    },
+    'renewable-innovator': {
+        name: 'Renewable Innovator',
+        description: 'For pledges focused on renewable energy and clean power',
+        subject: 'Congratulations on Earning Your Renewable Innovator Badge!',
+        icon: '⚡',
+        imageUrl: 'https://img.icons8.com/fluency/96/solar-panel.png',
+        color: '#22c55e',
+        textTemplate: `Hello!\n\nCongratulations on pledging renewable energy! You've earned the "Renewable Innovator" badge.\n\nYour commitment to clean power is energizing the future.\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #ecfdf5, #e7f5ff); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);">
+                        <span style="font-size: 36px;">⚡</span>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Renewable Innovator</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#16a34a; margin-top: 0;">Congratulations, Renewable Innovator!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By choosing renewable energy, you've earned the <strong>"Renewable Innovator"</strong> badge. Your pledge supports a cleaner energy future.</p>
+                    <p>Thank you for helping power sustainability through smart energy choices.</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            ⚡ Clean Power Leader
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Renewable%20Innovator%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20powering%20a%20clean%20energy%20future.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Renewable%20Innovator%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20powering%20a%20clean%20energy%20future.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `
+    },
+    'sustainable-living-advocate': {
+        name: 'Sustainable Living Advocate',
+        description: 'For pledges focused on sustainable lifestyle habits',
+        subject: 'Congratulations on Earning Your Sustainable Living Advocate Badge!',
+        icon: '🌿',
+        imageUrl: 'https://img.icons8.com/fluency/96/leaf.png',
+        color: '#16a34a',
+        textTemplate: `Hello!\n\nCongratulations on pledging sustainable living! You've earned the "Sustainable Living Advocate" badge.\n\nYour commitment to greener habits inspires others.\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #ecfdf5, #eff6ff); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #16a34a, #15803d); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);">
+                        <span style="font-size: 36px;">🌿</span>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Sustainable Living Advocate</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#15803d; margin-top: 0;">Congratulations, Sustainable Living Advocate!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By choosing sustainable living, you've earned the <strong>"Sustainable Living Advocate"</strong> badge. Your pledge helps create everyday eco-friendly habits.</p>
+                    <p>Thank you for supporting greener, more sustainable choices in daily life.</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🌱 Green Lifestyle Leader
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Sustainable%20Living%20Advocate%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20living%20sustainably.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Sustainable%20Living%20Advocate%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20living%20sustainably.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `
+    },
+    'ocean-guardian': {
+        name: 'Ocean Guardian',
+        description: 'For pledges focused on ocean conservation and marine protection',
+        subject: 'Congratulations on Earning Your Ocean Guardian Badge!',
+        icon: '🌊',
+        imageUrl: 'https://img.icons8.com/fluency/96/wave.png',
+        color: '#0ea5e9',
+        textTemplate: `Hello!\n\nCongratulations on pledging ocean conservation! You've earned the "Ocean Guardian" badge.\n\nYour commitment to protecting marine life is truly inspiring.\n\nBest regards,\nESG Team`,
+        htmlTemplate: `
+            <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #eff6ff, #e0f2fe); padding: 20px; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: linear-gradient(135deg, #0ea5e9, #0369a1); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);">
+                        <span style="font-size: 36px;">🌊</span>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #0ea5e9, #0369a1); color: white; padding: 15px 30px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);">
+                        <h2 style="margin: 0; font-size: 24px;">Ocean Guardian</h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Badge Earned!</p>
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3 style="color:#0369a1; margin-top: 0;">Congratulations, Ocean Guardian!</h3>
+                    <p>Hello!</p>
+                    <p>Congratulations! By choosing ocean conservation, you've earned the <strong>"Ocean Guardian"</strong> badge. Your pledge supports the protection of marine ecosystems and clean seas.</p>
+                    <p>Thank you for standing up for our oceans and marine life.</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #0ea5e9, #0369a1); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                            🌊 Marine Protector
+                        </div>
+                    </div>
+                    <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Ocean%20Guardian%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20protecting%20our%20oceans.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Ocean%20Guardian%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20protecting%20our%20oceans.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         `
     },
     'social-champion': {
         name: 'Social Champion',
+        description: 'For making social responsibility pledges',
+        subject: 'Congratulations on Earning Your Social Champion Badge!',
+        icon: '🤝',
+        imageUrl: 'https://img.icons8.com/fluency/96/group.png',
         description: 'For making social responsibility pledges',
         subject: 'Congratulations on Earning Your Social Champion Badge!',
         icon: '🤝',
@@ -170,6 +507,35 @@ const BADGE_CONFIGS = {
                         </div>
                     </div>
                     <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Social%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20building%20stronger%20communities.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Social%20Champion%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20building%20stronger%20communities.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         `
@@ -204,6 +570,35 @@ const BADGE_CONFIGS = {
                         </div>
                     </div>
                     <p>Best regards,<br><strong>ESG Team</strong></p>
+                    
+                    <!-- Social Media Sharing Section - Added by XY -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">Share Your Achievement!</h4>
+                        <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 14px;">Help inspire others by sharing your sustainability pledge on social media.</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center;">
+                            <a href="https://twitter.com/intent/tweet?text=I%20just%20earned%20the%20Governance%20Guardian%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20promoting%20transparency%20and%20ethics.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #1da1f2; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                </svg>
+                                Twitter
+                            </a>
+                            <a href="https://wa.me/?text=I%20just%20earned%20the%20Governance%20Guardian%20badge%20at%20Republic%20Polytechnic!%20Join%20me%20in%20promoting%20transparency%20and%20ethics.%20%23RPGreen%20%23Sustainability%20%23ESG" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                </svg>
+                                WhatsApp
+                            </a>
+                            <a href="https://www.instagram.com/" 
+                               style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background-color 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                </svg>
+                                Instagram
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         `
@@ -212,47 +607,93 @@ const BADGE_CONFIGS = {
 
 // ==================== BADGE DETERMINATION LOGIC ====================
 // Done by XY - Intelligent badge selection algorithm
-// Analyzes pledge content using keyword matching with priority hierarchy:
-// 1. Environmental keywords → Eco Warrior
-// 2. Social keywords → Social Champion  
-// 3. Governance keywords → Governance Guardian
-// 4. Any pledge → Commitment Champion
-// 5. No pledge → Feedback Contributor
-function determineBadge(userData) {
-    // Priority: Eco Warrior > Social Champion > Governance Guardian > Commitment Champion > Feedback Completer
-    if (userData.pledge && userData.pledge.trim().length > 0) {
-        const pledgeLower = userData.pledge.toLowerCase();
-        
-        // Check if pledge contains environmental keywords
-        const ecoKeywords = ['environment', 'sustainability', 'eco', 'green', 'climate', 'carbon', 'recycle', 'waste', 'energy', 'renewable'];
-        const hasEcoContent = ecoKeywords.some(keyword => pledgeLower.includes(keyword));
-        
-        if (hasEcoContent) {
-            return 'eco-warrior';
-        }
-        
-        // Check if pledge contains social keywords
-        const socialKeywords = ['community', 'diversity', 'inclusion', 'social', 'equality', 'volunteer', 'charity', 'donate', 'help', 'support'];
-        const hasSocialContent = socialKeywords.some(keyword => pledgeLower.includes(keyword));
-        
-        if (hasSocialContent) {
-            return 'social-champion';
-        }
-        
-        // Check if pledge contains governance keywords
-        const governanceKeywords = ['ethics', 'transparency', 'governance', 'accountability', 'compliance', 'integrity', 'trust', 'responsible'];
-        const hasGovernanceContent = governanceKeywords.some(keyword => pledgeLower.includes(keyword));
-        
-        if (hasGovernanceContent) {
-            return 'governance-guardian';
-        }
-        
-        // Default pledge badge
-        return 'pledge-maker';
+// Analyzes pledge content using keyword matching and returns one or more badges:
+// - Eco Warrior for environmental content
+// - Social Champion for social content
+// - Governance Guardian for governance/ethics content
+// - Commitment Champion for a generic pledge when no topic keyword matches
+// - Feedback Contributor when no pledge is provided
+// Topic-based badge mapping added by XY
+// Selected pledge topic maps directly to a single dedicated badge.
+// If topic selection is missing, the system still falls back to keyword-based detection.
+const TOPIC_BADGE_MAP = {
+    'climate-change': 'climate-champion',
+    'renewable-energy': 'renewable-innovator',
+    'sustainable-living': 'sustainable-living-advocate',
+    'ocean-conservation': 'ocean-guardian',
+    'ethical-governance': 'governance-guardian',
+    'community-impact': 'social-champion'
+};
+
+function determineBadgeKeys(userData) {
+    const selectedTopic = typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.trim() : '';
+    const badgeKeys = [];
+    const pledgeText = typeof userData.pledge === 'string' ? userData.pledge.trim().toLowerCase() : '';
+
+    // Prioritize explicit topic selection for badge assignment (done by XY)
+    if (selectedTopic && TOPIC_BADGE_MAP[selectedTopic]) {
+        return [TOPIC_BADGE_MAP[selectedTopic]];
     }
-    
-    // Default badge for completing feedback
-    return 'feedback-completer';
+
+    if (!pledgeText) {
+        return ['feedback-completer'];
+    }
+
+    const ecoKeywords = ['environment', 'sustainability', 'eco', 'green', 'climate', 'carbon', 'recycle', 'waste', 'energy', 'renewable'];
+    const socialKeywords = ['community', 'diversity', 'inclusion', 'social', 'equality', 'volunteer', 'charity', 'donate', 'help', 'support'];
+    const governanceKeywords = ['ethics', 'transparency', 'governance', 'accountability', 'compliance', 'integrity', 'trust', 'responsible'];
+
+    if (ecoKeywords.some(keyword => pledgeText.includes(keyword))) {
+        badgeKeys.push('eco-warrior');
+    }
+    if (socialKeywords.some(keyword => pledgeText.includes(keyword))) {
+        badgeKeys.push('social-champion');
+    }
+    if (governanceKeywords.some(keyword => pledgeText.includes(keyword))) {
+        badgeKeys.push('governance-guardian');
+    }
+
+    if (badgeKeys.length === 0) {
+        badgeKeys.push('pledge-maker');
+    }
+
+    return badgeKeys;
+}
+
+function determineBadge(userData) {
+    const badgeKeys = determineBadgeKeys(userData);
+    return badgeKeys[0] || 'feedback-completer';
+}
+
+function buildBadgeEmailHtml(badgeConfigs) {
+    const badgeCards = badgeConfigs.map(badge => `
+        <div style="width: 100%; max-width: 260px; margin: 10px; padding: 18px; border-radius: 16px; background: #ffffff; box-shadow: 0 8px 24px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+            <div style="width: 64px; height: 64px; margin: 0 auto 14px auto; background: ${badge.color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #ffffff;">
+                ${badge.icon}
+            </div>
+            <h3 style="font-size: 18px; margin: 0 0 10px 0; color: #111827; text-align: center;">${badge.name}</h3>
+            <p style="font-size: 13px; color: #4b5563; line-height: 1.5; text-align: center; margin: 0;">${badge.description}</p>
+        </div>
+    `).join('');
+
+    return `
+        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background: linear-gradient(135deg, #f8fafc, #eff6ff); padding: 20px; border-radius: 12px;">
+            <div style="text-align:center; margin-bottom: 24px;">
+                <h2 style="margin:0; color:#0f172a; font-size:28px;">Congratulations!</h2>
+                <p style="margin:12px auto 0 auto; max-width:480px; color:#334155; font-size:15px; line-height:1.6;">
+                    You've earned the following badge${badgeConfigs.length > 1 ? 's' : ''} based on your pledge topics.
+                </p>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+                ${badgeCards}
+            </div>
+            <div style="margin-top:24px; background:#ffffff; padding:18px; border-radius:14px; box-shadow:0 6px 18px rgba(15,23,42,0.08);">
+                <p style="font-size:13px; color:#475569; line-height:1.7; margin:0;">
+                    Thank you for sharing your pledge — your commitment helps create a better future.
+                </p>
+            </div>
+        </div>
+    `;
 }
 
 // ==================== EMAIL CONFIGURATION ====================
@@ -704,40 +1145,57 @@ async function checkEmailService() {
 // Done by XY - Sends customized badge congratulation emails
 // Features:
 // - Automatic badge determination based on user pledge content
+// - Multiple topic badges can be awarded for cross-topic pledges
 // - HTML email templates with badge-specific styling and icons
 // - Image-based badge representations
 // - Error handling and delivery confirmation
 // - Integrated into feedback submission workflow
+// - Social media sharing buttons added to all badge emails - done by XY
 const sendBadgeEmail = async (recipientEmail, userData) => {
     try {
         if (!emailTransporter) {
             await reloadEmailService();
         }
 
-        // Determine which badge to award based on user actions
-        const badgeKey = determineBadge(userData);
-        const badgeConfig = BADGE_CONFIGS[badgeKey];
+        const badgeKeys = determineBadgeKeys(userData);
+        const badgeConfigs = badgeKeys.map(key => BADGE_CONFIGS[key]).filter(Boolean);
 
-        if (!badgeConfig) {
-            console.error(`Unknown badge key: ${badgeKey}`);
-            return { success: false, error: 'Unknown badge type' };
+        if (badgeConfigs.length === 0) {
+            console.error('No badge configuration found for user data:', badgeKeys);
+            return { success: false, error: 'No badge configuration found' };
+        }
+
+        let subject;
+        let text;
+        let html;
+
+        if (badgeConfigs.length === 1) {
+            const badgeConfig = badgeConfigs[0];
+            subject = badgeConfig.subject;
+            text = badgeConfig.textTemplate;
+            html = badgeConfig.htmlTemplate;
+        } else {
+            const badgeNames = badgeConfigs.map(badge => badge.name);
+            subject = `Congratulations! You've earned ${badgeNames.join(' + ')} badges!`;
+            text = `Hello!\n\nCongratulations on earning the following badges:\n${badgeConfigs.map(badge => `- ${badge.name}: ${badge.description}`).join('\n')}\n\nKeep up the great work!\n\nBest regards,\nESG Team`;
+            html = buildBadgeEmailHtml(badgeConfigs);
         }
 
         const mailOptions = {
             from: `"RP ESG Centre" <${SENDER_EMAIL}>`,
             to: recipientEmail,
-            subject: badgeConfig.subject,
-            text: badgeConfig.textTemplate,
-            html: badgeConfig.htmlTemplate
+            subject,
+            text,
+            html
         };
 
         const info = await emailTransporter.sendMail(mailOptions);
-        console.log(`🏆 Badge "${badgeConfig.name}" email sent to ${recipientEmail}: ${info.messageId}`);
-        return { 
-            success: true, 
+        console.log(`🏆 Badge email sent to ${recipientEmail}: ${info.messageId}`);
+        return {
+            success: true,
             messageId: info.messageId,
-            badge: badgeConfig.name,
-            badgeKey: badgeKey
+            badges: badgeConfigs.map(badge => badge.name),
+            badgeKeys: badgeKeys
         };
     } catch (error) {
         console.error('Error sending badge email:', error);
