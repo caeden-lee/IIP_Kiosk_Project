@@ -82,6 +82,7 @@ const feedbackRoutes = require('./feedbackRoutes');
 const adminRoutes = require('./adminRoutes');
 const dataExportRoutes = require('./dataExportRoutes');
 const pledgeboardRoutes = require('./pledgeboardRoutes');
+const pulseRoutes = require('./pulseRoutes');
 const os = require('os');
 const emailService = require('./emailService');
 
@@ -318,6 +319,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/data-export', dataExportRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
+app.use('/api/pulse', pulseRoutes);
 
 // Tree API for the leaves (names from feedback.db)
 app.use('/api/tree', treeRoutes);
@@ -436,6 +438,10 @@ app.get('/admin', (req, res) => {
 // Tree page – assumes file: frontend/tree/tree.html
 app.get('/tree', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
+});
+
+app.get('/pulse', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 
 // Default redirect

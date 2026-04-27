@@ -77,6 +77,7 @@ const os = require('os');
 const db = require('./db');
 const feedbackRoutes = require('./feedbackRoutes');
 const pledgeboardRoutes = require('./pledgeboardRoutes');
+const pulseRoutes = require('./pulseRoutes');
 const emailService = require('./emailService');
 
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
@@ -230,6 +231,7 @@ setTreeDatabase(db);
 
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
+app.use('/api/pulse', pulseRoutes);
 app.use('/api/tree', treeRoutes);
 
 // Network info
@@ -336,6 +338,10 @@ app.get('/pledgeboard', (req, res) => {
 
 app.get('/tree', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
+});
+
+app.get('/pulse', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 
 app.get('/', (req, res) => {
