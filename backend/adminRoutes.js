@@ -5022,52 +5022,247 @@ router.post('/server-schedules/disable-all', auth.requireAuth, (req, res) => {
   }
 });
 
+// Done by Yu Kang
+const kioskControlConfig = {
+    windowsPidFile: path.join(__dirname, 'kioskServer.pid'),
+    kioskScriptPath: path.join(__dirname, 'kioskServer.js'),
+    kioskPort: 3003
+};
+
+function readWindowsKioskPid() {
+    try {
+        if (!fs.existsSync(kioskControlConfig.windowsPidFile)) return null;
+        const raw = fs.readFileSync(kioskControlConfig.windowsPidFile, 'utf8').trim();
+        const pid = Number.parseInt(raw, 10);
+        return Number.isInteger(pid) ? pid : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function clearWindowsKioskPid() {
+    try {
+        if (fs.existsSync(kioskControlConfig.windowsPidFile)) {
+            fs.unlinkSync(kioskControlConfig.windowsPidFile);
+        }
+    } catch (error) {
+        console.warn('⚠️ Unable to clear kiosk PID file:', error.message);
+    }
+}
+
+function probeKioskHttp(callback) {
+    const http = require('http');
+    const hostsToTry = ['127.0.0.1', '::1', 'localhost'];
+
+    function tryHost(index) {
+        if (index >= hostsToTry.length) {
+            callback({
+                running: false,
+                status: 'unreachable',
+                source: 'http-probe'
+            });
+            return;
+        }
+
+        const host = hostsToTry[index];
+        const formattedHost = host.includes(':') ? `[${host}]` : host;
+        const probe = http.get(`http://${formattedHost}:${kioskControlConfig.kioskPort}/feedback`, (probeRes) => {
+            const reachable = probeRes.statusCode >= 200 && probeRes.statusCode < 500;
+            probeRes.resume();
+
+            if (reachable) {
+                callback({
+                    running: true,
+                    status: `reachable (${host})`,
+                    source: 'http-probe'
+                });
+            } else {
+                tryHost(index + 1);
+            }
+        });
+
+        probe.setTimeout(1500, () => {
+            probe.destroy();
+            tryHost(index + 1);
+        });
+
+        probe.on('error', () => {
+            tryHost(index + 1);
+        });
+    }
+
+    tryHost(0);
+}
+
+function resolveKioskStatus(callback) {
+    const { exec } = require('child_process');
+
+    if (process.platform === 'win32') {
+        probeKioskHttp(callback);
+        return;
+    }
+
+    exec('systemctl is-active kiosk.service', (err, stdout) => {
+        const status = (stdout || '').trim();
+        if (!err && status) {
+            callback({
+                running: status === 'active',
+                status,
+                source: 'systemctl'
+            });
+            return;
+        }
+
+        probeKioskHttp(callback);
+    });
+}
+
+// Done by Yu Kang
+let lastKioskStatusLogKey = null;
+let lastKioskStatusLogAt = 0;
+
+function logKioskStatusIfNeeded(result) {
+    const now = Date.now();
+    const logKey = `${result.status}|${result.source}`;
+    const changed = logKey !== lastKioskStatusLogKey;
+    const throttleElapsed = now - lastKioskStatusLogAt >= 60000; // 60s heartbeat
+
+    if (changed || throttleElapsed) {
+        console.log(`📊 Kiosk service status: ${result.status} (${result.source})`);
+        lastKioskStatusLogKey = logKey;
+        lastKioskStatusLogAt = now;
+    }
+}
+
 // POST /api/admin/server/start
 // Manually start the kiosk service
 router.post('/server/start', auth.requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  
-  console.log('▶️  Manual server start requested');
-  
-  exec('sudo systemctl start kiosk.service', (err, stdout, stderr) => {
-    if (err) {
-      console.error('❌ Failed to start server:', stderr);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to start server'
-      });
+    const { exec, spawn } = require('child_process');
+
+    console.log('▶️  Manual server start requested');
+
+    if (process.platform === 'win32') {
+        resolveKioskStatus((statusInfo) => {
+            if (statusInfo.running) {
+                return res.json({
+                    success: true,
+                    message: 'Server is already running',
+                    platform: 'windows',
+                    source: statusInfo.source
+                });
+            }
+
+            try {
+                const child = spawn(process.execPath, [kioskControlConfig.kioskScriptPath], {
+                    cwd: __dirname,
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                });
+
+                child.unref();
+                fs.writeFileSync(kioskControlConfig.windowsPidFile, String(child.pid));
+
+                setTimeout(() => {
+                    resolveKioskStatus((verifyInfo) => {
+                        if (!verifyInfo.running) {
+                            return res.status(500).json({
+                                success: false,
+                                error: 'Kiosk server did not become reachable after start command',
+                                platform: 'windows',
+                                status: verifyInfo.status
+                            });
+                        }
+
+                        res.json({
+                            success: true,
+                            message: 'Server started successfully',
+                            platform: 'windows',
+                            source: verifyInfo.source
+                        });
+                    });
+                }, 1500);
+            } catch (error) {
+                console.error('❌ Failed to start Windows kiosk server:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to start server on Windows'
+                });
+            }
+        });
+
+        return;
     }
-    
-    console.log('✅ Server started successfully');
-    res.json({
-      success: true,
-      message: 'Server started successfully'
+
+    exec('sudo systemctl start kiosk.service', (err, stdout, stderr) => {
+        if (err) {
+            console.error('❌ Failed to start server:', stderr);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to start server'
+            });
+        }
+
+        console.log('✅ Server started successfully');
+        res.json({
+            success: true,
+            message: 'Server started successfully',
+            platform: 'linux'
+        });
     });
-  });
 });
 
 // POST /api/admin/server/stop
 // Manually stop the kiosk service
 router.post('/server/stop', auth.requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  
-  console.log('⏹️  Manual server stop requested');
-  
-  exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
-    if (err) {
-      console.error('❌ Failed to stop server:', stderr);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to stop server'
-      });
+    const { exec } = require('child_process');
+
+    console.log('⏹️  Manual server stop requested');
+
+    if (process.platform === 'win32') {
+        const pid = readWindowsKioskPid();
+
+        if (pid) {
+            exec(`taskkill /PID ${pid} /T /F`, () => {
+                clearWindowsKioskPid();
+                res.json({
+                    success: true,
+                    message: 'Server stopped successfully',
+                    platform: 'windows',
+                    method: 'pid-file'
+                });
+            });
+            return;
+        }
+
+        exec('powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \"*kioskServer.js*\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"', () => {
+            clearWindowsKioskPid();
+            res.json({
+                success: true,
+                message: 'Stop command issued',
+                platform: 'windows',
+                method: 'process-scan'
+            });
+        });
+        return;
     }
-    
-    console.log('✅ Server stopped successfully');
-    res.json({
-      success: true,
-      message: 'Server stopped successfully'
+
+    exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
+        if (err) {
+            console.error('❌ Failed to stop server:', stderr);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to stop server'
+            });
+        }
+
+        console.log('✅ Server stopped successfully');
+        res.json({
+            success: true,
+            message: 'Server stopped successfully',
+            platform: 'linux'
+        });
     });
-  });
 });
 
 // ==================== SERVER CONTROL MODE ROUTES ====================
@@ -5132,18 +5327,15 @@ router.post('/server/mode', auth.requireAuth, (req, res) => {
 // GET /api/admin/server/status
 // Get current kiosk service status
 router.get('/server/status', auth.requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  
-  exec('systemctl is-active kiosk.service', (err, stdout, stderr) => {
-    const status = stdout.trim();
-    const isActive = status === 'active';
-    
-    console.log(`📊 Kiosk service status: ${status}`);
-    
+    resolveKioskStatus((result) => {
+        logKioskStatusIfNeeded(result);
+
     res.json({
       success: true,
-      kiosk_running: isActive,
-      status: status
+            kiosk_running: result.running,
+            status: result.status,
+            source: result.source,
+            platform: process.platform
     });
   });
 });
@@ -5152,15 +5344,12 @@ router.get('/server/status', auth.requireAuth, (req, res) => {
 // Simple endpoint to check if kiosk service is active (for watchKioskService polling)
 // This is called every 3 seconds by the frontend to detect service state changes
 router.get('/kiosk-status', auth.requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  
-  exec('systemctl is-active kiosk.service', (err, stdout, stderr) => {
-    const status = stdout.trim();
-    const isActive = status === 'active';
-    
+    resolveKioskStatus((result) => {
     res.json({
-      active: isActive,
-      status: status
+            active: result.running,
+            status: result.status,
+            source: result.source,
+            platform: process.platform
     });
   });
 });
