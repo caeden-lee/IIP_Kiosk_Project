@@ -887,3 +887,174 @@ body::before {
         align-items: stretch;
     }
 }
+
+/* ==================== SUSTAINABILITY THEME REFINEMENT ==================== */
+
+:root {
+    --primary-color: #4a7c59;
+    --primary-dark: #2f6f45;
+    --secondary-color: #7fb069;
+    --accent-color: #b7d99a;
+    --background: #ecfdf5;
+    --surface: rgba(255, 255, 248, 0.9);
+    --text-primary: #18392b;
+    --text-secondary: #496656;
+    --border: rgba(74, 124, 89, 0.22);
+    --shadow-sm: 0 8px 18px rgba(24, 57, 43, 0.1);
+    --shadow-md: 0 16px 34px rgba(24, 57, 43, 0.14);
+    --shadow-lg: 0 22px 48px rgba(24, 57, 43, 0.18);
+}
+
+body {
+    background:
+        linear-gradient(135deg, rgba(236, 253, 245, 0.94), rgba(240, 253, 244, 0.9)),
+        url('/assets/Tree/BackGround.png') center / cover no-repeat fixed;
+    color: var(--text-primary);
+}
+
+body::before {
+    background:
+        radial-gradient(circle at 16% 18%, rgba(34, 197, 94, 0.16), transparent 32%),
+        radial-gradient(circle at 86% 12%, rgba(132, 204, 22, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(236, 253, 245, 0.24), rgba(220, 252, 231, 0.6));
+}
+
+.pledgeboard-header,
+.search-section,
+.top-three-section,
+.all-pledges-section,
+.empty-state {
+    background: rgba(255, 255, 248, 0.9);
+    border-color: rgba(74, 124, 89, 0.2);
+    box-shadow: var(--shadow-md);
+}
+
+.pledgeboard-header {
+    background:
+        radial-gradient(circle at 50% 18%, rgba(127, 176, 105, 0.24), transparent 38%),
+        linear-gradient(135deg, rgba(255, 255, 248, 0.96), rgba(220, 252, 231, 0.86));
+}
+
+.pledgeboard-header::after {
+    opacity: 0.18;
+}
+
+.back-button {
+    background: rgba(74, 124, 89, 0.1);
+    border-color: rgba(74, 124, 89, 0.2);
+    color: #2f6f45;
+}
+
+.back-button:hover {
+    background: rgba(127, 176, 105, 0.2);
+}
+
+.header-content h1 {
+    background: linear-gradient(135deg, #18392b, #2f6f45 62%, #6f9f3f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.header-content p,
+.search-hint,
+.pledge-text,
+.pledge-date,
+.like-count,
+.empty-state p,
+.loading-state {
+    color: #496656;
+}
+
+.section-title,
+.pledge-author,
+.empty-state h3 {
+    color: #18392b;
+}
+
+.search-input {
+    background: rgba(255, 255, 248, 0.92);
+    border-color: rgba(74, 124, 89, 0.24);
+    color: #18392b;
+}
+
+.search-input::placeholder {
+    color: #789084;
+}
+
+.search-input:focus {
+    border-color: #7fb069;
+    box-shadow: 0 0 0 3px rgba(127, 176, 105, 0.2);
+}
+
+.clear-search-btn,
+.cta-button,
+.like-button:hover,
+.like-button.liked {
+    background: linear-gradient(135deg, #4a7c59, #2f6f45);
+    border-color: #7fb069;
+    color: #ffffff;
+    box-shadow: 0 12px 26px rgba(74, 124, 89, 0.2);
+}
+
+.top-pledge-card,
+.pledge-card {
+    background: rgba(247, 252, 242, 0.88);
+    border-color: rgba(74, 124, 89, 0.2);
+    box-shadow: var(--shadow-sm);
+}
+
+.top-pledge-card::before,
+.pledge-card::before {
+    background: linear-gradient(180deg, #4a7c59, #7fb069, #b7d99a);
+}
+
+.top-pledge-card:hover,
+.pledge-card:hover {
+    border-color: #7fb069;
+    box-shadow: var(--shadow-md);
+}
+
+.top-pledge-card.rank-1,
+.top-pledge-card.rank-2,
+.top-pledge-card.rank-3 {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 248, 0.96), rgba(220, 252, 231, 0.72)),
+        rgba(247, 252, 242, 0.9);
+}
+
+.top-pledge-card.rank-1,
+.top-pledge-card.rank-2,
+.top-pledge-card.rank-3 {
+    border-color: rgba(127, 176, 105, 0.44);
+}
+
+.rank-1 .pledge-rank,
+.rank-2 .pledge-rank,
+.rank-3 .pledge-rank {
+    background: rgba(220, 252, 231, 0.8);
+    color: #2f6f45;
+}
+
+.pledge-footer {
+    border-top-color: rgba(74, 124, 89, 0.16);
+}
+
+.like-button {
+    background: rgba(255, 255, 248, 0.92);
+    border-color: rgba(74, 124, 89, 0.24);
+    color: #2f6f45;
+}
+
+.pledges-list::-webkit-scrollbar-track {
+    background: rgba(74, 124, 89, 0.1);
+}
+
+.pledges-list::-webkit-scrollbar-thumb,
+.spinner {
+    border-top-color: #7fb069;
+}
+
+.pledges-list::-webkit-scrollbar-thumb {
+    background: #7fb069;
+}

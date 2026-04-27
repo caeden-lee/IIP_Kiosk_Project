@@ -1633,3 +1633,209 @@ textarea::placeholder {
     background: #0f766e;
     color: #ffffff;
 }
+
+/* ==================== SUSTAINABILITY THEME REFINEMENT ==================== */
+
+body {
+    background:
+        linear-gradient(135deg, rgba(236, 253, 245, 0.94), rgba(240, 253, 244, 0.9)),
+        url('/assets/Tree/BackGround.png') center / cover no-repeat fixed !important;
+    color: #18392b;
+}
+
+body::after {
+    background:
+        radial-gradient(circle at 16% 18%, rgba(34, 197, 94, 0.16), transparent 32%),
+        radial-gradient(circle at 86% 12%, rgba(132, 204, 22, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(236, 253, 245, 0.24), rgba(220, 252, 231, 0.6));
+}
+
+.card,
+.consent-card,
+.feedback-form-card,
+.photo-card,
+.style-card {
+    background: rgba(255, 255, 248, 0.9) !important;
+    border: 1px solid rgba(74, 124, 89, 0.2) !important;
+    box-shadow: 0 20px 48px rgba(24, 57, 43, 0.14) !important;
+}
+
+.card::before,
+.consent-card::before,
+.feedback-form-card::before,
+.photo-card::before,
+.style-card::before {
+    background: linear-gradient(90deg, #4a7c59, #7fb069, #b7d99a);
+}
+
+h1 {
+    background: linear-gradient(135deg, #18392b, #2f6f45 62%, #6f9f3f) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+.left-section,
+.consent-title,
+.question-label,
+.form-group label,
+.theme-name,
+.detail-value,
+.file-upload-area h3,
+.option-title {
+    color: #18392b !important;
+}
+
+.subtitle,
+.consent-description,
+.privacy-notice p,
+.option-description,
+.qr-description,
+.detail-label,
+.upload-hint,
+.step-text {
+    color: #496656 !important;
+}
+
+.brand-text,
+.qr-header,
+.examples-header {
+    color: #2f6f45 !important;
+}
+
+.icon,
+.step-number {
+    background: linear-gradient(135deg, #4a7c59, #7fb069) !important;
+    box-shadow: 0 10px 22px rgba(74, 124, 89, 0.18) !important;
+}
+
+.right-section,
+.retention-option,
+.privacy-notice,
+.pledge-examples,
+.theme-option,
+.upload-instructions,
+.file-upload-area,
+.submission-details {
+    background: rgba(247, 252, 242, 0.82) !important;
+    border-color: rgba(74, 124, 89, 0.2) !important;
+}
+
+.right-section,
+.pledge-examples {
+    background:
+        radial-gradient(circle at top, rgba(127, 176, 105, 0.18), transparent 44%),
+        rgba(247, 252, 242, 0.86) !important;
+}
+
+.examples-list li {
+    color: #2f5d43 !important;
+}
+
+.retention-option::before,
+.theme-option::before {
+    background: linear-gradient(90deg, #4a7c59, #7fb069, #b7d99a) !important;
+}
+
+.retention-option:hover,
+.theme-option:hover,
+.retention-option.selected,
+.theme-option.selected {
+    border-color: #7fb069 !important;
+    box-shadow: 0 10px 24px rgba(74, 124, 89, 0.14) !important;
+}
+
+.retention-option.selected,
+.theme-option.selected,
+.selected-theme-display,
+.success-notice {
+    background: rgba(220, 252, 231, 0.7) !important;
+    border-color: #7fb069 !important;
+}
+
+.option-icon {
+    background: #ffffff !important;
+}
+
+.privacy-notice {
+    border-left-color: #7fb069 !important;
+}
+
+.form-group input,
+textarea,
+.form-group select {
+    background: rgba(255, 255, 248, 0.92) !important;
+    border-color: rgba(74, 124, 89, 0.24) !important;
+    color: #18392b !important;
+}
+
+.form-group input:focus,
+textarea:focus,
+.form-group select:focus {
+    background: #ffffff !important;
+    border-color: #7fb069 !important;
+    box-shadow: 0 0 0 3px rgba(127, 176, 105, 0.2) !important;
+}
+
+.rating-btn {
+    background: rgba(247, 252, 242, 0.9) !important;
+    border-color: rgba(74, 124, 89, 0.24) !important;
+    color: #496656 !important;
+}
+
+.rating-btn:hover,
+.rating-btn.selected,
+.cta-button,
+.consent-button {
+    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    border-color: #7fb069 !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 26px rgba(74, 124, 89, 0.22) !important;
+}
+
+.pledgeboard-button {
+    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    box-shadow: 0 12px 26px rgba(74, 124, 89, 0.2) !important;
+}
+
+.secondary-button {
+    background: rgba(255, 255, 248, 0.9) !important;
+    color: #2f6f45 !important;
+    border-color: rgba(74, 124, 89, 0.34) !important;
+}
+
+.secondary-button:hover {
+    background: rgba(220, 252, 231, 0.7) !important;
+}
+
+.themed-select::after {
+    border-color: #2f6f45;
+}
+
+.themed-select select {
+    background:
+        linear-gradient(135deg, rgba(220, 252, 231, 0.72), rgba(255, 255, 248, 0.96)),
+        #f7fcf2 !important;
+    border-color: rgba(74, 124, 89, 0.34) !important;
+    color: #18392b !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 18px rgba(74, 124, 89, 0.12);
+}
+
+.themed-select select:hover,
+.themed-select select:focus {
+    border-color: #7fb069 !important;
+    background:
+        linear-gradient(135deg, rgba(220, 252, 231, 0.95), #ffffff),
+        #ffffff !important;
+}
+
+.themed-select select option {
+    background: #f7fcf2;
+    color: #18392b;
+}
+
+.themed-select select option:checked,
+.themed-select select option:hover {
+    background: #dff3d5;
+    color: #18392b;
+}
