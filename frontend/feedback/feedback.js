@@ -111,8 +111,8 @@ const FACE_API_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.
 let faceDetectionReady = false;
 let faceDetectionLoadPromise = null;
 
-function updateFaceDetectionStatus(message, type = 'info') {
-    const statusElement = document.getElementById('face-detection-status');
+function updateFaceDetectionStatus(message, type = 'info', statusElementId = 'face-detection-status') {
+    const statusElement = document.getElementById(statusElementId);
     if (!statusElement) return;
 
     statusElement.textContent = message;
@@ -163,6 +163,31 @@ async function detectFaceInCurrentFrame() {
 
     const detection = await faceapi.detectSingleFace(
         video,
+        new faceapi.TinyFaceDetectorOptions({
+            inputSize: 320,
+            scoreThreshold: 0.5
+        })
+    );
+
+    return Boolean(detection);
+}
+
+// Feature to detect face in uploaded image (mobile) - done by Yu Kang
+function loadImageElement(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Unable to load uploaded image for face detection.'));
+        image.src = dataUrl;
+    });
+}
+
+async function detectFaceInImageData(dataUrl) {
+    await ensureFaceDetectionReady();
+
+    const image = await loadImageElement(dataUrl);
+    const detection = await faceapi.detectSingleFace(
+        image,
         new faceapi.TinyFaceDetectorOptions({
             inputSize: 320,
             scoreThreshold: 0.5
@@ -805,8 +830,8 @@ function submitPledge(event) {
 
 // ==================== 6. PHOTO HANDLING FUNCTIONS ====================
 
-// Handle photo upload from file input (mobile)
-function handlePhotoUpload(event) {
+// Handle photo upload from file input (mobile) - with face detection validation (Done by Yu Kang)
+async function handlePhotoUpload(event) {
     const file = event.target.files[0];
 
     if (!file) {
@@ -825,32 +850,61 @@ function handlePhotoUpload(event) {
         return;
     }
 
-    const reader = new FileReader();
+    const previewContainer = document.getElementById('photo-preview');
+    const continueBtn = document.getElementById('upload-continue-btn');
 
-    reader.onload = function(e) {
-        // Set the photo data
-        photoData = e.target.result;
+    // Reset preview state before validation.
+    photoData = null;
+    previewContainer.style.display = 'none';
+    continueBtn.disabled = true;
+    updateFaceDetectionStatus('Checking uploaded photo for a face...', 'loading', 'upload-face-detection-status');
 
-        // Show preview
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Error reading the file. Please try again.'));
+        reader.readAsDataURL(file);
+    }).catch((error) => {
+        alert(error.message);
+        updateFaceDetectionStatus('Could not read image. Please try again.', 'error', 'upload-face-detection-status');
+        return null;
+    });
+
+    if (!dataUrl) {
+        return;
+    }
+
+    try {
+        const hasFace = await detectFaceInImageData(dataUrl);
+        if (!hasFace) {
+            event.target.value = '';
+            updateFaceDetectionStatus('No face detected. Please retake and upload a clearer face photo.', 'error', 'upload-face-detection-status');
+            alert('No face detected. Please retake the photo and make sure your face is clearly visible.');
+            return;
+        }
+
+        photoData = dataUrl;
+
         const previewImg = document.getElementById('uploaded-photo-preview');
-        const previewContainer = document.getElementById('photo-preview');
-        const continueBtn = document.getElementById('upload-continue-btn');
-
         previewImg.src = photoData;
         previewContainer.style.display = 'block';
         continueBtn.disabled = false;
+        updateFaceDetectionStatus('Face detected. Photo accepted.', 'success', 'upload-face-detection-status');
 
         // Auto-scroll to show preview
         previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         resetInactivityTimer();
-    };
-
-    reader.onerror = function() {
-        alert('Error reading the file. Please try again.');
-    };
-
-    reader.readAsDataURL(file);
+        
+    } catch (error) {
+        console.error('Face detection failed for uploaded image:', error);
+        event.target.value = '';
+        photoData = null;
+        previewContainer.style.display = 'none';
+        continueBtn.disabled = true;
+        updateFaceDetectionStatus('Face detection failed. Please try again.', 'error', 'upload-face-detection-status');
+        alert(`Face detection failed: ${error.message}`);
+    }
 }
 
 // Continue to style page from upload (mobile)
@@ -874,6 +928,7 @@ function retakePhotoFromUpload() {
     document.getElementById('photo-input').value = '';
     document.getElementById('photo-preview').style.display = 'none';
     document.getElementById('upload-continue-btn').disabled = true;
+    updateFaceDetectionStatus('Upload a photo to run face detection.', 'info', 'upload-face-detection-status');
     photoData = null;
 
     // Trigger click on file input again
