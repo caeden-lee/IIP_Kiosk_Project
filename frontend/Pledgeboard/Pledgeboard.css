@@ -611,3 +611,279 @@ body {
         font-size: 30px;
     }
 }
+
+/* ==================== ESG KIOSK THEME REFRESH ==================== */
+
+:root {
+    --primary-color: #8bd7c1;
+    --primary-dark: #0f766e;
+    --secondary-color: #22c55e;
+    --accent-color: #facc15;
+    --background: #061218;
+    --surface: rgba(10, 19, 26, 0.8);
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --border: rgba(255, 255, 255, 0.14);
+    --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 18px 40px rgba(0, 0, 0, 0.26);
+    --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.34);
+}
+
+body {
+    background:
+        linear-gradient(135deg, rgba(6, 18, 24, 0.92), rgba(18, 35, 29, 0.86)),
+        url('/assets/Tree/BackGround.png') center / cover no-repeat fixed;
+    color: var(--text-primary);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(139, 215, 193, 0.24), transparent 30%),
+        radial-gradient(circle at 82% 10%, rgba(250, 204, 21, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(4, 12, 18, 0.1), rgba(4, 12, 18, 0.5));
+}
+
+.pledgeboard-container {
+    max-width: 1280px;
+    padding: 28px;
+}
+
+.pledgeboard-header,
+.search-section,
+.top-three-section,
+.all-pledges-section,
+.empty-state {
+    background: rgba(10, 19, 26, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(18px);
+}
+
+.pledgeboard-header {
+    min-height: 230px;
+    padding: 32px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 20%, rgba(139, 215, 193, 0.24), transparent 36%),
+        linear-gradient(135deg, rgba(10, 19, 26, 0.88), rgba(15, 118, 110, 0.46));
+}
+
+.pledgeboard-header::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -120px;
+    width: min(680px, 80vw);
+    height: 260px;
+    transform: translateX(-50%);
+    opacity: 0.26;
+    background: url('/assets/Tree/stage4.png') center bottom / contain no-repeat;
+    pointer-events: none;
+}
+
+.back-button {
+    z-index: 1;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.header-content {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 42px auto 0;
+}
+
+.header-content h1 {
+    font-size: clamp(36px, 5vw, 66px);
+    line-height: 0.95;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffffff, #8bd7c1 64%, #facc15);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.header-content p {
+    color: #d7f7ee;
+    margin-top: 14px;
+    font-size: 18px;
+}
+
+.search-section,
+.top-three-section,
+.all-pledges-section {
+    padding: 22px;
+    margin-bottom: 24px;
+}
+
+.search-section {
+    margin-top: -12px;
+}
+
+.search-input {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    color: #f8fafc;
+}
+
+.search-input::placeholder {
+    color: #94a3b8;
+}
+
+.search-input:focus {
+    border-color: #8bd7c1;
+    box-shadow: 0 0 0 3px rgba(139, 215, 193, 0.16);
+}
+
+.clear-search-btn,
+.cta-button {
+    border-radius: 8px;
+    background: linear-gradient(135deg, #16a34a, #0f766e);
+    color: white;
+    box-shadow: 0 12px 30px rgba(22, 163, 74, 0.22);
+}
+
+.search-hint {
+    color: #cbd5e1;
+}
+
+.section-title {
+    color: #f8fafc;
+    letter-spacing: 0;
+}
+
+.top-three-grid {
+    gap: 18px;
+}
+
+.top-pledge-card,
+.pledge-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    box-shadow: none;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.top-pledge-card::before,
+.pledge-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, #22c55e, #8bd7c1, #facc15);
+}
+
+.top-pledge-card:hover,
+.pledge-card:hover {
+    border-color: rgba(139, 215, 193, 0.5);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+}
+
+.top-pledge-card.rank-1,
+.top-pledge-card.rank-2,
+.top-pledge-card.rank-3 {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)),
+        rgba(10, 19, 26, 0.74);
+}
+
+.top-pledge-card.rank-1 {
+    border-color: rgba(250, 204, 21, 0.78);
+}
+
+.top-pledge-card.rank-2 {
+    border-color: rgba(203, 213, 225, 0.62);
+}
+
+.top-pledge-card.rank-3 {
+    border-color: rgba(251, 146, 60, 0.62);
+}
+
+.pledge-rank {
+    border-radius: 999px;
+}
+
+.rank-1 .pledge-rank {
+    background: rgba(250, 204, 21, 0.18);
+    color: #fde68a;
+}
+
+.rank-2 .pledge-rank {
+    background: rgba(203, 213, 225, 0.16);
+    color: #e2e8f0;
+}
+
+.rank-3 .pledge-rank {
+    background: rgba(251, 146, 60, 0.16);
+    color: #fed7aa;
+}
+
+.pledge-author {
+    color: #f8fafc;
+}
+
+.pledge-text,
+.pledge-date,
+.like-count,
+.empty-state p,
+.loading-state {
+    color: #cbd5e1;
+}
+
+.pledge-footer {
+    border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.like-button {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    color: #f8fafc;
+}
+
+.like-button:hover,
+.like-button.liked {
+    background: linear-gradient(135deg, #16a34a, #0f766e);
+    border-color: #8bd7c1;
+}
+
+.pledges-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.pledges-list::-webkit-scrollbar-thumb {
+    background: #8bd7c1;
+}
+
+.spinner {
+    border-color: rgba(255, 255, 255, 0.14);
+    border-top-color: #8bd7c1;
+}
+
+@media (max-width: 768px) {
+    .pledgeboard-container {
+        padding: 16px;
+    }
+
+    .pledgeboard-header {
+        min-height: 220px;
+    }
+
+    .search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

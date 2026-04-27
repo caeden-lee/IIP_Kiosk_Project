@@ -1316,6 +1316,262 @@ textarea::placeholder {
     }
 }
 
+/* ==================== ESG KIOSK THEME REFRESH ==================== */
+
+body {
+    background:
+        linear-gradient(135deg, rgba(6, 18, 24, 0.92), rgba(18, 35, 29, 0.86)),
+        url('/assets/Tree/BackGround.png') center / cover no-repeat fixed !important;
+    color: #f8fafc;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(139, 215, 193, 0.24), transparent 30%),
+        radial-gradient(circle at 82% 10%, rgba(250, 204, 21, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(4, 12, 18, 0.1), rgba(4, 12, 18, 0.5));
+}
+
+.card,
+.consent-card,
+.feedback-form-card,
+.photo-card,
+.style-card {
+    background: rgba(10, 19, 26, 0.84) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34) !important;
+    backdrop-filter: blur(18px);
+}
+
+.card {
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before,
+.consent-card::before,
+.feedback-form-card::before,
+.photo-card::before,
+.style-card::before {
+    content: '';
+    display: block;
+    height: 4px;
+    margin: -60px -60px 38px;
+    background: linear-gradient(90deg, #22c55e, #8bd7c1, #facc15);
+}
+
+.card::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    margin: 0;
+}
+
+.feedback-form-card::before {
+    margin: -60px -60px 38px;
+}
+
+.photo-card::before,
+.style-card::before {
+    margin: -50px -50px 34px;
+}
+
+h1 {
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffffff, #8bd7c1 64%, #facc15) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+.left-section,
+.consent-title,
+.question-label,
+.form-group label,
+.theme-name,
+.detail-value,
+.file-upload-area h3 {
+    color: #f8fafc !important;
+}
+
+.subtitle,
+.consent-description,
+.privacy-notice p,
+.option-description,
+.qr-description,
+.detail-label,
+.upload-hint,
+.step-text {
+    color: #cbd5e1 !important;
+}
+
+.brand-text,
+.qr-header,
+.examples-header {
+    color: #8bd7c1 !important;
+    letter-spacing: 0;
+}
+
+.icon,
+.step-number {
+    background: linear-gradient(135deg, #22c55e, #8bd7c1) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 24px rgba(34, 197, 94, 0.28) !important;
+}
+
+.right-section,
+.retention-option,
+.privacy-notice,
+.pledge-examples,
+.theme-option,
+.upload-instructions,
+.file-upload-area,
+.submission-details {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    border-radius: 8px !important;
+}
+
+.right-section {
+    background:
+        radial-gradient(circle at top, rgba(139, 215, 193, 0.18), transparent 42%),
+        rgba(255, 255, 255, 0.1) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 44px rgba(0, 0, 0, 0.22);
+}
+
+.pledge-examples {
+    background: rgba(139, 215, 193, 0.1) !important;
+    border-color: rgba(139, 215, 193, 0.28) !important;
+}
+
+.examples-list li {
+    color: #d7f7ee !important;
+}
+
+.retention-option::before,
+.theme-option::before {
+    background: linear-gradient(90deg, #22c55e, #8bd7c1, #facc15) !important;
+}
+
+.retention-option:hover,
+.theme-option:hover {
+    border-color: rgba(139, 215, 193, 0.54) !important;
+}
+
+.retention-option.selected,
+.theme-option.selected {
+    background: rgba(139, 215, 193, 0.14) !important;
+    border-color: #8bd7c1 !important;
+    box-shadow: 0 8px 25px rgba(139, 215, 193, 0.18) !important;
+}
+
+.option-icon {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-radius: 8px !important;
+}
+
+.option-title {
+    color: #f8fafc !important;
+}
+
+.privacy-notice {
+    border-left-color: #8bd7c1 !important;
+}
+
+.form-group input,
+textarea,
+.form-group select {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 2px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 8px !important;
+    color: #f8fafc !important;
+}
+
+.form-group input:focus,
+textarea:focus,
+.form-group select:focus {
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: #8bd7c1 !important;
+    box-shadow: 0 0 0 3px rgba(139, 215, 193, 0.16) !important;
+}
+
+.form-group input::placeholder,
+textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+.rating-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 8px !important;
+    color: #cbd5e1 !important;
+}
+
+.rating-btn:hover,
+.rating-btn.selected {
+    background: linear-gradient(135deg, #22c55e, #0f766e) !important;
+    border-color: #8bd7c1 !important;
+    color: white !important;
+}
+
+.cta-button,
+.consent-button {
+    background: linear-gradient(135deg, #16a34a, #0f766e) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 12px 30px rgba(22, 163, 74, 0.3) !important;
+}
+
+.pledgeboard-button {
+    border-radius: 8px !important;
+    box-shadow: 0 12px 30px rgba(15, 118, 110, 0.28) !important;
+}
+
+.secondary-button {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #8bd7c1 !important;
+    border: 2px solid rgba(139, 215, 193, 0.46) !important;
+    border-radius: 8px !important;
+}
+
+.secondary-button:hover {
+    background: rgba(139, 215, 193, 0.14) !important;
+}
+
+.selected-theme-display,
+.success-notice {
+    background: rgba(139, 215, 193, 0.12) !important;
+    border-color: #8bd7c1 !important;
+    border-radius: 8px !important;
+}
+
+.camera-view,
+.preview-frame,
+.overlay-container {
+    border-radius: 8px !important;
+}
+
+@media (max-width: 768px) {
+    .card::before,
+    .consent-card::before,
+    .feedback-form-card::before,
+    .photo-card::before,
+    .style-card::before {
+        margin: -35px -20px 28px;
+    }
+
+    .card::before {
+        margin: 0;
+    }
+}
+
 /* ==================== THEMED PLEDGE TOPIC DROPDOWN ==================== */
 
 .themed-select {
