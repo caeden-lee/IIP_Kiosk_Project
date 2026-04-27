@@ -1315,3 +1315,65 @@ textarea::placeholder {
         padding: 25px 20px;
     }
 }
+
+/* ==================== THEMED PLEDGE TOPIC DROPDOWN ==================== */
+
+.themed-select {
+    position: relative;
+}
+
+.themed-select::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid #8bd7c1;
+    border-bottom: 2px solid #8bd7c1;
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
+
+.themed-select select {
+    width: 100%;
+    min-height: 52px;
+    padding: 14px 46px 14px 16px;
+    appearance: none;
+    background:
+        linear-gradient(135deg, rgba(139, 215, 193, 0.14), rgba(255, 255, 255, 0.08)),
+        rgba(10, 19, 26, 0.92);
+    border: 2px solid rgba(139, 215, 193, 0.46);
+    border-radius: 8px;
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.themed-select select:hover {
+    border-color: #8bd7c1;
+    background:
+        linear-gradient(135deg, rgba(139, 215, 193, 0.2), rgba(255, 255, 255, 0.1)),
+        rgba(10, 19, 26, 0.94);
+}
+
+.themed-select select:focus {
+    outline: none;
+    border-color: #8bd7c1;
+    box-shadow: 0 0 0 3px rgba(139, 215, 193, 0.18), 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.themed-select select option {
+    background: #0a131a;
+    color: #f8fafc;
+    font-weight: 600;
+}
+
+.themed-select select option:checked,
+.themed-select select option:hover {
+    background: #0f766e;
+    color: #ffffff;
+}
