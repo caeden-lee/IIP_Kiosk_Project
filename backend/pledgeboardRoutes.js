@@ -23,6 +23,75 @@
 const express = require('express');
 const router = express.Router();
 const db = require('./db');
+const fs = require('fs');
+const path = require('path');
+
+const pledgeTopicsPath = path.join(__dirname, 'config', 'pledge-topics.json');
+const DEFAULT_PLEDGE_TOPICS = [
+    { value: 'climate-change', label: 'Climate Change' },
+    { value: 'renewable-energy', label: 'Renewable Energy' },
+    { value: 'sustainable-living', label: 'Sustainable Living' },
+    { value: 'ocean-conservation', label: 'Ocean Conservation' },
+    { value: 'ethical-governance', label: 'Ethical Governance' },
+    { value: 'community-impact', label: 'Community Impact' }
+];
+
+function parseMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function formatPledgeRow(row) {
+    const metadata = parseMetadata(row.metadata);
+    return {
+        ...row,
+        metadata,
+        pledge_topic: metadata.pledgeTopic || '',
+        moderation_status: metadata.pledgeStatus || 'approved',
+        moderated_at: metadata.moderatedAt || null,
+        moderated_by: metadata.moderatedBy || null
+    };
+}
+
+function ensurePledgeTopicConfig() {
+    const configDir = path.dirname(pledgeTopicsPath);
+    if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+    }
+    if (!fs.existsSync(pledgeTopicsPath)) {
+        fs.writeFileSync(pledgeTopicsPath, JSON.stringify(DEFAULT_PLEDGE_TOPICS, null, 2));
+    }
+}
+
+function readPledgeTopics() {
+    try {
+        ensurePledgeTopicConfig();
+        const topics = JSON.parse(fs.readFileSync(pledgeTopicsPath, 'utf8'));
+        if (Array.isArray(topics) && topics.length > 0) return topics;
+    } catch (error) {
+        console.error('Error reading pledge topic config:', error.message);
+    }
+    return DEFAULT_PLEDGE_TOPICS;
+}
+
+function sanitizePledgeTopics(topics) {
+    if (!Array.isArray(topics)) return [];
+    return topics
+        .map(topic => ({
+            value: String(topic.value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, ''),
+            label: String(topic.label || '').trim()
+        }))
+        .filter(topic => topic.value && topic.label)
+        .slice(0, 12);
+}
 
 // ==================== 1. GET PLEDGEBOARD DATA ====================
 // This route retrieves all pledges with their like counts for the public pledgeboard.
@@ -35,6 +104,7 @@ router.get('/pledges', (req, res) => {
             f.id,
             u.name,
             f.comment as pledge,
+            f.metadata,
             f.created_at,
             COUNT(pl.id) as like_count
         FROM feedback f
@@ -44,7 +114,7 @@ router.get('/pledges', (req, res) => {
             AND f.archive_status = 'not_archived'
             AND f.comment IS NOT NULL
             AND f.comment != ''
-        GROUP BY f.id, u.name, f.comment, f.created_at
+        GROUP BY f.id, u.name, f.comment, f.metadata, f.created_at
         ORDER BY like_count DESC, f.created_at DESC
     `;
     
@@ -59,9 +129,13 @@ router.get('/pledges', (req, res) => {
         
         console.log(`✅ Found ${rows.length} pledges for pledgeboard`);
         
+        const approvedPledges = rows
+            .map(formatPledgeRow)
+            .filter(row => row.moderation_status === 'approved');
+
         res.json({
             success: true,
-            pledges: rows
+            pledges: approvedPledges
         });
     });
 });
@@ -234,7 +308,7 @@ router.get('/check-like/:feedbackId', (req, res) => {
 // Admin endpoint to get pledges with sorting options.
 // Used in admin panel for viewing and managing pledgeboard.
 router.get('/admin/pledges', (req, res) => {
-    const { sortBy } = req.query; // 'most_liked' or 'least_liked'
+    const { sortBy, status = 'all' } = req.query; // 'most_liked' or 'least_liked'
     
     console.log(`🏆 Admin fetching pledgeboard data (sort: ${sortBy || 'most_liked'})...`);
 
@@ -247,6 +321,7 @@ router.get('/admin/pledges', (req, res) => {
             f.id,
             u.name,
             f.comment as pledge,
+            f.metadata,
             f.created_at,
             COUNT(pl.id) as like_count
         FROM feedback f
@@ -256,7 +331,7 @@ router.get('/admin/pledges', (req, res) => {
             AND f.archive_status = 'not_archived'
             AND f.comment IS NOT NULL
             AND f.comment != ''
-        GROUP BY f.id, u.name, f.comment, f.created_at
+        GROUP BY f.id, u.name, f.comment, f.metadata, f.created_at
         ORDER BY like_count ${sortOrder}, f.created_at DESC
     `;
     
@@ -271,12 +346,78 @@ router.get('/admin/pledges', (req, res) => {
         
         console.log(`✅ Found ${rows.length} pledges for admin pledgeboard`);
         
+        let pledges = rows.map(formatPledgeRow);
+        if (status !== 'all') {
+            pledges = pledges.filter(row => row.moderation_status === status);
+        }
+
         res.json({
             success: true,
-            pledges: rows,
+            pledges,
             sortBy: sortBy || 'most_liked'
         });
     });
+});
+
+// Update pledge moderation status from the admin pledgeboard queue.
+router.put('/admin/pledges/:feedbackId/status', (req, res) => {
+    const { feedbackId } = req.params;
+    const { status, username = 'admin' } = req.body;
+    const allowedStatuses = ['pending', 'approved', 'rejected'];
+
+    if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: 'Invalid pledge status' });
+    }
+
+    db.get('SELECT metadata FROM feedback WHERE id = ?', [feedbackId], (err, row) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: 'Database error' });
+        }
+        if (!row) {
+            return res.status(404).json({ success: false, error: 'Pledge not found' });
+        }
+
+        const metadata = parseMetadata(row.metadata);
+        metadata.pledgeStatus = status;
+        metadata.moderatedAt = new Date().toISOString();
+        metadata.moderatedBy = username;
+
+        db.run(
+            'UPDATE feedback SET metadata = ? WHERE id = ?',
+            [JSON.stringify(metadata), feedbackId],
+            function(updateErr) {
+                if (updateErr) {
+                    return res.status(500).json({ success: false, error: 'Failed to update pledge status' });
+                }
+                res.json({ success: true, status, feedbackId: Number(feedbackId) });
+            }
+        );
+    });
+});
+
+// Public topic list used by the kiosk feedback form.
+router.get('/topics', (req, res) => {
+    res.json({ success: true, topics: readPledgeTopics() });
+});
+
+// Admin topic list and save endpoint so staff can edit pledge topics without code changes.
+router.get('/admin/topics', (req, res) => {
+    res.json({ success: true, topics: readPledgeTopics() });
+});
+
+router.put('/admin/topics', (req, res) => {
+    const topics = sanitizePledgeTopics(req.body.topics);
+    if (topics.length === 0) {
+        return res.status(400).json({ success: false, error: 'At least one pledge topic is required' });
+    }
+
+    try {
+        ensurePledgeTopicConfig();
+        fs.writeFileSync(pledgeTopicsPath, JSON.stringify(topics, null, 2));
+        res.json({ success: true, topics });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to save pledge topics' });
+    }
 });
 
 // ==================== 6. ROOT ENDPOINT ====================

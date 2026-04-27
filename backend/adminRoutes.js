@@ -395,6 +395,71 @@ router.get('/dashboard', (req, res) => {
     });
 });
 
+// Staff-facing sustainability summary for school reporting.
+router.get('/school-summary', (req, res) => {
+    const summary = {
+        feedbackCount: 0,
+        pledgeCount: 0,
+        photoSubmissions: 0,
+        pendingPledges: 0,
+        approvedPledges: 0,
+        temporaryRetention: 0,
+        longtermRetention: 0,
+        topTopics: []
+    };
+
+    const baseQuery = `
+        SELECT id, comment, metadata, photo_path, processed_photo_path, data_retention
+        FROM feedback
+        WHERE is_active = 1
+          AND archive_status = 'not_archived'
+    `;
+
+    db.all(baseQuery, [], (err, rows) => {
+        if (err) {
+            console.error('Error loading school summary:', err);
+            return res.status(500).json({ success: false, error: 'Failed to load school summary' });
+        }
+
+        const topicCounts = {};
+
+        rows.forEach(row => {
+            let metadata = {};
+            try {
+                metadata = row.metadata ? JSON.parse(row.metadata) : {};
+            } catch {
+                metadata = {};
+            }
+
+            summary.feedbackCount++;
+            if (row.comment) summary.pledgeCount++;
+            if (row.photo_path || row.processed_photo_path) summary.photoSubmissions++;
+            if (row.data_retention === 'temporary' || row.data_retention === '7days' || row.data_retention === '7day') {
+                summary.temporaryRetention++;
+            }
+            if (row.data_retention === 'longterm' || row.data_retention === 'indefinite') {
+                summary.longtermRetention++;
+            }
+
+            const pledgeStatus = metadata.pledgeStatus || 'approved';
+            if (row.comment && pledgeStatus === 'pending') summary.pendingPledges++;
+            if (row.comment && pledgeStatus === 'approved') summary.approvedPledges++;
+
+            const topic = metadata.pledgeTopic || 'not-selected';
+            if (row.comment) {
+                topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+            }
+        });
+
+        summary.topTopics = Object.entries(topicCounts)
+            .map(([topic, count]) => ({ topic, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        res.json({ success: true, summary });
+    });
+});
+
 // ==================== REAL DATA CHART ENDPOINTS (ADDED FOR LIVE DASHBOARD) ====================
 
 // Get real feedback statistics for distribution chart

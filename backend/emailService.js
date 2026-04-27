@@ -1,3 +1,11 @@
+// ============================================================
+// DONE BY XY - EMAIL BADGE SERVICE SUMMARY
+//  - Added the ESG Kiosk badge email system and badge configurations.
+//  - Added topic-to-badge mapping for pledge topics selected in the feedback flow.
+//  - Added customized HTML email templates with badge visuals.
+//  - Added badge congratulation email sending and social sharing sections.
+// ============================================================
+
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');

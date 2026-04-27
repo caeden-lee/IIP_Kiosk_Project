@@ -1,3 +1,11 @@
+// ============================================================
+// DONE BY XY - LIVE PULSE ROUTES SUMMARY
+//  - Added live ESG Kiosk pulse summary API routes.
+//  - Aggregates pledge counts for today, this month, all-time pledges, and digital tree visitors.
+//  - Builds anonymized recent pledge feed for public display.
+//  - Maps pledge topics to badge labels and builds badge earner/badge mix summaries.
+//  - Supports the frontend live pulse dashboard and monthly campaign progress.
+// ============================================================
 const express = require('express');
 const router = express.Router();
 const db = require('./db');

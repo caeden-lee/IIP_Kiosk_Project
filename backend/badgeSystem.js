@@ -1,9 +1,12 @@
 // ============================================================
 // BADGE SYSTEM MODULE - COMPLETE IMPLEMENTATION
 // ============================================================
-// This module contains the complete badge awarding system for the ESG Kiosk
-// Includes badge configurations, determination logic, and email sending
-// ============================================================ DOne BY XY
+// DONE BY XY - BADGE SYSTEM SUMMARY
+//  - Added the complete ESG Kiosk badge awarding module.
+//  - Defined badge configurations, SVG/icon styling, and badge email content.
+//  - Added badge determination logic for feedback completion and sustainability pledges.
+//  - Integrated badge email sending support through Nodemailer.
+// ============================================================
 
 const nodemailer = require('nodemailer');
 const fs = require('fs');

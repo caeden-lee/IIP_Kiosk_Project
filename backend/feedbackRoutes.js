@@ -1,6 +1,11 @@
 // ============================================================
 // FEEDBACKROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
+//
+// DONE BY XY - FEEDBACK ROUTES BADGE EMAIL SUMMARY
+//  - Added badge email sending into the feedback submission path.
+//  - Sends the badge email before the API response so the frontend can show accurate badge status.
+//  - Supports the thank-you page social sharing state based on badge email success or failure.
 // 
 // 1. DEPENDENCIES & CONFIGURATION
 //    const express                    - Express framework import (DONE BY PRETI)
@@ -641,7 +646,9 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
             processedPhotoId: userData.processedPhotoId,
             likedFeedback: userData.q2,
             improvementFeedback: userData.q3,
-            pledge: userData.pledge
+            pledge: userData.pledge,
+            pledgeTopic: userData.pledgeTopic || null,
+            pledgeStatus: userData.pledge ? 'pending' : 'approved'
         });
         
         let photoPath = userData.photoId ? `photos/${userData.photoId}` : null;
