@@ -1971,6 +1971,18 @@ async function applyFormUIConfig() {
     if (subtitleElement && config.landingSubtitle) {
       subtitleElement.textContent = config.landingSubtitle;
     }
+
+    const qrEnabled = Boolean(config.showLandingPageQRCode);
+    const qrPage = document.getElementById('land-page-qrcode');
+    const noQrPage = document.getElementById('land-page-no-qrcode');
+
+    if (qrPage) {
+      qrPage.style.display = qrEnabled ? 'block' : 'none';
+    }
+
+    if (noQrPage) {
+      noQrPage.style.display = qrEnabled ? 'none' : 'block';
+    }
   } catch (error) {
     console.error('Error applying form UI configuration:', error);
   }

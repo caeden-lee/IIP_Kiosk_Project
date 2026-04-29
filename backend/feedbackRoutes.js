@@ -810,7 +810,12 @@ router.get('/form-ui', (req, res) => {
     const configPath = path.join(__dirname, 'config', 'form-ui.json');
 
     if (!fs.existsSync(configPath)) {
-      return res.json({});
+      return res.json({
+        background: '',
+        landingTitle: '',
+        landingSubtitle: '',
+        showLandingPageQRCode: false
+      });
     }
 
     const data = fs.readFileSync(configPath, 'utf8');

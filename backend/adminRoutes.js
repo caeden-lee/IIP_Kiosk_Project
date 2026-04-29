@@ -4463,7 +4463,8 @@ router.get('/form-ui', auth.requireAuth, (req, res) => {
       return res.json({
         background: '',
         landingTitle: '',
-        landingSubtitle: ''
+        landingSubtitle: '',
+        showLandingPageQRCode: false
       });
     }
 
@@ -4480,7 +4481,7 @@ router.get('/form-ui', auth.requireAuth, (req, res) => {
 // Save/update form UI configuration
 router.put('/form-ui', auth.requireAuth, (req, res) => {
   try {
-    const { background, landingTitle, landingSubtitle } = req.body;
+    const { background, landingTitle, landingSubtitle, showLandingPageQRCode } = req.body;
 
     // Basic validation (keeps it safe + prevents weird payloads)
     if (typeof background !== 'string' || background.length > 300) {
@@ -4492,11 +4493,15 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
     if (typeof landingSubtitle !== 'string' || landingSubtitle.length > 200) {
       return res.status(400).json({ success: false, error: 'Invalid landing subtitle' });
     }
+    if (typeof showLandingPageQRCode !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'Invalid landing page QR toggle value' });
+    }
 
     const payload = {
       background: background.trim(),
       landingTitle: landingTitle.trim(),
-      landingSubtitle: landingSubtitle.trim()
+      landingSubtitle: landingSubtitle.trim(),
+      showLandingPageQRCode
     };
 
     // Ensure config folder exists

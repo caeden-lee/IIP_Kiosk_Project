@@ -160,6 +160,10 @@
                             <span class="nav-icon">❗</span>
                             Server Schedule
                         </a>
+                        <a href="#" class="nav-item" onclick="showPage('Land-page-QR')">
+                            <span class="nav-icon">📱</span>
+                            Landing Page QR Code
+                        </a>
                     </nav>
                 </div>
             </aside>
@@ -1902,6 +1906,38 @@
 
                 <!-- Notification container (DONE BY BERNISSA) -->
                 <div id="notification-container"></div>
+
+                <!-- Landing Page QR Code (DONE BY Yu Kang) -->
+                <div id="Land-page-QR-page" class="page">
+                    <div class="page-header">
+                        <h2>Landing Page QR Code</h2>
+                        <p>Manage the QR code for the landing page</p>
+                    </div>
+
+                    <div class="overlay-section user-section">
+                        <div class="landing-qr-settings-card">
+                            <div class="section-header">
+                                <h3>QR Code Settings</h3>
+                                <div class="header-actions">
+                                    <button class="btn-primary" onclick="saveLandingPageQR()">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="theme-override-toggle landing-qr-toggle-row">
+                                <label class="toggle-switch" for="qr-code-toggle">
+                                    <input type="checkbox" id="qr-code-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <label for="qr-code-toggle" class="toggle-label">Enable QR Code on Landing Page</label>
+                            </div>
+
+                            <div id="landing-qr-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
             </main>
     <script src="admin.js"></script>
 </body>

@@ -6881,6 +6881,8 @@ function showPage(pageName) {
         loadSchedules();
     } else if (pageName === 'form-management') {
     loadFormUISettings();
+    } else if (pageName === 'Land-page-QR') {
+    loadLandingPageQR();
     } else if (pageName === 'email-management') {
     loadEmailConfig();
     } else if (pageName === 'badge-email-templates') {
@@ -10059,10 +10061,14 @@ async function saveFormUISettings() {
   try {
     setFormStatus('Saving changes…', 'info');
 
+    const currentRes = await fetch('/api/admin/form-ui');
+    const currentCfg = await currentRes.json();
+
     const payload = {
       background: document.getElementById('fm-bg').value,
       landingTitle: document.getElementById('fm-title').value,
-      landingSubtitle: document.getElementById('fm-subtitle').value
+      landingSubtitle: document.getElementById('fm-subtitle').value,
+      showLandingPageQRCode: Boolean(currentCfg.showLandingPageQRCode)
     };
 
     const res = await fetch('/api/admin/form-ui', {
@@ -10081,6 +10087,66 @@ async function saveFormUISettings() {
   } catch (err) {
     console.error(err);
     setFormStatus('Failed to save changes', 'error');
+  }
+}
+
+async function loadLandingPageQR() {
+  try {
+    const res = await fetch('/api/admin/form-ui');
+    const cfg = await res.json();
+    const toggle = document.getElementById('qr-code-toggle');
+
+    if (toggle) {
+      toggle.checked = Boolean(cfg.showLandingPageQRCode);
+    }
+
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = 'QR setting loaded';
+      status.className = 'fm-status fm-status--success';
+    }
+  } catch (error) {
+    console.error('Failed to load landing page QR setting:', error);
+  }
+}
+
+async function saveLandingPageQR() {
+  try {
+    const res = await fetch('/api/admin/form-ui');
+    const cfg = await res.json();
+    const toggle = document.getElementById('qr-code-toggle');
+    const showLandingPageQRCode = Boolean(toggle && toggle.checked);
+
+    const payload = {
+      background: typeof cfg.background === 'string' ? cfg.background : '',
+      landingTitle: typeof cfg.landingTitle === 'string' ? cfg.landingTitle : '',
+      landingSubtitle: typeof cfg.landingSubtitle === 'string' ? cfg.landingSubtitle : '',
+      showLandingPageQRCode
+    };
+
+    const saveRes = await fetch('/api/admin/form-ui', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await saveRes.json();
+    if (!saveRes.ok || !data.success) {
+      throw new Error(data.error || 'Save failed');
+    }
+
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = showLandingPageQRCode ? 'Landing QR code enabled' : 'Landing QR code disabled';
+      status.className = 'fm-status fm-status--success';
+    }
+  } catch (error) {
+    console.error('Failed to save landing page QR setting:', error);
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = 'Failed to save QR setting';
+      status.className = 'fm-status fm-status--error';
+    }
   }
 }
 
