@@ -1,4 +1,20 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE ROUTING
+//    const pulseRoutes                - Live Pulse API routes for dashboard data (DONE BY XY)
+//    app.use('/api/pulse')            - Protected Pulse API route wiring (DONE BY XY)
+//    app.get('/pulse')                - Protected Pulse dashboard page route (DONE BY XY)
+//
+// 2. ACCESS CONTROL
+//    auth middleware                  - Keeps Pulse dashboard behind authenticated admin flow (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // SERVER.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -85,6 +101,7 @@ const pledgeboardRoutes = require('./pledgeboardRoutes');
 const pulseRoutes = require('./pulseRoutes');
 const os = require('os');
 const emailService = require('./emailService');
+const auth = require('./auth');
 
 // Import tree routes and wire them to the shared DB
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
@@ -305,6 +322,9 @@ app.use(session({
     }
 }));
 
+// Keep the Pulse screen inside the authenticated admin experience.
+app.use('/pulse', auth.requireAuth);
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -319,7 +339,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/data-export', dataExportRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
-app.use('/api/pulse', pulseRoutes);
+app.use('/api/pulse', auth.requireAuth, pulseRoutes);
 
 // Tree API for the leaves (names from feedback.db)
 app.use('/api/tree', treeRoutes);
@@ -440,7 +460,7 @@ app.get('/tree', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
 });
 
-app.get('/pulse', (req, res) => {
+app.get('/pulse', auth.requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 

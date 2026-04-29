@@ -1,4 +1,20 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE ROUTING
+//    const pulseRoutes                - Live Pulse API routes for admin server mode (DONE BY XY)
+//    app.use('/api/pulse')            - Protected Pulse API route wiring (DONE BY XY)
+//    app.get('/pulse')                - Protected Pulse dashboard page route (DONE BY XY)
+//
+// 2. ACCESS CONTROL
+//    auth middleware                  - Pulse page launches through admin panel and requires admin login (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // ADMINSERVER.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -71,6 +87,8 @@ const db = require('./db');
 const adminRoutes = require('./adminRoutes');
 const dataExportRoutes = require('./dataExportRoutes');
 const emailService = require('./emailService');
+const auth = require('./auth');
+const pulseRoutes = require('./pulseRoutes');
 
 // Data fetching for Tree + Pledgeboard routes
 const pledgeboardRoutes = require('./pledgeboardRoutes');
@@ -211,6 +229,9 @@ app.use(
   })
 );
 
+// Pulse is only available after admin login.
+app.use('/pulse', auth.requireAuth);
+
 // Static files (admin html/css/js from frontend)
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -223,6 +244,7 @@ setTreeDatabase(db);
 
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/data-export', dataExportRoutes);
+app.use('/api/pulse', auth.requireAuth, pulseRoutes);
 
 // Tree data fetching for Digital Tree tab
 app.use('/api/tree', treeRoutes);
@@ -268,6 +290,10 @@ app.get('/api/test-email-service', (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
+});
+
+app.get('/pulse', auth.requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 
 app.get('/', (req, res) => {

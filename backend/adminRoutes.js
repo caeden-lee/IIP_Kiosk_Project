@@ -1,4 +1,21 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. BADGE EMAIL TEMPLATE ADMIN API
+//    const badgeEmailTemplateStore    - Badge template JSON storage helper import (DONE BY XY)
+//    GET /badge-email-templates       - Load active badges and editable email templates (DONE BY XY)
+//    PUT /badge-email-templates       - Save per-badge subject, message and highlights (DONE BY XY)
+//
+// 2. ACTIVE BADGE FILTERING
+//    emailService.ACTIVE_BADGE_KEYS   - Limit admin editor to Feedback Contributor plus 6 topic badges (DONE BY XY)
+//    auth.requireAdmin                - Protect badge email template API with system admin access (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // ADMINROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -154,6 +171,7 @@ const fs = require('fs');
 const archiver = require('archiver');
 const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
+const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 
 
 // ==================== 1. AUDIT LOGGING FUNCTIONS ====================
@@ -4567,6 +4585,47 @@ router.post('/email-config/test', auth.requireAuth, async (req, res) => {
 
     await emailService.testEmailService(to);
     res.json({ success: true, message: 'Test email sent successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== BADGE EMAIL TEMPLATE MANAGEMENT ====================
+
+router.get('/badge-email-templates', auth.requireAdmin, (req, res) => {
+  try {
+    const templates = badgeEmailTemplateStore.getBadgeEmailTemplates();
+    const badgeKeys = emailService.ACTIVE_BADGE_KEYS || Object.keys(emailService.BADGE_CONFIGS || {});
+    const badges = badgeKeys.map((key) => {
+      const badge = emailService.BADGE_CONFIGS[key];
+      return badge && {
+      key,
+      name: badge.name,
+      description: badge.description,
+      color: badge.color
+      };
+    }).filter(Boolean);
+
+    res.json({ success: true, badges, templates });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/badge-email-templates', auth.requireAdmin, (req, res) => {
+  try {
+    const templates = req.body?.templates;
+    if (!templates || typeof templates !== 'object') {
+      return res.status(400).json({ success: false, error: 'Templates payload is required' });
+    }
+
+    const saved = badgeEmailTemplateStore.saveBadgeEmailTemplates(templates);
+
+    if (req.session?.user?.username) {
+      logAudit('BADGE_EMAIL_TEMPLATES_UPDATED', req.session.user.username, 'config', 'badge-email-templates', req);
+    }
+
+    res.json({ success: true, message: 'Badge email templates saved', templates: saved });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

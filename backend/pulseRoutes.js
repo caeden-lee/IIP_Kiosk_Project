@@ -5,6 +5,8 @@
 //  - Builds anonymized recent pledge feed for public display.
 //  - Maps pledge topics to badge labels and builds badge earner/badge mix summaries.
 //  - Supports the frontend live pulse dashboard and monthly campaign progress.
+//  - Removed Commitment Champion from pulse fallback labels; skipped/no-topic entries use Feedback Contributor.
+//  - Find command: rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
 const express = require('express');
 const router = express.Router();
@@ -49,8 +51,7 @@ function topicToBadge(topic, hasPledge) {
         'community-impact': 'Social Champion'
     };
 
-    if (topic && map[topic]) return map[topic];
-    return hasPledge ? 'Commitment Champion' : 'Feedback Contributor';
+    return topic && map[topic] ? map[topic] : 'Feedback Contributor';
 }
 
 function anonymizePledge(row, index) {
@@ -70,11 +71,11 @@ function buildBadgeEarners(rows) {
     rows.forEach((row) => {
         const name = String(row.name || 'Anonymous Visitor').trim() || 'Anonymous Visitor';
         const metadata = parseMetadata(row.metadata);
-        const hasPledge = Boolean(row.comment && String(row.comment).trim());
         const badges = ['Feedback Contributor'];
+        const topicBadge = topicToBadge(metadata.pledgeTopic, Boolean(row.comment && String(row.comment).trim()));
 
-        if (hasPledge) {
-            badges.push(topicToBadge(metadata.pledgeTopic, true));
+        if (topicBadge !== 'Feedback Contributor') {
+            badges.push(topicBadge);
         }
 
         if (!earners.has(name)) {

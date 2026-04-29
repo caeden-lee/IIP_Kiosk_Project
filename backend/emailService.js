@@ -4,12 +4,17 @@
 //  - Added topic-to-badge mapping for pledge topics selected in the feedback flow.
 //  - Added customized HTML email templates with badge visuals.
 //  - Added badge congratulation email sending and social sharing sections.
+//  - Added admin-editable badge email template support.
+//  - Active badge flow now uses Feedback Contributor plus 6 pledge-topic badges only.
+//  - Visitors who skip pledge or submit no valid pledge topic receive Feedback Contributor.
+//  - Find command: rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
 
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const { getEmailConfig } = require('./emailConfigStore');
+const { getBadgeEmailTemplates } = require('./badgeEmailTemplateStore');
 
 // ==================== BADGE SYSTEM IMPLEMENTATION ====================
 // Done by XY - Complete badge awarding system for ESG Kiosk
@@ -633,39 +638,27 @@ const TOPIC_BADGE_MAP = {
     'community-impact': 'social-champion'
 };
 
+const ACTIVE_BADGE_KEYS = [
+    'feedback-completer',
+    'climate-champion',
+    'renewable-innovator',
+    'sustainable-living-advocate',
+    'ocean-guardian',
+    'governance-guardian',
+    'social-champion'
+];
+
+const ACTIVE_BADGE_CONFIGS = Object.fromEntries(
+    ACTIVE_BADGE_KEYS.map(key => [key, BADGE_CONFIGS[key]]).filter(([, badge]) => Boolean(badge))
+);
+
 function determineBadgeKeys(userData) {
     const selectedTopic = typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.trim() : '';
-    const badgeKeys = [];
-    const pledgeText = typeof userData.pledge === 'string' ? userData.pledge.trim().toLowerCase() : '';
-
-    // Prioritize explicit topic selection for badge assignment (done by XY)
     if (selectedTopic && TOPIC_BADGE_MAP[selectedTopic]) {
         return [TOPIC_BADGE_MAP[selectedTopic]];
     }
 
-    if (!pledgeText) {
-        return ['feedback-completer'];
-    }
-
-    const ecoKeywords = ['environment', 'sustainability', 'eco', 'green', 'climate', 'carbon', 'recycle', 'waste', 'energy', 'renewable'];
-    const socialKeywords = ['community', 'diversity', 'inclusion', 'social', 'equality', 'volunteer', 'charity', 'donate', 'help', 'support'];
-    const governanceKeywords = ['ethics', 'transparency', 'governance', 'accountability', 'compliance', 'integrity', 'trust', 'responsible'];
-
-    if (ecoKeywords.some(keyword => pledgeText.includes(keyword))) {
-        badgeKeys.push('eco-warrior');
-    }
-    if (socialKeywords.some(keyword => pledgeText.includes(keyword))) {
-        badgeKeys.push('social-champion');
-    }
-    if (governanceKeywords.some(keyword => pledgeText.includes(keyword))) {
-        badgeKeys.push('governance-guardian');
-    }
-
-    if (badgeKeys.length === 0) {
-        badgeKeys.push('pledge-maker');
-    }
-
-    return badgeKeys;
+    return ['feedback-completer'];
 }
 
 function determineBadge(userData) {
@@ -714,6 +707,141 @@ function buildBadgeEmailHtml(badgeConfigs) {
             </div>
         </div>
     `;
+}
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatTopic(topic) {
+    return String(topic || '')
+        .split('-')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function applyEmailPlaceholders(text, badgeConfig, userData) {
+    const replacements = {
+        name: userData?.name || 'there',
+        badge: badgeConfig.name,
+        pledge: userData?.pledge || 'your ESG pledge',
+        topic: formatTopic(userData?.pledgeTopic) || 'ESG',
+        leaf: badgeConfig.name
+    };
+
+    return String(text || '').replace(/\{(name|badge|pledge|topic|leaf)\}/g, (_, key) => replacements[key]);
+}
+
+function buildCustomBadgeEmail(badgeConfig, template = {}, userData) {
+    const subject = applyEmailPlaceholders(template.subject || badgeConfig.subject, badgeConfig, userData);
+    const message = applyEmailPlaceholders(template.message || badgeConfig.description, badgeConfig, userData);
+    const highlights = (template.highlights || [])
+        .map(item => applyEmailPlaceholders(item, badgeConfig, userData))
+        .filter(Boolean);
+
+    const highlightsHtml = highlights.length > 0
+        ? `<ul style="padding-left:20px; margin:14px 0 0 0; color:#334155; line-height:1.7; font-size:14px;">
+            ${highlights.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+           </ul>`
+        : '';
+
+    const text = `Hello ${userData?.name || ''},
+
+Congratulations on earning the "${badgeConfig.name}" badge.
+
+${message}
+
+Key exhibits or takeaway messages:
+${highlights.map(item => `- ${item}`).join('\n') || '- Thank you for contributing to RP ESG Centre.'}
+
+Best regards,
+ESG Team`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background:#f8fafc; padding:20px; border-radius:12px;">
+            <div style="text-align:center; padding:22px; background:${badgeConfig.color}; color:#ffffff; border-radius:10px;">
+                <div style="width:72px; height:72px; margin:0 auto 14px; border-radius:50%; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:34px;">
+                    ${badgeConfig.icon || ''}
+                </div>
+                <h2 style="margin:0; font-size:26px;">${escapeHtml(badgeConfig.name)}</h2>
+                <p style="margin:8px 0 0 0; opacity:0.92;">Badge Earned</p>
+            </div>
+            <div style="background:#ffffff; margin-top:18px; padding:24px; border-radius:10px; box-shadow:0 8px 22px rgba(15,23,42,0.08);">
+                <p style="font-size:15px; color:#334155; line-height:1.7; margin:0 0 16px 0;">Hello ${escapeHtml(userData?.name || 'there')},</p>
+                <p style="font-size:15px; color:#334155; line-height:1.7; margin:0 0 16px 0;">
+                    ${escapeHtml(message)}
+                </p>
+                <div style="background:#ecfdf5; border-left:4px solid #006937; padding:16px; border-radius:8px; margin:18px 0;">
+                    <h3 style="font-size:16px; color:#006937; margin:0;">Personalized exhibit highlights</h3>
+                    ${highlightsHtml}
+                </div>
+                ${userData?.pledge ? `<p style="font-size:14px; color:#475569; line-height:1.6; margin:0 0 18px 0;"><strong>Your pledge:</strong> ${escapeHtml(userData.pledge)}</p>` : ''}
+                <p style="font-size:14px; color:#475569; line-height:1.6; margin:0;">Best regards,<br><strong>ESG Team</strong></p>
+            </div>
+        </div>
+    `;
+
+    return { subject, text, html };
+}
+
+function buildCustomMultiBadgeEmail(badgeEntries, userData) {
+    const badgeNames = badgeEntries.map(entry => entry.badgeConfig.name);
+    const subject = `Congratulations! You've earned ${badgeNames.join(' + ')} badges!`;
+
+    const sections = badgeEntries.map(({ badgeConfig, template }) => {
+        const message = applyEmailPlaceholders(template?.message || badgeConfig.description, badgeConfig, userData);
+        const highlights = (template?.highlights || [])
+            .map(item => applyEmailPlaceholders(item, badgeConfig, userData))
+            .filter(Boolean);
+
+        return { badgeConfig, message, highlights };
+    });
+
+    const text = `Hello ${userData?.name || ''},
+
+Congratulations on earning these badges:
+
+${sections.map(section => (
+`- ${section.badgeConfig.name}
+  ${section.message}
+${section.highlights.map(item => `  - ${item}`).join('\n')}`
+)).join('\n\n')}
+
+Best regards,
+ESG Team`;
+
+    const htmlSections = sections.map(section => `
+        <div style="background:#ffffff; padding:18px; border-radius:10px; border-left:5px solid ${section.badgeConfig.color}; box-shadow:0 8px 22px rgba(15,23,42,0.08); margin-bottom:14px;">
+            <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:18px;">${escapeHtml(section.badgeConfig.name)}</h3>
+            <p style="margin:0 0 12px 0; color:#334155; line-height:1.6; font-size:14px;">${escapeHtml(section.message)}</p>
+            ${section.highlights.length > 0 ? `
+                <ul style="padding-left:20px; margin:0; color:#475569; line-height:1.7; font-size:14px;">
+                    ${section.highlights.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                </ul>
+            ` : ''}
+        </div>
+    `).join('');
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width:640px; margin:0 auto; background:#f8fafc; padding:20px; border-radius:12px;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <h2 style="margin:0; color:#0f172a; font-size:28px;">Congratulations!</h2>
+                <p style="margin:10px auto 0; max-width:500px; color:#334155; line-height:1.6; font-size:15px;">
+                    You've earned multiple ESG badges. Here are your personalized exhibit highlights.
+                </p>
+            </div>
+            ${htmlSections}
+            ${userData?.pledge ? `<p style="font-size:14px; color:#475569; line-height:1.6; margin:18px 0 0 0;"><strong>Your pledge:</strong> ${escapeHtml(userData.pledge)}</p>` : ''}
+        </div>
+    `;
+
+    return { subject, text, html };
 }
 
 // ==================== EMAIL CONFIGURATION ====================
@@ -1179,6 +1307,7 @@ const sendBadgeEmail = async (recipientEmail, userData) => {
 
         const badgeKeys = determineBadgeKeys(userData);
         const badgeConfigs = badgeKeys.map(key => BADGE_CONFIGS[key]).filter(Boolean);
+        const badgeTemplates = getBadgeEmailTemplates();
 
         if (badgeConfigs.length === 0) {
             console.error('No badge configuration found for user data:', badgeKeys);
@@ -1191,14 +1320,18 @@ const sendBadgeEmail = async (recipientEmail, userData) => {
 
         if (badgeConfigs.length === 1) {
             const badgeConfig = badgeConfigs[0];
-            subject = badgeConfig.subject;
-            text = badgeConfig.textTemplate;
-            html = badgeConfig.htmlTemplate;
+            const customEmail = buildCustomBadgeEmail(badgeConfig, badgeTemplates[badgeKeys[0]], userData);
+            subject = customEmail.subject;
+            text = customEmail.text;
+            html = customEmail.html;
         } else {
-            const badgeNames = badgeConfigs.map(badge => badge.name);
-            subject = `Congratulations! You've earned ${badgeNames.join(' + ')} badges!`;
-            text = `Hello!\n\nCongratulations on earning the following badges:\n${badgeConfigs.map(badge => `- ${badge.name}: ${badge.description}`).join('\n')}\n\nKeep up the great work!\n\nBest regards,\nESG Team`;
-            html = buildBadgeEmailHtml(badgeConfigs);
+            const badgeEntries = badgeKeys
+                .map(key => ({ badgeConfig: BADGE_CONFIGS[key], template: badgeTemplates[key] || {} }))
+                .filter(entry => entry.badgeConfig);
+            const customEmail = buildCustomMultiBadgeEmail(badgeEntries, userData);
+            subject = customEmail.subject;
+            text = customEmail.text;
+            html = customEmail.html;
         }
 
         const mailOptions = {
@@ -1232,7 +1365,8 @@ module.exports = {
     determineBadge,
     determineBadgeKeys,
     getBadgeSummary,
-    BADGE_CONFIGS,
+    BADGE_CONFIGS: ACTIVE_BADGE_CONFIGS,
+    ACTIVE_BADGE_KEYS,
     testEmailService,
     checkEmailService
 };

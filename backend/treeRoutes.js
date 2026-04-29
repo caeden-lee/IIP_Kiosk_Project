@@ -1,3 +1,19 @@
+// ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. BADGE DATA FOR DIGITAL TREE
+//    const getBadgeSummary            - Import badge summary helper from email service (DONE BY XY)
+//    GET /api/tree                    - Include badge summary data for visitor tree leaves (DONE BY XY)
+//
+// 2. TREE LEAF BEHAVIOR
+//    visitor records                  - Supports one visible leaf per feedback submission (DONE BY XY)
+//    badge summary fallback           - Aligns skipped/no-topic submissions with Feedback Contributor (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
 const express = require('express');
 const router = express.Router();
 const { getBadgeSummary } = require('./emailService');
