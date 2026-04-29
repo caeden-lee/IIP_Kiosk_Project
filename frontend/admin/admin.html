@@ -1,3 +1,23 @@
+<!--
+  XY CHANGE SUMMARY (DONE BY XY)
+  ============================================================
+
+  1. LIVE PULSE ADMIN LAUNCHER
+     nav item                       - Added admin-only Live Pulse launcher tab (DONE BY XY)
+     div#pulse-page                 - Added themed Pulse launch page inside admin panel (DONE BY XY)
+
+  2. BADGE EMAIL TEMPLATE MANAGEMENT
+     nav item                       - Added Badge Email Templates administration tab (DONE BY XY)
+     div#badge-email-templates-page - Added editor for badge email subject, message and highlights (DONE BY XY)
+     div#badge-template-badge-list  - Added active badge card picker for 7 active badges (DONE BY XY)
+
+  3. ACTIVE BADGE CLEANUP
+     badge editor UI                - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
+     removed inactive badges        - Eco Warrior and Commitment Champion hidden from admin editor (DONE BY XY)
+
+  FIND COMMAND
+     rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,6 +99,10 @@
                             <span class="nav-icon">📜</span>
                             Pledgeboard
                         </a>
+                        <a href="#" class="nav-item" onclick="showPage('pulse')">
+                            <span class="nav-icon">LIVE</span>
+                            Live Pulse
+                        </a>
                         <a href="#" class="nav-item" onclick="showPage('theme-settings')">
                             <span class="nav-icon">🎨</span>
                             Style & Theme Settings
@@ -108,6 +132,10 @@
                             <span class="nav-icon">📧</span>
                             Email Management
                         </a>
+                    <a href="#" class="nav-item" onclick="showPage('badge-email-templates')">
+                        <span class="nav-icon">✉️</span>
+                        Badge Email Templates
+                    </a>
                         <a href="#" class="nav-item" onclick="showPage('form-management')">
                             <span class="nav-icon">📝</span>
                             Form Management
@@ -556,6 +584,53 @@
                         </div>
                     </div>
                 </div>
+                <div id="pulse-page" class="page">
+                    <div class="page-header">
+                        <h2>Live Pulse</h2>
+                        <p>Open the full-screen ESG pulse dashboard. Admin login is required.</p>
+                    </div>
+
+                    <div class="pulse-launch-section">
+                        <div class="pulse-launch-copy">
+                            <span class="pulse-kicker">Admin Only</span>
+                            <h3>Live School Pulse</h3>
+                            <p>Open the full-screen ESG impact dashboard for pledge activity, badge trends, and digital tree momentum.</p>
+                            <div class="pulse-launch-actions">
+                                <button class="btn-primary pulse-launch-btn" onclick="openPulsePage()">
+                                    Open Live Pulse
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pulse-preview-panel" aria-hidden="true">
+                            <div class="pulse-preview-header">
+                                <span>ESG Pulse Preview</span>
+                                <strong>Live</strong>
+                            </div>
+                            <div class="pulse-preview-metrics">
+                                <div>
+                                    <span>Pledges</span>
+                                    <strong>Today</strong>
+                                </div>
+                                <div>
+                                    <span>Badge</span>
+                                    <strong>Mix</strong>
+                                </div>
+                                <div>
+                                    <span>Digital</span>
+                                    <strong>Tree</strong>
+                                </div>
+                            </div>
+                            <div class="pulse-preview-tree">
+                                <span class="preview-leaf leaf-one"></span>
+                                <span class="preview-leaf leaf-two"></span>
+                                <span class="preview-leaf leaf-three"></span>
+                                <span class="preview-leaf leaf-four"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Overlay Management Page (DONE BY PRETI)-->
                 <div id="overlay-page" class="page">
                     <div class="page-header">
@@ -1433,6 +1508,72 @@
 
                         <!-- Status -->
                         <div id="email-status" style="margin-top: 12px;"></div>
+                    </div>
+                </div>
+
+                <div id="badge-email-templates-page" class="page">
+                    <div class="page-header">
+                        <h2>Badge Email Templates</h2>
+                        <p>Tailor badge emails and personalized exhibit highlights for each reward.</p>
+                    </div>
+
+                    <div class="badge-template-hero">
+                        <div>
+                            <span class="badge-template-kicker">Personalized Rewards</span>
+                            <h3>Match every badge with the right takeaway</h3>
+                            <p>Edit the email subject, reward message, and exhibit highlights shown when visitors earn each badge.</p>
+                        </div>
+                        <div class="badge-template-token-list" aria-label="Supported placeholders">
+                            <span>{name}</span>
+                            <span>{badge}</span>
+                            <span>{pledge}</span>
+                            <span>{topic}</span>
+                            <span>{leaf}</span>
+                        </div>
+                    </div>
+
+                    <div class="overlay-section user-section badge-email-template-section">
+                        <div class="section-header badge-template-section-header">
+                            <div>
+                                <h3>Badge Message Editor</h3>
+                                <p>Choose a badge, then save the version that should be sent to visitors.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn-secondary" type="button" onclick="loadBadgeEmailTemplates()">Reset</button>
+                                <button class="btn-primary" type="button" onclick="saveBadgeEmailTemplates()">Save Changes</button>
+                            </div>
+                        </div>
+
+                        <div class="badge-template-grid">
+                            <div class="form-group">
+                                <label for="badge-template-select">Badge</label>
+                                <select id="badge-template-select" onchange="selectBadgeEmailTemplate()"></select>
+                            </div>
+
+                            <div class="badge-template-help">
+                                <strong>Tip</strong>
+                                <p>Write one exhibit highlight per line. These become the personalized takeaway list in the badge email.</p>
+                            </div>
+                        </div>
+
+                        <div id="badge-template-badge-list" class="badge-template-badge-list" aria-label="Available badges"></div>
+
+                        <div class="form-group">
+                            <label for="badge-template-subject">Email Subject</label>
+                            <input id="badge-template-subject" type="text" maxlength="180" placeholder="Email subject">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="badge-template-message">Badge Message</label>
+                            <textarea id="badge-template-message" rows="5" maxlength="1200" placeholder="Main email message"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="badge-template-highlights">Personalized Exhibit Highlights / Takeaway Messages</label>
+                            <textarea id="badge-template-highlights" rows="7" placeholder="One highlight per line"></textarea>
+                        </div>
+
+                        <div id="badge-template-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
                     </div>
                 </div>
 

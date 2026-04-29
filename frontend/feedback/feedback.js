@@ -1,4 +1,25 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. PLEDGE TOPIC BADGE ASSIGNMENT
+//    userData.pledgeTopic             - Store selected pledge topic for badge mapping (DONE BY XY)
+//    function submitPledge()          - Validate pledge topic before continuing to photo flow (DONE BY XY)
+//
+// 2. OPTIONAL PLEDGE FLOW
+//    function skipPledge()            - Let visitors continue without making a pledge (DONE BY XY)
+//    userData.pledgeSkipped           - Mark skipped pledge submissions for Feedback Contributor badge (DONE BY XY)
+//    function continueAfterPledgeChoice - Shared navigation after pledge or skip choice (DONE BY XY)
+//
+// 3. REWARD MESSAGE CLEANUP
+//    const BADGE_LEAF_REWARDS         - Active reward messages for Feedback Contributor plus 6 topic badges (DONE BY XY)
+//    Removed inactive badges          - Eco Warrior and Commitment Champion removed from reward map (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // FEEDBACK.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -801,18 +822,7 @@ function submitDetails(event) {
     }
 }
 
-// Submit pledge and redirect to appropriate photo method
-// Added explicit pledge topic selection support and validation - done by XY
-function submitPledge(event) {
-    event.preventDefault();
-    userData.pledge = document.getElementById('pledge-text').value;
-    userData.pledgeTopic = document.getElementById('pledge-topic').value;
-
-    if (!userData.pledgeTopic) {
-        alert('Please select a pledge topic before continuing.');
-        return;
-    }
-
+function continueAfterPledgeChoice() {
     document.getElementById('pledge-page').style.display = 'none';
 
     // MOBILE: Use file upload instead of camera
@@ -825,6 +835,37 @@ function submitPledge(event) {
     }
 
     resetInactivityTimer();
+}
+
+// Submit pledge and redirect to appropriate photo method
+// Added explicit pledge topic selection support and validation - done by XY
+function submitPledge(event) {
+    event.preventDefault();
+    userData.pledge = document.getElementById('pledge-text').value.trim();
+    userData.pledgeTopic = document.getElementById('pledge-topic').value;
+    userData.pledgeSkipped = false;
+
+    if (!userData.pledgeTopic) {
+        alert('Please select a pledge topic before continuing.');
+        return;
+    }
+
+    continueAfterPledgeChoice();
+}
+
+function skipPledge() {
+    userData.pledge = '';
+    userData.pledgeTopic = '';
+    userData.pledgeSkipped = true;
+
+    const pledgeText = document.getElementById('pledge-text');
+    const pledgeTopic = document.getElementById('pledge-topic');
+    const charCount = document.getElementById('char-count');
+    if (pledgeText) pledgeText.value = '';
+    if (pledgeTopic) pledgeTopic.value = '';
+    if (charCount) charCount.textContent = '0';
+
+    continueAfterPledgeChoice();
 }
 
 
@@ -1586,7 +1627,7 @@ function updateConfirmationDetails() {
     // Update confirmation page with user data
     document.getElementById('confirm-name').textContent = userData.name || 'Not provided';
     document.getElementById('confirm-email').textContent = userData.email || 'Not provided';
-    document.getElementById('confirm-pledge').textContent = userData.pledge || 'Not provided';
+    document.getElementById('confirm-pledge').textContent = userData.pledgeSkipped ? 'Skipped - Feedback Contributor badge' : (userData.pledge || 'Not provided');
     document.getElementById('confirm-theme').textContent = selectedTheme;
     document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : '7 Days';
     
@@ -1643,13 +1684,17 @@ function finalSubmit() {
     }).then(response => response.json())
     .then(data => {
         console.log('Feedback submitted successfully:', data);
+        const submissionData = data.data || data;
         
         // Show thank you page
         document.getElementById('confirmation-page').style.display = 'none';
         document.getElementById('thankyou-page').style.display = 'flex';
         
+        // Show the visitor which badge/leaf reward they unlocked.
+        setupBadgeReward(submissionData);
+
         // Set up social share content for the thank-you page based on badge email status - done by XY
-        setupSocialShare(data);
+        setupSocialShare(submissionData);
         
         // Reset button
         submitBtn.innerHTML = originalText;
@@ -1672,9 +1717,53 @@ function finalSubmit() {
 // Added by XY: social media sharing implementation
 function getShareText() {
     const pledgeText = (userData.pledge || '').trim();
+    if (userData.pledgeSkipped) {
+        return 'I shared feedback with the Republic Polytechnic sustainability initiative! #RPGreen #Sustainability #ESG';
+    }
     const topicText = userData.pledgeTopic ? ` (${userData.pledgeTopic.replace('-', ' ')})` : '';
     const pledgeMessage = pledgeText ? `I just pledged: "${pledgeText}"${topicText}.` : 'I just made a sustainability pledge.';
     return `${pledgeMessage} Join me in supporting the Republic Polytechnic sustainability initiative! #RPGreen #Sustainability #ESG`;
+}
+
+const BADGE_LEAF_REWARDS = {
+    'climate-champion': {
+        badgeName: 'Climate Champion',
+        leaf: 'blue-green climate leaf'
+    },
+    'renewable-innovator': {
+        badgeName: 'Renewable Innovator',
+        leaf: 'bright energy leaf'
+    },
+    'sustainable-living-advocate': {
+        badgeName: 'Sustainable Living Advocate',
+        leaf: 'fresh green living leaf'
+    },
+    'ocean-guardian': {
+        badgeName: 'Ocean Guardian',
+        leaf: 'ocean-blue leaf'
+    },
+    'governance-guardian': {
+        badgeName: 'Governance Guardian',
+        leaf: 'purple ethics leaf'
+    },
+    'social-champion': {
+        badgeName: 'Social Champion',
+        leaf: 'warm community leaf'
+    },
+    'feedback-completer': {
+        badgeName: 'Feedback Contributor',
+        leaf: 'classic feedback leaf'
+    }
+};
+
+function setupBadgeReward(data) {
+    const message = document.getElementById('thankyou-message');
+    if (!message) return;
+
+    const badgeKey = data?.badgeKey || data?.badgeEmailBadgeKeys?.[0] || 'feedback-completer';
+    const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+
+    message.textContent = `Your feedback has been recorded. You earned the ${reward.badgeName} badge, and your name will appear on the digital tree as a ${reward.leaf}.`;
 }
 
 function sharePledge(platform) {
@@ -1951,6 +2040,7 @@ const translations = {
         pledgePlaceholder: "I pledge to...",
         charactersText: "500 characters",
         pledgePrivacy: "Your pledge will be displayed on our pledgeboard, inspiring others to take action",
+        skipPledge: "I do not want to make a pledge",
         continueToPhoto: "Continue to Photo",
 
         photoTitle: "Capture Your Photo",
@@ -2040,6 +2130,7 @@ const translations = {
         pledgePlaceholder: "Saya berikrar untuk...",
         charactersText: "500 aksara",
         pledgePrivacy: "Ikrar anda akan dipaparkan pada papan ikrar kami untuk memberi inspirasi kepada orang lain",
+        skipPledge: "Saya tidak mahu membuat ikrar",
         continueToPhoto: "Teruskan ke Foto",
 
         photoTitle: "Ambil Foto Anda",
@@ -2129,6 +2220,7 @@ const translations = {
         pledgePlaceholder: "我承诺……",
         charactersText: "500个字符",
         pledgePrivacy: "您的承诺将显示在我们的承诺板上，激励其他人采取行动",
+        skipPledge: "我不想作出承诺",
         continueToPhoto: "继续到照片",
 
         photoTitle: "拍摄您的照片",
@@ -2218,6 +2310,7 @@ const translations = {
         pledgePlaceholder: "நான் உறுதிமொழி எடுக்கிறேன்...",
         charactersText: "500 எழுத்துகள்",
         pledgePrivacy: "உங்கள் உறுதிமொழி எங்கள் உறுதிமொழி பலகையில் காட்டப்படும், இது பிறரையும் செயல்பட தூண்டும்",
+        skipPledge: "நான் உறுதிமொழி வழங்க விரும்பவில்லை",
         continueToPhoto: "புகைப்படத்திற்கு தொடர்க",
 
         photoTitle: "உங்கள் புகைப்படத்தை எடுக்கவும்",
@@ -2338,6 +2431,7 @@ function applyTranslations() {
     setText('characters-text', t.charactersText);
     setText('pledge-privacy-text', t.pledgePrivacy);
     setText('continue-to-photo-text', t.continueToPhoto);
+    setText('skip-pledge-text', t.skipPledge);
     setText('back-from-pledge-text', t.back);
 
     setText('photo-title', t.photoTitle);

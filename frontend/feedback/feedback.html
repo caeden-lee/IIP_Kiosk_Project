@@ -1,3 +1,17 @@
+<!--
+  XY CHANGE SUMMARY (DONE BY XY)
+  ============================================================
+
+  1. PLEDGE TOPIC SELECTION
+     select#pledge-topic            - Added pledge topic selection for badge assignment (DONE BY XY)
+
+  2. OPTIONAL PLEDGE FLOW
+     button#skip-pledge-text        - Added "I do not want to make a pledge" action (DONE BY XY)
+     skip pledge behavior           - Skipped pledge path awards Feedback Contributor automatically (DONE BY XY)
+
+  FIND COMMAND
+     rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -316,6 +330,10 @@
                         <span class="arrow">→</span>
                     </button>
                     
+                    <button type="button" class="skip-pledge-button" onclick="skipPledge()">
+                        <span id="skip-pledge-text">I do not want to make a pledge</span>
+                    </button>
+
                     <button type="button" class="secondary-button" onclick="goBackToFeedback()">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10H5M5 10L8.33333 7M5 10L8.33333 13" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

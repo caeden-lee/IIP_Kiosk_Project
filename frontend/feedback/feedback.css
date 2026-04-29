@@ -1040,6 +1040,27 @@ textarea::placeholder {
     transform: translateX(5px);
 }
 
+.skip-pledge-button {
+    width: 100%;
+    padding: 14px 24px;
+    background: #f8fafc;
+    color: #475569;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.skip-pledge-button:hover {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #10b981;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(16, 185, 129, 0.16);
+}
+
 /* Secondary outline button */
 .secondary-button {
     display: inline-flex;

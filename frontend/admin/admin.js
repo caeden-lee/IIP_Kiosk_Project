@@ -1,4 +1,26 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE ADMIN ACCESS
+//    function openPulsePage()         - Open protected Live Pulse dashboard from admin page (DONE BY XY)
+//    showPage('pulse')                - Added admin Live Pulse launcher page navigation (DONE BY XY)
+//
+// 2. BADGE EMAIL TEMPLATE MANAGEMENT
+//    const DEFAULT_BADGE_EMAIL_BADGES - Active badge fallback list for admin editor (DONE BY XY)
+//    function loadBadgeEmailTemplates - Load editable badge email templates from admin API (DONE BY XY)
+//    function saveBadgeEmailTemplates - Save per-badge subject, message and highlights (DONE BY XY)
+//    function renderBadgeTemplateBadgeList - Render active badge picker cards (DONE BY XY)
+//
+// 3. ACTIVE BADGE CLEANUP
+//    Badge editor list              - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
+//    Removed inactive badges         - Eco Warrior and Commitment Champion removed from editor fallback list (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // ADMIN.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -6800,7 +6822,7 @@ function showPage(pageName) {
     const userRole = sessionStorage.getItem('userRole');
     
     // Check if user is trying to access admin pages without system_admin role
-    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export'];
+    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates'];
     if (adminPages.includes(pageName) && userRole !== 'system_admin') {
         alert('Access denied. System Administrator privileges required.');
         return;
@@ -6861,9 +6883,15 @@ function showPage(pageName) {
     loadFormUISettings();
     } else if (pageName === 'email-management') {
     loadEmailConfig();
+    } else if (pageName === 'badge-email-templates') {
+    loadBadgeEmailTemplates();
     }
     
     
+}
+
+function openPulsePage() {
+    window.location.href = '/pulse';
 }
 
 // Initialize archive page
@@ -7056,9 +7084,11 @@ function expandPattern(pattern) {
         'dashboard-page',
         'feedback-data-page',
         'digital-tree-page',
+        'pulse-page',
         'overlay-page',
         'questions-page',
         'users-page',
+        'badge-email-templates-page',
         'archive-page',
         'audit-page',
         'data-export-page',
@@ -7202,11 +7232,13 @@ const themeConfig = {
         { id: 'feedback-data-page', name: 'Feedback Data', icon: '💬' },
         { id: 'digital-tree-page', name: 'Digital Tree', icon: '🌳' },
         { id: 'pledgeboard-page', name: 'Pledgeboard', icon: '🏆' },
+        { id: 'pulse-page', name: 'Live Pulse', icon: 'LIVE' },
         { id: 'overlay-page', name: 'Overlay Management', icon: '🎨', requiredRole: 'system_admin' },
         { id: 'questions-page', name: 'Question Management', icon: '❓', requiredRole: 'system_admin' },
         { id: 'users-page', name: 'User Management', icon: '👥', requiredRole: 'system_admin' },
         { id: 'vip-page', name: 'VIP Management', icon: '👑', requiredRole: 'system_admin' },
         { id: 'email-management-page', name: 'Email Management', icon: '📧', requiredRole: 'system_admin' },
+        { id: 'badge-email-templates-page', name: 'Badge Email Templates', icon: 'Mail', requiredRole: 'system_admin' },
         { id: 'form-management-page', name: 'Form Management', icon: '📝', requiredRole: 'system_admin' },
         { id: 'archive-page', name: 'Archive', icon: '📚', requiredRole: 'system_admin' },
         { id: 'audit-page', name: 'Audit Logs', icon: '📋', requiredRole: 'system_admin' },
@@ -10256,6 +10288,176 @@ async function sendTestEmail() {
     console.error(err);
     setEmailStatus('error', 'Test email failed.');
   }
+}
+
+// ==================== BADGE EMAIL TEMPLATE MANAGEMENT ====================
+
+let badgeTemplateState = {
+    badges: [],
+    templates: {},
+    selectedKey: ''
+};
+
+const DEFAULT_BADGE_EMAIL_BADGES = [
+    { key: 'feedback-completer', name: 'Feedback Contributor', description: 'For completing the feedback form', color: '#10b981' },
+    { key: 'climate-champion', name: 'Climate Champion', description: 'For pledges focused on climate action and lowering emissions', color: '#0ea5e9' },
+    { key: 'renewable-innovator', name: 'Renewable Innovator', description: 'For clean energy and renewable pledges', color: '#f59e0b' },
+    { key: 'sustainable-living-advocate', name: 'Sustainable Living Advocate', description: 'For sustainable lifestyle pledges', color: '#16a34a' },
+    { key: 'ocean-guardian', name: 'Ocean Guardian', description: 'For ocean conservation pledges', color: '#0284c7' },
+    { key: 'social-champion', name: 'Social Champion', description: 'For community and social impact pledges', color: '#ec4899' },
+    { key: 'governance-guardian', name: 'Governance Guardian', description: 'For ethics and governance pledges', color: '#6366f1' }
+];
+
+function escapeBadgeTemplateHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function setBadgeTemplateStatus(type, message) {
+    const el = document.getElementById('badge-template-status');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `fm-status fm-status--${type}`;
+}
+
+function readCurrentBadgeTemplateForm() {
+    const key = badgeTemplateState.selectedKey;
+    if (!key) return;
+
+    badgeTemplateState.templates[key] = {
+        subject: document.getElementById('badge-template-subject')?.value.trim() || '',
+        message: document.getElementById('badge-template-message')?.value.trim() || '',
+        highlights: (document.getElementById('badge-template-highlights')?.value || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+    };
+}
+
+function renderBadgeTemplateForm(key) {
+    const template = badgeTemplateState.templates[key] || {};
+    document.getElementById('badge-template-subject').value = template.subject || '';
+    document.getElementById('badge-template-message').value = template.message || '';
+    document.getElementById('badge-template-highlights').value = (template.highlights || []).join('\n');
+    renderBadgeTemplateBadgeList();
+}
+
+function selectBadgeEmailTemplate() {
+    readCurrentBadgeTemplateForm();
+    const select = document.getElementById('badge-template-select');
+    badgeTemplateState.selectedKey = select?.value || '';
+    if (badgeTemplateState.selectedKey) {
+        renderBadgeTemplateForm(badgeTemplateState.selectedKey);
+    }
+}
+
+function renderBadgeTemplateBadgeList() {
+    const list = document.getElementById('badge-template-badge-list');
+    if (!list) return;
+
+    list.innerHTML = badgeTemplateState.badges.map(badge => {
+        const isActive = badge.key === badgeTemplateState.selectedKey;
+        return `
+            <button
+                type="button"
+                class="badge-template-badge-card ${isActive ? 'active' : ''}"
+                style="--badge-color:${escapeBadgeTemplateHtml(badge.color || '#10b981')}"
+                onclick="chooseBadgeEmailTemplate('${escapeBadgeTemplateHtml(badge.key)}')"
+            >
+                <span class="badge-template-badge-dot"></span>
+                <strong>${escapeBadgeTemplateHtml(badge.name)}</strong>
+                <small>${escapeBadgeTemplateHtml(badge.description || 'Badge reward')}</small>
+            </button>
+        `;
+    }).join('');
+}
+
+function chooseBadgeEmailTemplate(key) {
+    readCurrentBadgeTemplateForm();
+    badgeTemplateState.selectedKey = key;
+    const select = document.getElementById('badge-template-select');
+    if (select) select.value = key;
+    renderBadgeTemplateForm(key);
+}
+
+function populateBadgeTemplatePicker() {
+    if (!badgeTemplateState.badges.length) {
+        badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+    }
+
+    badgeTemplateState.selectedKey = badgeTemplateState.badges.some(badge => badge.key === badgeTemplateState.selectedKey)
+        ? badgeTemplateState.selectedKey
+        : badgeTemplateState.badges[0]?.key || '';
+
+    const select = document.getElementById('badge-template-select');
+    if (select) {
+        select.innerHTML = badgeTemplateState.badges.map(badge => (
+            `<option value="${escapeBadgeTemplateHtml(badge.key)}">${escapeBadgeTemplateHtml(badge.name)}</option>`
+        )).join('');
+        select.value = badgeTemplateState.selectedKey;
+    }
+
+    renderBadgeTemplateBadgeList();
+}
+
+async function loadBadgeEmailTemplates() {
+    try {
+        setBadgeTemplateStatus('info', 'Loading badge email templates...');
+        const res = await fetch('/api/admin/badge-email-templates', { credentials: 'include' });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+            populateBadgeTemplatePicker();
+            setBadgeTemplateStatus('error', data.error || 'Failed to load badge email templates.');
+            return;
+        }
+
+        badgeTemplateState.badges = (data.badges && data.badges.length) ? data.badges : DEFAULT_BADGE_EMAIL_BADGES;
+        badgeTemplateState.templates = data.templates || {};
+        populateBadgeTemplatePicker();
+
+        if (badgeTemplateState.selectedKey) {
+            renderBadgeTemplateForm(badgeTemplateState.selectedKey);
+        }
+
+        setBadgeTemplateStatus('success', 'Badge email templates loaded.');
+    } catch (err) {
+        console.error(err);
+        badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+        populateBadgeTemplatePicker();
+        setBadgeTemplateStatus('error', 'Failed to load badge email templates.');
+    }
+}
+
+async function saveBadgeEmailTemplates() {
+    try {
+        readCurrentBadgeTemplateForm();
+        setBadgeTemplateStatus('info', 'Saving badge email templates...');
+
+        const res = await fetch('/api/admin/badge-email-templates', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templates: badgeTemplateState.templates })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            setBadgeTemplateStatus('error', data.error || 'Failed to save badge email templates.');
+            return;
+        }
+
+        badgeTemplateState.templates = data.templates || badgeTemplateState.templates;
+        setBadgeTemplateStatus('success', data.message || 'Badge email templates saved.');
+    } catch (err) {
+        console.error(err);
+        setBadgeTemplateStatus('error', 'Failed to save badge email templates.');
+    }
 }
 
 
