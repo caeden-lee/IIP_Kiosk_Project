@@ -236,6 +236,8 @@ router.post('/submit-feedback', async (req, res) => {
             retention: retention
         });
 
+        const badgeSummary = emailService.getBadgeSummary(userData);
+
         // 1. IMMEDIATELY send success response to user (within milliseconds)
         const responseData = {
             success: true, 
@@ -249,7 +251,10 @@ router.post('/submit-feedback', async (req, res) => {
                 submittedAt: new Date().toISOString(),
                 emailQueued: false,
                 badgeEmailSent: false,
-                badgeEmailError: null
+                badgeEmailError: null,
+                badgeKey: badgeSummary.badgeKey,
+                badgeName: badgeSummary.badgeName,
+                badgeColor: badgeSummary.badgeColor
             }
         };
         
@@ -270,6 +275,7 @@ router.post('/submit-feedback', async (req, res) => {
                 const badgeResult = await emailService.sendBadgeEmail(userData.email, userData);
                 responseData.data.badgeEmailSent = badgeResult.success;
                 responseData.data.badgeEmailBadges = badgeResult.badges || [];
+                responseData.data.badgeEmailBadgeKeys = badgeResult.badgeKeys || [];
                 responseData.data.badgeEmailError = badgeResult.success ? null : badgeResult.error;
                 responseData.data.badgeEmailMessage = badgeResult.success
                     ? 'Your badge email has been sent.'

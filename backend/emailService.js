@@ -673,6 +673,18 @@ function determineBadge(userData) {
     return badgeKeys[0] || 'feedback-completer';
 }
 
+function getBadgeSummary(userData) {
+    const badgeKey = determineBadge(userData);
+    const badgeConfig = BADGE_CONFIGS[badgeKey] || BADGE_CONFIGS['feedback-completer'];
+
+    return {
+        badgeKey,
+        badgeName: badgeConfig.name,
+        badgeDescription: badgeConfig.description,
+        badgeColor: badgeConfig.color
+    };
+}
+
 function buildBadgeEmailHtml(badgeConfigs) {
     const badgeCards = badgeConfigs.map(badge => `
         <div style="width: 100%; max-width: 260px; margin: 10px; padding: 18px; border-radius: 16px; background: #ffffff; box-shadow: 0 8px 24px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
@@ -1218,6 +1230,8 @@ module.exports = {
     sendEmailAndUpdateFlag,
     sendBadgeEmail,
     determineBadge,
+    determineBadgeKeys,
+    getBadgeSummary,
     BADGE_CONFIGS,
     testEmailService,
     checkEmailService
