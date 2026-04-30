@@ -1100,6 +1100,10 @@ body {
     border: 2px solid var(--theme-border-color);
 }
 
+.feedback-analyse {
+    margin-top: 20px;
+}
+
 /* Toolbar with search and filters */
 .header-actions {
     display: flex;

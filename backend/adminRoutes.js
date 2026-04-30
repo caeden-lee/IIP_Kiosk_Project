@@ -994,6 +994,113 @@ router.get('/feedback/:id/questions', (req, res) => {
     });
 });
 
+// Get all feedback answers for analysis (Done by Yu Kang)
+// Get all feedback answer values for analysis
+router.get('/feedback-answers', (req, res) => {
+    console.log('📋 Fetching all feedback answer values...');
+
+    const query = `
+        SELECT
+            answer_value
+        FROM feedback_answers
+        ORDER BY created_at DESC, id DESC
+    `;
+
+    db.all(query, [], (err, answers) => {
+        if (err) {
+            console.error('❌ Error fetching feedback answer values:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Database error: ' + err.message
+            });
+        }
+
+        console.log(`✅ Found ${answers.length} feedback answer rows`);
+
+        res.json({
+            success: true,
+            answers: answers || []
+        });
+    });
+});
+
+// Sentiment analysis of feedback answers (added by Yu Kang)
+router.get('/feedback-sentiment-analysis', (req, res) => {
+    console.log('🧠 Performing sentiment analysis on feedback answers...');
+
+    const query = `
+        SELECT answer_value
+        FROM feedback_answers
+        WHERE answer_value IS NOT NULL AND answer_value != ''
+    `;
+
+    db.all(query, [], (err, answers) => {
+        if (err) {
+            console.error('❌ Error fetching answers for sentiment analysis:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Database error: ' + err.message
+            });
+        }
+
+        // Simple keyword-based sentiment analysis
+        const positiveKeywords = [
+            'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
+            'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
+            'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant',
+            'nice', 'delighted', 'thrilled', 'enjoyed', 'liked', 'helpful'
+        ];
+
+        const negativeKeywords = [
+            'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
+            'disappointing', 'disappointed', 'useless', 'waste', 'angry',
+            'frustrated', 'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic',
+            'mediocre', 'negative', 'concerning', 'problem', 'issue', 'difficult'
+        ];
+
+        let positive = 0, neutral = 0, negative = 0;
+
+        answers.forEach(answer => {
+            const text = (answer.answer_value || '').toLowerCase().trim();
+            
+            if (!text) {
+                neutral++;
+                return;
+            }
+
+            let hasPositive = false, hasNegative = false;
+
+            positiveKeywords.forEach(keyword => {
+                if (text.includes(keyword)) hasPositive = true;
+            });
+
+            negativeKeywords.forEach(keyword => {
+                if (text.includes(keyword)) hasNegative = true;
+            });
+
+            if (hasPositive && !hasNegative) {
+                positive++;
+            } else if (hasNegative && !hasPositive) {
+                negative++;
+            } else {
+                neutral++;
+            }
+        });
+
+        console.log(`✅ Sentiment analysis complete: Positive: ${positive}, Neutral: ${neutral}, Negative: ${negative}`);
+
+        res.json({
+            success: true,
+            sentiment: {
+                positive,
+                neutral,
+                negative,
+                total: answers.length
+            }
+        });
+    });
+});
+
 // ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
 
 // Get archived feedback (older than 3 months)

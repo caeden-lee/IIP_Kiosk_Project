@@ -3503,6 +3503,151 @@ function closeQAPopup() {
         popup.remove();
     }
 }
+// Done by Yu Kang
+// Analyze and display all feedback answer values
+async function analyzeFeedbackData() {
+    const resultsContainer = document.getElementById('feedback-analysis-results');
+    const output = document.getElementById('feedback-analysis-output');
+
+    if (!resultsContainer || !output) {
+        return;
+    }
+
+    resultsContainer.style.display = 'block';
+    output.innerHTML = `
+        <div style="padding: 20px; color: #64748b; text-align: center;">
+            Analyzing feedback sentiment...
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/api/admin/feedback-sentiment-analysis', {
+            headers: {
+                'x-username': sessionStorage.getItem('loggedUser')
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to analyze feedback');
+        }
+
+        const { positive, neutral, negative, total } = data.sentiment;
+
+        output.innerHTML = `
+            <div style="display: flex; gap: 30px; align-items: center;">
+                <div style="flex: 1; position: relative; height: 300px;">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div style="flex: 0.6; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                    <div style="margin-bottom: 15px; font-size: 14px;">
+                        <div style="color: #475569; margin-bottom: 12px;">
+                            <strong style="color: #10b981;">✓ Positive:</strong> ${positive} (${total > 0 ? ((positive/total)*100).toFixed(1) : 0}%)
+                        </div>
+                        <div style="color: #475569; margin-bottom: 12px;">
+                            <strong style="color: #f59e0b;">◆ Neutral:</strong> ${neutral} (${total > 0 ? ((neutral/total)*100).toFixed(1) : 0}%)
+                        </div>
+                        <div style="color: #475569;">
+                            <strong style="color: #ef4444;">✗ Negative:</strong> ${negative} (${total > 0 ? ((negative/total)*100).toFixed(1) : 0}%)
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
+                        <strong>Total answers analyzed:</strong> ${total}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Create sentiment chart
+        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+    } catch (error) {
+        console.error('Error analyzing feedback sentiment:', error);
+        output.innerHTML = `
+            <div style="padding: 20px; color: #ef4444; text-align: center;">
+                Error analyzing feedback sentiment<br>
+                <small>${escapeHtml(error.message)}</small>
+            </div>
+        `;
+    }
+}
+
+// Create sentiment analysis doughnut chart (added by Yu Kang)
+function createSentimentChart(positive, neutral, negative) {
+    const ctx = document.getElementById('sentimentChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if any
+    if (window.sentimentChartInstance) {
+        window.sentimentChartInstance.destroy();
+    }
+
+    window.sentimentChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [positive, neutral, negative],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(16, 185, 129)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleColor: '#fff',
+                    titleFont: {
+                        size: 13,
+                        weight: 'bold'
+                    },
+                    bodyColor: '#fff',
+                    bodyFont: {
+                        size: 12
+                    },
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const value = context.parsed || 0;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return context.label + ': ' + value + ' (' + percentage + ')%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 // ==================== 10. PHOTO MANAGEMENT ====================
 
@@ -6858,6 +7003,7 @@ function showPage(pageName) {
         loadDashboardData();
     } else if (pageName === 'feedback-data') {
         loadFeedbackData();
+        analyzeFeedbackData();
     } else if (pageName === 'digital-tree') {
         loadDigitalTreeData();
     } else if (pageName === 'pledgeboard') {
