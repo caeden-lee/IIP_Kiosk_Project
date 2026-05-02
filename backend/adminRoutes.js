@@ -173,6 +173,24 @@ const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 
+/*
+//AI for sentiment analysis testing (Done by Yu Kang)
+import { pipeline } from '@xenova/transformers';
+
+let classifier;
+
+async function getModel() {
+    if (!classifier) {
+        console.log("⏳ Loading AI model (first time only)...");
+        classifier = await pipeline(
+            'sentiment-analysis',
+            'Xenova/bert-base-multilingual-uncased-sentiment'
+        );
+        console.log("✅ Model loaded");
+    }
+    return classifier;
+}
+*/
 
 // ==================== 1. AUDIT LOGGING FUNCTIONS ====================
 
@@ -951,6 +969,7 @@ router.delete('/feedback/:id', async (req, res) => {
     }); // Close db.get callback
 });
 
+/*
 // Get question answers for specific feedback
 router.get('/feedback/:id/questions', (req, res) => {
     const { id } = req.params;
@@ -993,6 +1012,7 @@ router.get('/feedback/:id/questions', (req, res) => {
         });
     });
 });
+*/
 
 // Get all feedback answers for analysis (Done by Yu Kang)
 // Get all feedback answer values for analysis
@@ -1099,7 +1119,54 @@ router.get('/feedback-sentiment-analysis', (req, res) => {
             }
         });
     });
-});
+}); 
+
+/*router.get('/feedback-sentiment-analysis', async (req, res) => {
+    console.log('🧠 Running LOCAL AI sentiment analysis...');
+
+    const query = `
+        SELECT answer_value
+        FROM feedback_answers
+        WHERE answer_value IS NOT NULL AND answer_value != ''
+    `;
+
+    db.all(query, [], async (err, answers) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        try {
+            const model = await getModel();
+
+            let positive = 0, neutral = 0, negative = 0;
+
+            for (const answer of answers) {
+                const text = answer.answer_value;
+
+                const result = await model(text);
+                const label = result[0].label;
+
+                if (label.includes('5') || label === 'POSITIVE') positive++;
+                else if (label.includes('1') || label === 'NEGATIVE') negative++;
+                else neutral++;
+            }
+
+            res.json({
+                success: true,
+                sentiment: {
+                    positive,
+                    neutral,
+                    negative,
+                    total: answers.length
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ AI Error:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+});*/
 
 // ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
 
