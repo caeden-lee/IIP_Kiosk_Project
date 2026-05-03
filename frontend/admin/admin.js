@@ -7033,6 +7033,8 @@ function showPage(pageName) {
     loadEmailConfig();
     } else if (pageName === 'badge-email-templates') {
     loadBadgeEmailTemplates();
+    } else if (pageName === 'vip') {
+    loadVipManagementData();
     }
     
     
@@ -11596,7 +11598,8 @@ const VIP_API_BASE = "/api/admin";
 */
 const VIP_API = {
     list: () => `${VIP_API_BASE}/vips`,
-    create: () => `${VIP_API_BASE}/vips`
+    create: () => `${VIP_API_BASE}/vips`,
+    delete: (id) => `${VIP_API_BASE}/vips/${id}`
 };
 
 // DOM helpers (NEW VIP UI)
@@ -11667,6 +11670,7 @@ function renderVipList() {
 
     vipList.innerHTML = vipData.map((vip) => {
         const name = escapeHtmlSafe(vip.name ?? "");
+        const vipNameForJs = name.replace(/'/g, "\\'"); // escape single quotes
 
         // Support different backend field names
         const createdAt = formatVipDate(vip.created_at ?? vip.createdAt);
@@ -11676,6 +11680,11 @@ function renderVipList() {
                 <div class="vip-item-left">
                     <div class="vip-name">👑 ${name}</div>
                     <div class="vip-date">Added: ${createdAt}</div>
+                </div>
+                <div class="vip-item-actions">
+                    <button type="button" class="vip-delete-btn" onclick="deleteVip('${vipNameForJs}')">
+                        Remove &#128465;
+                    </button>
                 </div>
             </div>
         `;
@@ -11751,8 +11760,43 @@ async function addVip() {
     }
 }
 
+// Delete VIP (Done by Yu Kang)
+async function deleteVip(vipName) {
+    // Validate name (string, at least 2 chars)
+    if (!vipName || typeof vipName !== 'string' || vipName.trim().length < 2) {
+        alert("Invalid VIP name.");
+        return;
+    }
+
+    const confirmed = confirm(`Delete VIP "${vipName}"?`);
+    if (!confirmed) return;
+
+    try {
+        const encodedName = encodeURIComponent(vipName.trim());
+        const url = `/api/admin/vips/${encodedName}`;
+
+        const response = await fetch(url, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || "Failed to delete VIP");
+        }
+
+        await loadVipData();   // refresh the list
+        alert("VIP deleted successfully");
+    } catch (err) {
+        console.error("Delete VIP error:", err);
+        alert(err.message || "Failed to delete VIP.");
+    }
+}
+
 // Expose for HTML onclick
 window.addVip = addVip;
+window.deleteVip = deleteVip;
 
 
 // ==================== KIOSK AUTO-RELOAD ON START/STOP ====================

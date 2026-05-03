@@ -2028,6 +2028,15 @@ body {
     gap: 10px;
 }
 
+#vip-page .vip-item-left {
+    min-width: 0;
+}
+
+#vip-page .vip-item-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
 #vip-page .vip-name {
     font-weight: 700;
     color: #0f172a;
@@ -2047,6 +2056,28 @@ body {
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
+}
+
+#vip-page .vip-delete-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+#vip-page .vip-delete-btn:hover {
+    background: #fecaca;
+    border-color: #fca5a5;
+    transform: translateY(-1px);
+}
+
+#vip-page .vip-delete-btn:active {
+    transform: translateY(0);
 }
 
 /* Empty state */

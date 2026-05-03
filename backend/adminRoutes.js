@@ -118,6 +118,7 @@
 // 17. VIP MANAGEMENT ROUTES
 //     router.get('/vips'              - Get VIP list by status (active / deleted) with table check (DONE BY ZAH)
 //     router.post('/vips'             - Add new VIP name (duplicate-safe, case-insensitive) (DONE BY ZAH)
+//     router.delete('/vips/:name'       - Delete VIP by name (DONE BY Yu Kang)
 //
 // 18. FORM UI CONFIGURATION ROUTES (DONE BY NADH)
 //     router.get('/form-ui'           - Get form UI settings
@@ -4619,6 +4620,38 @@ router.post('/vips', (req, res) => {
                 name,
                 createdAt: new Date().toISOString()
             }
+        });
+    });
+});
+
+// Delete VIP (Done by Yu Kang)
+router.delete('/vips/:name', (req, res) => {
+    console.log('🗑️ Deleting VIP...');
+
+    const name = (req.params.name || '').trim();
+
+    if (!name || name.length < 2) {
+        return res.status(400).json({ success: false, error: 'Valid VIP name is required' });
+    }
+
+    const deleteQuery = `DELETE FROM vip_management WHERE name = ?`;
+
+    db.run(deleteQuery, [name], function(err) {
+        if (err) {
+            console.error('❌ Error deleting VIP:', err);
+            return res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+        }
+
+        // this.changes works in SQLite's db.run callback
+        if (this.changes === 0) {
+            return res.status(404).json({ success: false, error: 'VIP not found' });
+        }
+
+        console.log(`✅ VIP deleted: ${name}`);
+        return res.json({
+            success: true,
+            message: 'VIP deleted successfully',
+            name: name
         });
     });
 });
