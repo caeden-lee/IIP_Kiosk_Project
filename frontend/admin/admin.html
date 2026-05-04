@@ -33,9 +33,10 @@
     <div id="login-page" class="login-container">
         <div class="login-card">
             <div class="login-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <img src="../../../assets/static/rp-logo.png" width="60" height="60">
+                <!--<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zm-8-2h2v-4h4v-2h-4V7h-2v4H7v2h4v4z" fill="#4F46E5"/>
-                </svg>
+                </svg> -->
             </div>
             <h1>Admin Login</h1>
             <p class="login-subtitle">Access the feedback kiosk administration panel</p>
@@ -43,12 +44,12 @@
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <input type="text" id="username" name="username" autocomplete="username" placeholder="Enter your username" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <input type="password" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
                 </div>
                 
                 <button type="submit" class="login-btn">Sign In</button>

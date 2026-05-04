@@ -192,8 +192,9 @@ body {
 
 /* ==================== LOGIN PAGE STYLES ==================== */
 
+
 /* Login container and card */
-.login-container {
+/*.login-container {
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -228,10 +229,10 @@ body {
     font-size: 14px;
     color: #959595 !important;
     margin-bottom: 35px;
-}
+}*/
 
 /* Login form elements and buttons */
-.form-group {
+/*.form-group {
     margin-bottom: 20px;
     text-align: left;
 }
@@ -279,10 +280,10 @@ body {
     opacity: 0.9;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
+}*/
 
 /* Test accounts display */
-.test-accounts {
+/*.test-accounts {
     margin-top: 30px;
     padding: 20px;
     background: #f8fafc;
@@ -294,7 +295,265 @@ body {
 
 .test-accounts p {
     margin-bottom: 8px;
+}*/
+
+
+/* Login container and card */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url('../../../assets/static/rpPicture.jpg');
+    background-size: 150%;
+    padding: 20px;
+    position: relative;
 }
+ 
+/* Ambient light orbs over the background */
+.login-container::before {
+    content: '';
+    position: fixed;
+    top: -80px;
+    left: -80px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(120, 80, 255, 0.3) 0%, transparent 70%);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+}
+ 
+.login-container::after {
+    content: '';
+    position: fixed;
+    bottom: -60px;
+    right: -60px;
+    width: 340px;
+    height: 340px;
+    background: radial-gradient(circle, rgba(0, 180, 255, 0.2) 0%, transparent 70%);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+}
+ 
+.login-card {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 28px;
+    padding: 50px 40px;
+    width: 100%;
+    max-width: 450px;
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.1) inset,
+        0 40px 80px rgba(0, 0, 0, 0.45),
+        0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+ 
+/* Top highlight line on the card */
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+}
+ 
+.login-icon {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+ 
+/* Glassmorphism icon wrapper */
+.login-icon > * {
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    box-shadow:
+        0 8px 24px rgba(80, 60, 200, 0.25),
+        0 1px 0 rgba(255, 255, 255, 0.1) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+ 
+.login-card h1 {
+    font-size: 26px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92) !important;
+    margin-bottom: 10px;
+    letter-spacing: -0.3px;
+}
+ 
+.login-subtitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4) !important;
+    margin-bottom: 35px;
+    letter-spacing: 0.1px;
+}
+ 
+/* Login form elements and buttons */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+ 
+.form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45) !important;
+    margin-bottom: 8px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+ 
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.88);
+    box-sizing: border-box;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    caret-color: rgba(140, 100, 255, 0.9);
+}
+ 
+.form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+ 
+.form-group input:focus {
+    outline: none;
+    border-color: rgba(140, 100, 255, 0.5);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow:
+        0 0 0 3px rgba(120, 80, 255, 0.12),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+#login-page .form-group input[type="text"],
+#login-page .form-group input[type="password"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.05) inset,
+        0 10px 24px rgba(8, 15, 40, 0.16);
+}
+
+#login-page .form-group input[type="text"]:-webkit-autofill,
+#login-page .form-group input[type="text"]:-webkit-autofill:hover,
+#login-page .form-group input[type="text"]:-webkit-autofill:focus,
+#login-page .form-group input[type="password"]:-webkit-autofill,
+#login-page .form-group input[type="password"]:-webkit-autofill:hover,
+#login-page .form-group input[type="password"]:-webkit-autofill:focus {
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.88);
+    -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset;
+    box-shadow:
+        0 0 0 1000px rgba(255, 255, 255, 0.08) inset,
+        0 1px 0 rgba(255, 255, 255, 0.05) inset,
+        0 10px 24px rgba(8, 15, 40, 0.16);
+    transition: background-color 9999s ease-out 0s;
+}
+
+#login-page .login-card .login-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+}
+
+#login-page .login-btn {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(18px);
+}
+
+#login-page .login-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    background: white !important;
+    color: #1e293b !important;
+}
+ 
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 10px;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.1px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.15) inset,
+        0 8px 24px rgba(8, 15, 40, 0.18);
+}
+ 
+/* Inner top highlight on button (glass dome effect) */
+.login-btn::before {
+    content: '';
+    position: absolute;
+    display: none;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 14px 14px 0 0;
+    pointer-events: none;
+}
+ 
+.login-btn:hover {
+    box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.2) inset,
+        0 12px 32px rgba(8, 15, 40, 0.26);
+}
+ 
+.login-btn:active {
+    transform: translateY(0px) scale(0.99);
+}
+ 
+/* Test accounts display */
+.test-accounts {
+    margin-top: 30px;
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.45);
+}
+ 
+.test-accounts p {
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
 
 /* ==================== ADMIN HEADER & LAYOUT ==================== */
 

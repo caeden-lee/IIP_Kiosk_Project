@@ -174,9 +174,9 @@ const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 
-/*
+
 //AI for sentiment analysis testing (Done by Yu Kang)
-import { pipeline } from '@xenova/transformers';
+const { pipeline } = require('@xenova/transformers');
 
 let classifier;
 
@@ -191,7 +191,6 @@ async function getModel() {
     }
     return classifier;
 }
-*/
 
 // ==================== 1. AUDIT LOGGING FUNCTIONS ====================
 
@@ -1045,6 +1044,7 @@ router.get('/feedback-answers', (req, res) => {
     });
 });
 
+/*
 // Sentiment analysis of feedback answers (added by Yu Kang)
 router.get('/feedback-sentiment-analysis', (req, res) => {
     console.log('🧠 Performing sentiment analysis on feedback answers...');
@@ -1121,8 +1121,10 @@ router.get('/feedback-sentiment-analysis', (req, res) => {
         });
     });
 }); 
+*/
 
-/*router.get('/feedback-sentiment-analysis', async (req, res) => {
+// Sentiment AI analysis of feedback answers (added by Yu Kang)
+router.get('/feedback-sentiment-analysis', async (req, res) => {
     console.log('🧠 Running LOCAL AI sentiment analysis...');
 
     const query = `
@@ -1167,7 +1169,7 @@ router.get('/feedback-sentiment-analysis', (req, res) => {
             res.status(500).json({ success: false, error: error.message });
         }
     });
-});*/
+});
 
 // ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
 
