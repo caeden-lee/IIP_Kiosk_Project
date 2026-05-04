@@ -2293,6 +2293,26 @@ body {
     box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
 }
 
+.export-card-report {
+    background: linear-gradient(135deg, #0f766e, #14532d);
+}
+
+.export-card-report .export-card-icon {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 800;
+    height: 42px;
+    justify-content: center;
+    letter-spacing: 0.08em;
+    margin-bottom: 18px;
+    padding: 0 14px;
+    width: fit-content;
+}
+
 .export-card-icon {
     font-size: 48px;
     margin-bottom: 15px;

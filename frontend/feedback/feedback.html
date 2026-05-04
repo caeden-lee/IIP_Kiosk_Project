@@ -9,6 +9,18 @@
      button#skip-pledge-text        - Added "I do not want to make a pledge" action (DONE BY XY)
      skip pledge behavior           - Skipped pledge path awards Feedback Contributor automatically (DONE BY XY)
 
+  3. GUIDED PUBLIC FEEDBACK FLOW
+     progress indicator             - Added Consent > Details > Feedback > Pledge > Photo > Confirm steps (DONE BY XY)
+     friendly page microcopy        - Shortened page descriptions for kiosk users (DONE BY XY)
+     validation alert placeholders  - Added inline alert areas for missing details, feedback, pledge, and photo (DONE BY XY)
+
+  4. PUBLIC FORM CLEANUP
+     removed class/course field     - Removed school-only class/course question from public feedback form (DONE BY XY)
+     removed class/course summary   - Removed class/course row from confirmation page (DONE BY XY)
+
+  5. KIOSK IDLE RESET
+     div#idle-timeout-modal         - Added 1-minute idle reset warning modal with Keep Going and Reset Now actions (DONE BY XY)
+
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 -->
@@ -193,8 +205,8 @@
                 </svg>
             </div>
             
-            <h2 class="consent-title" id="consent-title">Data Retention Consent</h2>
-            <p class="consent-description" id="consent-description">Before we begin, please choose how long you'd like us to keep your feedback data</p>
+            <h2 class="consent-title" id="consent-title">Quick Consent</h2>
+            <p class="consent-description" id="consent-description">Pick how long we should keep your submission.</p>
             
             <div class="retention-options">
                 <div class="retention-option" onclick="selectOption('7days', this)">
@@ -232,6 +244,7 @@
                 <span id="continue-feedback-form-text">Continue to Feedback Form</span>
                 <span class="arrow">→</span>
             </button>
+            <p id="consent-form-alert" class="form-alert" role="alert"></p>
         </div>
     </div>
 
@@ -245,10 +258,11 @@
                 </svg>
             </div>
             
-            <h2 class="consent-title" id="details-title">Your Details</h2>
-            <p class="consent-description" id="details-description">Please provide your name and email to continue</p>
+            <h2 class="consent-title" id="details-title">Tell Us Who You Are</h2>
+            <p class="consent-description" id="details-description">Just the essentials so we can send your photo.</p>
             
-            <form class="details-form" onsubmit="submitDetails(event)">
+            <form class="details-form" onsubmit="submitDetails(event)" novalidate>
+                <p id="details-form-alert" class="form-alert" role="alert"></p>
                 <div class="form-group">
                     <label for="user-name" id="name-label">Name</label>
                     <input type="text" id="user-name" placeholder="Enter your name" required>
@@ -258,6 +272,7 @@
                     <label for="user-email" id="email-label">Email Address</label>
                     <input type="email" id="user-email" placeholder="Enter your email" required>
                 </div>
+
                 
                 <button type="submit" class="consent-button">
                     <span id="continue-to-feedback-text">Continue to Feedback</span>
@@ -285,9 +300,10 @@
             </div>
             
             <h2 class="consent-title" id="feedback-title">Share Your Feedback</h2>
-            <p class="consent-description" id="feedback-description">Your insights help us improve and serve you better</p>
+            <p class="consent-description" id="feedback-description">A few quick taps. Honest answers are perfect.</p>
             
-            <form class="feedback-form" onsubmit="submitFeedback(event)">
+            <form class="feedback-form" onsubmit="submitFeedback(event)" novalidate>
+                <p id="feedback-form-alert" class="form-alert" role="alert"></p>
                 <div id="questions-container"></div>
 
                 <button type="submit" class="consent-button">
@@ -322,7 +338,7 @@
             </div>
             
             <h2 class="consent-title" id="pledge-title">Make Your Pledge</h2>
-            <p class="consent-description" id="pledge-description">Share your commitment to making a positive impact</p>
+            <p class="consent-description" id="pledge-description">Choose one action you can try after today.</p>
 
             <div class="pledge-examples">
                 <p class="examples-header" id="pledge-examples-header">Pledge Examples:</p>
@@ -333,7 +349,8 @@
                 </ul>
             </div>
 
-            <form class="details-form" onsubmit="submitPledge(event)">
+            <form class="details-form" onsubmit="submitPledge(event)" novalidate>
+                <p id="pledge-form-alert" class="form-alert" role="alert"></p>
                 <div class="form-group">
                     <label for="pledge-text" id="pledge-label">Your Pledge</label>
                     <textarea id="pledge-text" rows="6" placeholder="I pledge to..." required maxlength="500"></textarea>
@@ -343,10 +360,10 @@
                 </div>
                 <!-- Added by XY: explicit pledge topic selector used for topic-specific badge mapping - done by XY -->
                 <div class="form-group">
-                    <label for="pledge-topic">Pledge Topic</label>
+                    <label for="pledge-topic" id="pledge-topic-label">Choose your sustainability focus</label>
                     <div class="themed-select">
                         <select id="pledge-topic" required>
-                            <option value="">Select a pledge topic</option>
+                            <option value="">Select a focus area</option>
                             <option value="climate-change">Climate Change</option>
                             <option value="renewable-energy">Renewable Energy</option>
                             <option value="sustainable-living">Sustainable Living</option>
@@ -396,6 +413,7 @@
             
             <h2 class="consent-title" id="photo-title">Capture Your Photo</h2>
             <p class="consent-description" id="photo-description">Your photo will sent to you through email</p>
+            <p id="photo-form-alert" class="form-alert" role="alert"></p>
             
             <!-- facial detection (Done by Yu Kang) -->
             <p id="face-detection-status" class="face-detection-status info">Preparing face detection...</p>
@@ -459,6 +477,7 @@
 
             <h2 class="consent-title" id="upload-title">Upload Your Photo</h2>
             <p class="consent-description" id="upload-description">Please take a photo using your camera and upload it</p>
+            <p id="upload-form-alert" class="form-alert" role="alert"></p>
             <p id="upload-face-detection-status" class="face-detection-status info">Upload a photo to run face detection.</p>
 
             <div class="upload-instructions">
@@ -715,6 +734,20 @@
         </div>
     </div>
     
+    <div id="idle-timeout-modal" class="idle-timeout-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="idle-timeout-title">
+        <div class="idle-timeout-card">
+            <div class="idle-timeout-icon">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <h2 id="idle-timeout-title">Still there?</h2>
+            <p>This kiosk will reset in <strong><span id="idle-countdown">10</span> seconds</strong> to protect your information.</p>
+            <div class="idle-timeout-actions">
+                <button type="button" class="consent-button" onclick="stayOnForm()">Keep Going</button>
+                <button type="button" class="secondary-button" onclick="returnToLandingPage()">Reset Now</button>
+            </div>
+        </div>
+    </div>
+
     <!-- facial detection (Done by Yu Kang) -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="feedback.js"></script>

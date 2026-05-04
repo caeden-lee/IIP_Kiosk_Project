@@ -280,8 +280,149 @@ h1 {
 .consent-description {
     font-size: 16px;
     color: #64748b;
-    margin-bottom: 30px;
+    margin-bottom: 22px;
     line-height: 1.6;
+}
+
+.step-progress {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 28px;
+    text-align: center;
+}
+
+.progress-step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.progress-step::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: calc(-50% + 10px);
+    width: calc(100% - 20px);
+    height: 2px;
+    background: rgba(74, 124, 89, 0.22);
+}
+
+.progress-step:first-child::before {
+    display: none;
+}
+
+.progress-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    border: 3px solid #f8fafc;
+    box-shadow: 0 0 0 1px rgba(74, 124, 89, 0.2);
+    z-index: 1;
+}
+
+.progress-step.complete,
+.progress-step.active {
+    color: #2f6f45;
+}
+
+.progress-step.complete .progress-dot,
+.progress-step.active .progress-dot {
+    background: #7fb069;
+    box-shadow: 0 0 0 4px rgba(127, 176, 105, 0.16);
+}
+
+.progress-step.active .progress-dot {
+    background: #2f6f45;
+}
+
+.form-alert,
+.field-error {
+    display: none;
+    color: #b42318;
+    background: #fff3f0;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.field-error {
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+.has-error input,
+.has-error textarea,
+.has-error select,
+.question-group.has-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14) !important;
+}
+
+.question-group.has-error {
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.idle-timeout-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(8px);
+    padding: 20px;
+}
+
+.idle-timeout-card {
+    width: min(460px, 100%);
+    background: #fffef8;
+    border: 1px solid rgba(74, 124, 89, 0.22);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(24, 57, 43, 0.24);
+    color: #18392b;
+}
+
+.idle-timeout-icon {
+    width: 56px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #2f6f45;
+    font-size: 24px;
+    margin-bottom: 16px;
+}
+
+.idle-timeout-card h2 {
+    margin-bottom: 8px;
+    font-size: 28px;
+}
+
+.idle-timeout-card p {
+    color: #496656;
+    margin-bottom: 24px;
+}
+
+.idle-timeout-actions {
+    display: grid;
+    gap: 12px;
 }
 
 /* Pledge examples */
@@ -1282,6 +1423,15 @@ textarea::placeholder {
 
     .retention-options {
         grid-template-columns: 1fr;
+    }
+
+    .step-progress {
+        gap: 4px;
+        margin-bottom: 20px;
+    }
+
+    .progress-label {
+        display: none;
     }
 
     .rating-buttons {

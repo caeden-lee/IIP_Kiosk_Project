@@ -15,8 +15,22 @@
 //    const BADGE_LEAF_REWARDS         - Active reward messages for Feedback Contributor plus 6 topic badges (DONE BY XY)
 //    Removed inactive badges          - Eco Warrior and Commitment Champion removed from reward map (DONE BY XY)
 //
-// FIND COMMAND
-//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// 4. KIOSK-GUIDED FEEDBACK FLOW
+//    const FLOW_STEPS                 - Step progress labels: Consent > Details > Feedback > Pledge > Photo > Confirm (DONE BY XY)
+//    function initializeProgressIndicators - Add shared step progress indicator to feedback pages (DONE BY XY)
+//    function showFlowPage()          - Central page switching with progress updates (DONE BY XY)
+//
+// 5. FRIENDLY VALIDATION AND PUBLIC FORM CLEANUP
+//    function showFieldError()        - Show clear inline validation messages beside missing fields (DONE BY XY)
+//    function showFormAlert()         - Show page-level validation guidance for kiosk users (DONE BY XY)
+//    Removed class/course handling    - Public form no longer asks for school-only details (DONE BY XY)
+//
+// 6. ONE-MINUTE KIOSK IDLE RESET
+//    const INACTIVITY_TIMEOUT         - Reset idle kiosk sessions after 1 minute (DONE BY XY)
+//    function showIdleWarning()       - Show 10-second reset warning before clearing the form (DONE BY XY)
+//    function stayOnForm()            - Let active users keep going from the idle warning (DONE BY XY)
+//
+
 // ============================================================
 
 // ============================================================
@@ -31,9 +45,14 @@
 //    let photoData                    - Base64 encoded photo data 
 //    let currentDevice                - 'desktop' or 'mobile' device type (DONE BY PRETI)
 //    let inactivityTimer              - Timer for inactivity timeout (DONE BY PRETI)
-//    const INACTIVITY_TIMEOUT         - 5 minutes timeout duration (DONE BY PRETI)
+//    let idleWarningTimer             - Timer for 10-second idle warning modal (DONE BY XY)
+//    let idleWarningInterval          - Countdown interval for idle warning modal (DONE BY XY)
+//    const INACTIVITY_TIMEOUT         - 1 minute timeout duration (DONE BY XY)
+//    const IDLE_WARNING_SECONDS       - Warning countdown before kiosk reset (DONE BY XY)
 //    let countdownSeconds             - Countdown seconds loaded from backend (DONE BY BERNISSA)
 //    let overlayData                  - Store full overlay data including file paths (DONE BY PRETI)
+//    const FLOW_STEPS                 - Step progress labels and matching page ids (DONE BY XY)
+//    const FLOW_PAGE_IDS              - All feedback flow page ids for shared navigation (DONE BY XY)
 //
 // 2. INITIALIZATION & SETUP FUNCTIONS
 //    async function loadDynamicQRCode() - Load dynamic QR code from server (DONE BY PRETI)
@@ -41,9 +60,12 @@
 //    DOMContentLoaded                 - Application bootstrap (DONE BY PRETI)
 //
 // 3. INACTIVITY TIMER FUNCTIONS
-//    function startInactivityTimer()  - Start 5-minute countdown (DONE BY PRETI)
-//    function resetInactivityTimer()  - Reset on user interaction (DONE BY PRETI)
-//    function returnToLandingPage()   - Return to start when timeout (DONE BY PRETI)
+//    function startInactivityTimer()  - Start 1-minute countdown (DONE BY XY)
+//    function resetInactivityTimer()  - Reset on user interaction (DONE BY XY)
+//    function showIdleWarning()       - Warn before automatic kiosk reset (DONE BY XY)
+//    function hideIdleWarning()       - Hide idle warning modal (DONE BY XY)
+//    function stayOnForm()            - Continue current session from idle warning (DONE BY XY)
+//    function returnToLandingPage()   - Return to start when timeout (DONE BY XY)
 //    function showTimeoutNotification() - Show timeout message (DONE BY PRETI)
 //
 // 4. QUESTION MANAGEMENT FUNCTIONS
@@ -54,12 +76,12 @@
 //    function initializeQuestionEventListeners() - Setup question events (DONE BY PRETI)
 //    function showNoQuestionsMessage() - Show message if no questions (DONE BY PRETI)
 //    function getQuestionType()       - Determine question type (DONE BY PRETI)
-//    function validateRequiredQuestions() - Validate required answers (DONE BY PRETI)
+//    function validateRequiredQuestions() - Validate required answers with inline messages (DONE BY XY)
 // 
 // 5. FORM SUBMISSION FUNCTIONS
-//    function submitFeedback()        - Submit feedback form (DONE BY PRETI)
-//    function submitDetails()         - Submit user details (DONE BY PRETI)
-//    function submitPledge()          - Submit pledge and redirect (DONE BY PRETI)
+//    function submitFeedback()        - Submit feedback form with friendlier validation (DONE BY XY)
+//    function submitDetails()         - Submit public user details without class/course field (DONE BY XY)
+//    function submitPledge()          - Submit pledge and redirect (DONE BY XY)
 //
 // 6. PHOTO HANDLING FUNCTIONS
 //    function handlePhotoUpload()     - Handle file upload (mobile) 
@@ -82,9 +104,9 @@
 //    function processFinalPhoto()     - Process final photo with overlay (DONE BY PRETI)
 //
 // 8. PAGE NAVIGATION FUNCTIONS
-//    function showConsentPage()       - Show consent page (DONE BY PRETI)
-//    function selectOption()          - Select retention option (DONE BY PRETI)
-//    function showDetailsPage()       - Show details page 
+//    function showConsentPage()       - Show consent page with progress tracking (DONE BY XY)
+//    function selectOption()          - Select retention option (DONE BY XY)
+//    function showDetailsPage()       - Show details page with validation guidance (DONE BY XY)
 //    function retakePhotoFromStyle()  - Retake photo from style page (DONE BY PRETI)
 //    function confirmStyle()          - Confirm and go to confirmation 
 //    function updateConfirmationDetails() - Update confirmation page 
@@ -121,10 +143,122 @@ let stream = null;
 let photoData = null;
 let currentDevice = 'desktop'; // 'desktop' or 'mobile'
 let inactivityTimer = null;
-const INACTIVITY_TIMEOUT = 300000; // 5 minutes (300,000 milliseconds)
+let idleWarningTimer = null;
+let idleWarningInterval = null;
+const INACTIVITY_TIMEOUT = 60000; // 1 minute kiosk reset timeout
+const IDLE_WARNING_SECONDS = 10;
 let countdownSeconds = null; // Loaded from backend when needed (DONE BY BERNISSA)
 let overlayData = {}; // Store full overlay data including file paths from database 
 let isMirrored = false; // to invert camera done by nick
+
+const FLOW_STEPS = [
+    { key: 'consent', label: 'Consent', pageIds: ['consent-page'] },
+    { key: 'details', label: 'Details', pageIds: ['details-page'] },
+    { key: 'feedback', label: 'Feedback', pageIds: ['feedback-page'] },
+    { key: 'pledge', label: 'Pledge', pageIds: ['pledge-page'] },
+    { key: 'photo', label: 'Photo', pageIds: ['photo-page', 'file-upload-page', 'style-page'] },
+    { key: 'confirm', label: 'Confirm', pageIds: ['confirmation-page'] }
+];
+const FLOW_PAGE_IDS = FLOW_STEPS.flatMap(step => step.pageIds).concat(['thankyou-page']);
+
+function getStepForPage(pageId) {
+    return FLOW_STEPS.find(step => step.pageIds.includes(pageId));
+}
+
+function updateProgressIndicator(activePageId) {
+    const activeStep = getStepForPage(activePageId);
+    if (!activeStep) return;
+
+    const activeIndex = FLOW_STEPS.findIndex(step => step.key === activeStep.key);
+    document.querySelectorAll('.step-progress').forEach(progress => {
+        progress.querySelectorAll('.progress-step').forEach((stepEl, index) => {
+            stepEl.classList.toggle('active', index === activeIndex);
+            stepEl.classList.toggle('complete', index < activeIndex);
+        });
+    });
+}
+
+function hideLandingPages() {
+    ['land-page-no-qrcode', 'land-page-qrcode'].forEach(id => {
+        const page = document.getElementById(id);
+        if (page) page.style.display = 'none';
+    });
+}
+
+function showLandingPages() {
+    FLOW_PAGE_IDS.forEach(id => {
+        const page = document.getElementById(id);
+        if (page) page.style.display = 'none';
+    });
+    applyFormUIConfig();
+}
+
+function showFlowPage(pageId) {
+    hideLandingPages();
+    FLOW_PAGE_IDS.forEach(id => {
+        const page = document.getElementById(id);
+        if (page) page.style.display = id === pageId ? 'flex' : 'none';
+    });
+    updateProgressIndicator(pageId);
+}
+
+function clearValidationMessages() {
+    document.querySelectorAll('.field-error, .form-alert').forEach(el => {
+        el.textContent = '';
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+}
+
+function showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+
+    const group = field.closest('.form-group') || field.closest('.question-group');
+    if (group) group.classList.add('has-error');
+
+    let error = group ? group.querySelector('.field-error') : null;
+    if (!error && group) {
+        error = document.createElement('p');
+        error.className = 'field-error';
+        group.appendChild(error);
+    }
+    if (error) {
+        error.textContent = message;
+        error.style.display = 'block';
+    }
+
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field.focus({ preventScroll: true });
+}
+
+function showFormAlert(formId, message) {
+    const alert = document.getElementById(formId);
+    if (!alert) return;
+    alert.textContent = message;
+    alert.style.display = 'block';
+}
+
+function initializeProgressIndicators() {
+    FLOW_STEPS.forEach((step) => {
+        step.pageIds.forEach(pageId => {
+            const page = document.getElementById(pageId);
+            const card = page?.querySelector('.consent-card, .feedback-form-card, .photo-card, .style-card');
+            if (!card || card.querySelector('.step-progress')) return;
+
+            const progress = document.createElement('nav');
+            progress.className = 'step-progress';
+            progress.setAttribute('aria-label', 'Feedback progress');
+            progress.innerHTML = FLOW_STEPS.map(item => `
+                <div class="progress-step" data-step="${item.key}">
+                    <span class="progress-dot"></span>
+                    <span class="progress-label">${item.label}</span>
+                </div>
+            `).join('');
+            card.prepend(progress);
+        });
+    });
+}
 
 
 // facial detection (Done by Yu Kang)
@@ -322,6 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     // Load dynamic QR code
     loadDynamicQRCode();
+    initializeProgressIndicators();
     
     // Detect device type
     detectDeviceType();
@@ -358,24 +493,66 @@ if (invertBtn) {
 
 // ==================== 3. INACTIVITY TIMER FUNCTIONS ====================
 
-// Start 5-minute inactivity countdown
+// Start 1-minute inactivity countdown
 function startInactivityTimer() {
-    // Clear any existing timer
     if (inactivityTimer) {
         clearTimeout(inactivityTimer);
     }
-    
-    // Set new timer for 5 minutes
+    if (idleWarningTimer) {
+        clearTimeout(idleWarningTimer);
+    }
+    if (idleWarningInterval) {
+        clearInterval(idleWarningInterval);
+    }
+    hideIdleWarning();
+
+    idleWarningTimer = setTimeout(() => {
+        showIdleWarning();
+    }, Math.max(0, INACTIVITY_TIMEOUT - (IDLE_WARNING_SECONDS * 1000)));
+
     inactivityTimer = setTimeout(() => {
         returnToLandingPage();
     }, INACTIVITY_TIMEOUT);
     
-    console.log('Inactivity timer started: 5 minutes');
+    console.log('Inactivity timer started: 1 minute');
 }
 
 // Reset timer on user interaction
 function resetInactivityTimer() {
+    if (document.body.classList.contains('submitting-feedback')) {
+        return;
+    }
     startInactivityTimer();
+}
+
+function showIdleWarning() {
+    const modal = document.getElementById('idle-timeout-modal');
+    const countdown = document.getElementById('idle-countdown');
+    if (!modal || !countdown) return;
+
+    let remaining = IDLE_WARNING_SECONDS;
+    countdown.textContent = remaining;
+    modal.style.display = 'flex';
+
+    idleWarningInterval = setInterval(() => {
+        remaining -= 1;
+        countdown.textContent = Math.max(0, remaining);
+        if (remaining <= 0 && idleWarningInterval) {
+            clearInterval(idleWarningInterval);
+            idleWarningInterval = null;
+        }
+    }, 1000);
+}
+
+function hideIdleWarning() {
+    const modal = document.getElementById('idle-timeout-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function stayOnForm() {
+    resetInactivityTimer();
 }
 
 // Return to landing page when timeout reached
@@ -393,6 +570,16 @@ function returnToLandingPage() {
         clearTimeout(inactivityTimer);
         inactivityTimer = null;
     }
+    if (idleWarningTimer) {
+        clearTimeout(idleWarningTimer);
+        idleWarningTimer = null;
+    }
+    if (idleWarningInterval) {
+        clearInterval(idleWarningInterval);
+        idleWarningInterval = null;
+    }
+    hideIdleWarning();
+    clearValidationMessages();
     
     // Reset all data
     selectedRetention = null;
@@ -412,17 +599,7 @@ function returnToLandingPage() {
     const proceedBtn = document.getElementById('proceedBtn');
     if (proceedBtn) proceedBtn.disabled = true;
     
-    // Hide all pages correctly - each page is a .container div
-    const allPages = document.querySelectorAll('.container');
-    allPages.forEach(page => {
-        page.style.display = 'none';
-    });
-    
-    // Show landing page
-    const landingPage = document.getElementById('landing-page');
-    if (landingPage) {
-        landingPage.style.display = 'flex';
-    }
+    showLandingPages();
     
     // Show notification
     showTimeoutNotification();
@@ -737,14 +914,20 @@ function validateRequiredQuestions() {
             if (!hasAnswer) {
                 // Scroll to the question and highlight it
                 question.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                question.style.border = '2px solid #ef4444';
-                question.style.borderRadius = '8px';
-                question.style.padding = '10px';
+                question.classList.add('has-error');
+                const label = question.querySelector('.question-label')?.textContent?.replace('*', '').trim() || 'this question';
+                let error = question.querySelector('.field-error');
+                if (!error) {
+                    error = document.createElement('p');
+                    error.className = 'field-error';
+                    question.appendChild(error);
+                }
+                error.textContent = `Please answer ${label}.`;
+                error.style.display = 'block';
                 
                 // Remove highlight after 3 seconds
                 setTimeout(() => {
-                    question.style.border = '';
-                    question.style.padding = '';
+                    question.classList.remove('has-error');
                 }, 3000);
                 
                 return false;
@@ -761,6 +944,7 @@ function validateRequiredQuestions() {
 // Submit feedback form with dynamic questions
 function submitFeedback(event) {
     event.preventDefault();
+    clearValidationMessages();
     
     // Collect all answers
     userData.answers = {};
@@ -800,37 +984,49 @@ function submitFeedback(event) {
     
     // Validate required questions
     if (!validateRequiredQuestions()) {
-        alert('Please answer all required questions before continuing.');
+        showFormAlert('feedback-form-alert', 'Please answer the highlighted question before moving on.');
         return;
     }
     
-    document.getElementById('feedback-page').style.display = 'none';
-    document.getElementById('pledge-page').style.display = 'flex';
+    showFlowPage('pledge-page');
     resetInactivityTimer();
 }
 
 // Submit user details form
 function submitDetails(event) {
     event.preventDefault();
-    userData.name = document.getElementById('user-name').value;
-    userData.email = document.getElementById('user-email').value;
+    clearValidationMessages();
+    const nameInput = document.getElementById('user-name');
+    const emailInput = document.getElementById('user-email');
+    userData.name = nameInput.value.trim();
+    userData.email = emailInput.value.trim();
     
-    if (userData.name && userData.email) {
-        document.getElementById('details-page').style.display = 'none';
-        document.getElementById('feedback-page').style.display = 'flex';
-        resetInactivityTimer();
+    if (!userData.name) {
+        showFieldError('user-name', 'Please enter your name so we can add it to your submission.');
+        return;
     }
+
+    if (!userData.email) {
+        showFieldError('user-email', 'Please enter your email so we can send your RP memory photo.');
+        return;
+    }
+
+    if (!emailInput.checkValidity()) {
+        showFieldError('user-email', 'Please enter a valid email address, for example name@example.com.');
+        return;
+    }
+
+    showFlowPage('feedback-page');
+    resetInactivityTimer();
 }
 
 function continueAfterPledgeChoice() {
-    document.getElementById('pledge-page').style.display = 'none';
-
     // MOBILE: Use file upload instead of camera
     if (currentDevice === 'mobile') {
-        document.getElementById('file-upload-page').style.display = 'flex';
+        showFlowPage('file-upload-page');
     } else {
         // DESKTOP: Use camera as before
-        document.getElementById('photo-page').style.display = 'flex';
+        showFlowPage('photo-page');
         initializeCamera();
     }
 
@@ -841,12 +1037,18 @@ function continueAfterPledgeChoice() {
 // Added explicit pledge topic selection support and validation - done by XY
 function submitPledge(event) {
     event.preventDefault();
+    clearValidationMessages();
     userData.pledge = document.getElementById('pledge-text').value.trim();
     userData.pledgeTopic = document.getElementById('pledge-topic').value;
     userData.pledgeSkipped = false;
 
+    if (!userData.pledge) {
+        showFieldError('pledge-text', 'Write one short action you will try. You can also skip the pledge below.');
+        return;
+    }
+
     if (!userData.pledgeTopic) {
-        alert('Please select a pledge topic before continuing.');
+        showFieldError('pledge-topic', 'Choose your sustainability focus before continuing.');
         return;
     }
 
@@ -951,12 +1153,11 @@ async function handlePhotoUpload(event) {
 // Continue to style page from upload (mobile)
 function continueToStyleFromUpload() {
     if (!photoData) {
-        alert('Please upload a photo first.');
+        showFormAlert('upload-form-alert', 'Please add a clear photo before choosing a style.');
         return;
     }
 
-    document.getElementById('file-upload-page').style.display = 'none';
-    document.getElementById('style-page').style.display = 'flex';
+    showFlowPage('style-page');
     resetInactivityTimer();
 
     // Update the preview immediately
@@ -1029,8 +1230,7 @@ async function initializeCamera() {
 async function capturePhoto() {
     // For mobile, redirect to file upload
     if (currentDevice === 'mobile') {
-        document.getElementById('photo-page').style.display = 'none';
-        document.getElementById('file-upload-page').style.display = 'flex';
+        showFlowPage('file-upload-page');
         resetInactivityTimer();
         return;
     }
@@ -1146,11 +1346,10 @@ function continueToStyle() {
         // Update the preview with properly positioned photo
         updatePreviewWithCutout();
         
-        document.getElementById('photo-page').style.display = 'none';
-        document.getElementById('style-page').style.display = 'flex';
+        showFlowPage('style-page');
         resetInactivityTimer();
     } else {
-        alert('Please capture a photo first.');
+        showFormAlert('photo-form-alert', 'Please capture a clear photo before choosing a style.');
     }
 }
 
@@ -1565,13 +1764,14 @@ function processFinalPhoto() {
 
 // Show consent page from landing page
 function showConsentPage() {
-    document.getElementById('landing-page').style.display = 'none';
-    document.getElementById('consent-page').style.display = 'flex';
+    clearValidationMessages();
+    showFlowPage('consent-page');
     resetInactivityTimer();
 }
 
 // Select retention option on consent page
 function selectOption(option, element) {
+    clearValidationMessages();
     document.querySelectorAll('.retention-option').forEach(opt => {
         opt.classList.remove('selected');
     });
@@ -1584,24 +1784,22 @@ function selectOption(option, element) {
 // Show details page from consent page
 function showDetailsPage() {
     if (selectedRetention) {
-        document.getElementById('consent-page').style.display = 'none';
-        document.getElementById('details-page').style.display = 'flex';
+        showFlowPage('details-page');
         resetInactivityTimer();
+    } else {
+        showFormAlert('consent-form-alert', 'Choose how long we should keep your feedback data.');
     }
 }
 
 // Retake photo from style page
 function retakePhotoFromStyle() {
-    // Hide style page
-    document.getElementById('style-page').style.display = 'none';
-    
     // Show appropriate photo page based on device
     if (currentDevice === 'mobile') {
         // For mobile users, go to file upload page
-        document.getElementById('file-upload-page').style.display = 'flex';
+        showFlowPage('file-upload-page');
     } else {
         // For desktop users, go to camera capture page
-        document.getElementById('photo-page').style.display = 'flex';
+        showFlowPage('photo-page');
         // Reinitialize camera for desktop
         initializeCamera();
     }
@@ -1613,8 +1811,7 @@ function retakePhotoFromStyle() {
 function confirmStyle() {
     // Process the final photo with overlay but doesnt save yet
     processFinalPhoto().then(() => {
-        document.getElementById('style-page').style.display = 'none';
-        document.getElementById('confirmation-page').style.display = 'flex';
+        showFlowPage('confirmation-page');
         resetInactivityTimer();
         
         // Update confirmation page details
@@ -1638,8 +1835,7 @@ function updateConfirmationDetails() {
 
 // Go back from confirmation to style page
 function goBackToStyle() {
-    document.getElementById('confirmation-page').style.display = 'none';
-    document.getElementById('style-page').style.display = 'flex';
+    showFlowPage('style-page');
     resetInactivityTimer();
 }
 
@@ -1647,6 +1843,7 @@ function goBackToStyle() {
 function finalSubmit() {
     const submitBtn = document.querySelector('#confirmation-page .consent-button');
     const originalText = submitBtn.innerHTML;
+    document.body.classList.add('submitting-feedback');
     
     submitBtn.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1687,8 +1884,7 @@ function finalSubmit() {
         const submissionData = data.data || data;
         
         // Show thank you page
-        document.getElementById('confirmation-page').style.display = 'none';
-        document.getElementById('thankyou-page').style.display = 'flex';
+        showFlowPage('thankyou-page');
         
         // Show the visitor which badge/leaf reward they unlocked.
         setupBadgeReward(submissionData);
@@ -1699,6 +1895,7 @@ function finalSubmit() {
         // Reset button
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
+        document.body.classList.remove('submitting-feedback');
     })
     .catch(error => {
         console.error('Error submitting feedback:', error);
@@ -1707,6 +1904,7 @@ function finalSubmit() {
         // Reset button on error
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
+        document.body.classList.remove('submitting-feedback');
         
         // Restart timer since submission failed
         startInactivityTimer();
@@ -1846,10 +2044,10 @@ function submitAnother() {
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
     document.getElementById('proceedBtn').disabled = true;
     document.getElementById('char-count').textContent = '0';
+    clearValidationMessages();
     
     // Go back to landing page
-    document.getElementById('thankyou-page').style.display = 'none';
-    document.getElementById('landing-page').style.display = 'flex';
+    showLandingPages();
     
     // Restart inactivity timer
     startInactivityTimer();
@@ -1860,29 +2058,25 @@ function submitAnother() {
 
 // From Consent to Landing
 function goBackToLanding() {
-    document.getElementById('consent-page').style.display = 'none';
-    document.getElementById('landing-page').style.display = 'flex';
+    showLandingPages();
     resetInactivityTimer();
 }
 
 // From Details to Consent
 function goBackToConsent() {
-    document.getElementById('details-page').style.display = 'none';
-    document.getElementById('consent-page').style.display = 'flex';
+    showFlowPage('consent-page');
     resetInactivityTimer();
 }
 
 // From Feedback to Details
 function goBackToDetails() {
-    document.getElementById('feedback-page').style.display = 'none';
-    document.getElementById('details-page').style.display = 'flex';
+    showFlowPage('details-page');
     resetInactivityTimer();
 }
 
 // From Pledge to Feedback
 function goBackToFeedback() {
-    document.getElementById('pledge-page').style.display = 'none';
-    document.getElementById('feedback-page').style.display = 'flex';
+    showFlowPage('feedback-page');
     resetInactivityTimer();
 }
 
@@ -1894,12 +2088,7 @@ function goBackToPledge() {
         stream = null;
     }
     
-    // Hide both photo pages
-    document.getElementById('photo-page').style.display = 'none';
-    document.getElementById('file-upload-page').style.display = 'none';
-    
-    // Show pledge page
-    document.getElementById('pledge-page').style.display = 'flex';
+    showFlowPage('pledge-page');
     
     resetInactivityTimer();
 }
@@ -1931,6 +2120,12 @@ window.addEventListener('beforeunload', () => {
     }
     if (inactivityTimer) {
         clearTimeout(inactivityTimer);
+    }
+    if (idleWarningTimer) {
+        clearTimeout(idleWarningTimer);
+    }
+    if (idleWarningInterval) {
+        clearInterval(idleWarningInterval);
     }
 });
 
@@ -2020,8 +2215,8 @@ const translations = {
         qrHeader: "Scan for Mobile Feedback",
         qrDescription: "Point your mobile camera here to open the feedback form on your phone",
 
-        consentTitle: "Data Retention Consent",
-        consentDescription: "Before we begin, please choose how long you'd like us to keep your feedback data",
+        consentTitle: "Quick Consent",
+        consentDescription: "Pick how long we should keep your submission.",
         option7DaysTitle: "7 Days",
         option7DaysDescription: "Your feedback data will be deleted after 7 days.",
         optionLongTermTitle: "Long-Term",
@@ -2029,8 +2224,8 @@ const translations = {
         privacyNotice: "7 day Retention: Your photo and email is retained for 7 days then deleted. Your name and pledge may be displayed publicly.",
         continueFeedbackForm: "Continue to Feedback Form",
 
-        detailsTitle: "Your Details",
-        detailsDescription: "Please provide your name and email to continue",
+        detailsTitle: "Tell Us Who You Are",
+        detailsDescription: "Just the essentials so we can send your photo.",
         nameLabel: "Name",
         emailLabel: "Email Address",
         namePlaceholder: "Enter your name",
@@ -2039,16 +2234,17 @@ const translations = {
         back: "Back",
 
         feedbackTitle: "Share Your Feedback",
-        feedbackDescription: "Your insights help us improve and serve you better",
+        feedbackDescription: "A few quick taps. Honest answers are perfect.",
         continueToPledge: "Continue to Pledge",
 
         pledgeTitle: "Make Your Pledge",
-        pledgeDescription: "Share your commitment to making a positive impact",
+        pledgeDescription: "Choose one action you can try after today.",
         pledgeExamplesHeader: "Pledge Examples:",
         pledgeExample1: "Carry a reusable bottle and cutlery every day",
         pledgeExample2: "Sort waste properly and recycle whenever possible",
         pledgeExample3: "Reduce food waste by taking only what I can finish",
         pledgeLabel: "Your Pledge",
+        pledgeTopicLabel: "Choose your sustainability focus",
         pledgePlaceholder: "I pledge to...",
         charactersText: "500 characters",
         pledgePrivacy: "Your pledge will be displayed on our pledgeboard, inspiring others to take action",
@@ -2439,6 +2635,7 @@ function applyTranslations() {
     setText('pledge-example-2', t.pledgeExample2);
     setText('pledge-example-3', t.pledgeExample3);
     setText('pledge-label', t.pledgeLabel);
+    setText('pledge-topic-label', t.pledgeTopicLabel || 'Choose your sustainability focus');
     setPlaceholder('pledge-text', t.pledgePlaceholder);
     setText('characters-text', t.charactersText);
     setText('pledge-privacy-text', t.pledgePrivacy);

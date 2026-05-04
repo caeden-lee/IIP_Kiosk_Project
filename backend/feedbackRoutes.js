@@ -650,6 +650,7 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
             retention: retention,
             photoId: userData.photoId,
             processedPhotoId: userData.processedPhotoId,
+            classGroup: userData.classGroup || null,
             likedFeedback: userData.q2,
             improvementFeedback: userData.q3,
             pledge: userData.pledge,
