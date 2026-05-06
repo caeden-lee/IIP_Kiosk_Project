@@ -81,6 +81,39 @@ body {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+.leaf.badge-feedback {
+    filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+.leaf.badge-climate {
+    filter: hue-rotate(132deg) saturate(1.28) brightness(1.08) drop-shadow(0 8px 12px rgba(14, 116, 144, 0.32));
+}
+
+.leaf.badge-renewable {
+    filter: hue-rotate(54deg) saturate(1.55) brightness(1.1) drop-shadow(0 8px 12px rgba(202, 138, 4, 0.3));
+}
+
+.leaf.badge-sustainable {
+    filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+.leaf.badge-ocean {
+    filter: hue-rotate(170deg) saturate(1.5) brightness(1.04) drop-shadow(0 8px 12px rgba(2, 132, 199, 0.34));
+}
+
+.leaf.badge-governance {
+    filter: hue-rotate(248deg) saturate(1.25) brightness(1.04) drop-shadow(0 8px 12px rgba(109, 40, 217, 0.32));
+}
+
+.leaf.badge-social {
+    filter: hue-rotate(302deg) saturate(1.35) brightness(1.1) drop-shadow(0 8px 12px rgba(217, 119, 6, 0.32));
+}
+
+.leaf.vip {
+    filter: drop-shadow(0 8px 14px rgba(180, 132, 21, 0.42));
 }
 
 #leavesContainer {
@@ -106,6 +139,27 @@ body {
     max-width: 80%;
     word-wrap: break-word;
     line-height: 1.2;
+}
+
+.leaf-badge {
+    position: absolute;
+    left: 50%;
+    bottom: 10%;
+    transform: translateX(-50%);
+    max-width: 76%;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.84);
+    color: #14532d;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
 }
 
 /* =========================

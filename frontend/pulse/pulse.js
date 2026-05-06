@@ -1,5 +1,26 @@
+// ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE DASHBOARD RENDERING
+//    const REFRESH_MS                 - Auto-refresh interval for pulse dashboard data (DONE BY XY)
+//    function loadPulse()             - Fetch and render live ESG pledge/badge/tree summary (DONE BY XY)
+//    function renderPledges()         - Render newest anonymous pledges in pulse view (DONE BY XY)
+//    function renderBadgeMix()        - Render badge breakdown bars in pulse view (DONE BY XY)
+//
+// 2. DIGITAL TREE PREVIEW
+//    leafPositions                    - Fixed pulse leaf positions so leaves stay connected visually (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
 const REFRESH_MS = 20000;
 const MAX_TREE_LEAVES = 54;
+
+if (new URLSearchParams(window.location.search).get('embed') === 'admin') {
+    document.documentElement.classList.add('admin-embed');
+}
 
 const leafImages = [
     '/assets/Tree/NewLeftLeaf.png',

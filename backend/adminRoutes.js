@@ -1,4 +1,21 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. BADGE EMAIL TEMPLATE ADMIN API
+//    const badgeEmailTemplateStore    - Badge template JSON storage helper import (DONE BY XY)
+//    GET /badge-email-templates       - Load active badges and editable email templates (DONE BY XY)
+//    PUT /badge-email-templates       - Save per-badge subject, message and highlights (DONE BY XY)
+//
+// 2. ACTIVE BADGE FILTERING
+//    emailService.ACTIVE_BADGE_KEYS   - Limit admin editor to Feedback Contributor plus 6 topic badges (DONE BY XY)
+//    auth.requireAdmin                - Protect badge email template API with system admin access (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // ADMINROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -101,6 +118,7 @@
 // 17. VIP MANAGEMENT ROUTES
 //     router.get('/vips'              - Get VIP list by status (active / deleted) with table check (DONE BY ZAH)
 //     router.post('/vips'             - Add new VIP name (duplicate-safe, case-insensitive) (DONE BY ZAH)
+//     router.delete('/vips/:name'       - Delete VIP by name (DONE BY Yu Kang)
 //
 // 18. FORM UI CONFIGURATION ROUTES (DONE BY NADH)
 //     router.get('/form-ui'           - Get form UI settings
@@ -154,7 +172,25 @@ const fs = require('fs');
 const archiver = require('archiver');
 const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
+const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 
+
+//AI for sentiment analysis testing (Done by Yu Kang)
+const { pipeline } = require('@xenova/transformers');
+
+let classifier;
+
+async function getModel() {
+    if (!classifier) {
+        console.log("⏳ Loading AI model (first time only)...");
+        classifier = await pipeline(
+            'sentiment-analysis',
+            'Xenova/bert-base-multilingual-uncased-sentiment'
+        );
+        console.log("✅ Model loaded");
+    }
+    return classifier;
+}
 
 // ==================== 1. AUDIT LOGGING FUNCTIONS ====================
 
@@ -933,6 +969,7 @@ router.delete('/feedback/:id', async (req, res) => {
     }); // Close db.get callback
 });
 
+/*
 // Get question answers for specific feedback
 router.get('/feedback/:id/questions', (req, res) => {
     const { id } = req.params;
@@ -973,6 +1010,164 @@ router.get('/feedback/:id/questions', (req, res) => {
             success: true,
             answers: answers || []
         });
+    });
+});
+*/
+
+// Get all feedback answers for analysis (Done by Yu Kang)
+// Get all feedback answer values for analysis
+router.get('/feedback-answers', (req, res) => {
+    console.log('📋 Fetching all feedback answer values...');
+
+    const query = `
+        SELECT
+            answer_value
+        FROM feedback_answers
+        ORDER BY created_at DESC, id DESC
+    `;
+
+    db.all(query, [], (err, answers) => {
+        if (err) {
+            console.error('❌ Error fetching feedback answer values:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Database error: ' + err.message
+            });
+        }
+
+        console.log(`✅ Found ${answers.length} feedback answer rows`);
+
+        res.json({
+            success: true,
+            answers: answers || []
+        });
+    });
+});
+
+/*
+// Sentiment analysis of feedback answers (added by Yu Kang)
+router.get('/feedback-sentiment-analysis', (req, res) => {
+    console.log('🧠 Performing sentiment analysis on feedback answers...');
+
+    const query = `
+        SELECT answer_value
+        FROM feedback_answers
+        WHERE answer_value IS NOT NULL AND answer_value != ''
+    `;
+
+    db.all(query, [], (err, answers) => {
+        if (err) {
+            console.error('❌ Error fetching answers for sentiment analysis:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Database error: ' + err.message
+            });
+        }
+
+        // Simple keyword-based sentiment analysis
+        const positiveKeywords = [
+            'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
+            'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
+            'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant',
+            'nice', 'delighted', 'thrilled', 'enjoyed', 'liked', 'helpful'
+        ];
+
+        const negativeKeywords = [
+            'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
+            'disappointing', 'disappointed', 'useless', 'waste', 'angry',
+            'frustrated', 'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic',
+            'mediocre', 'negative', 'concerning', 'problem', 'issue', 'difficult'
+        ];
+
+        let positive = 0, neutral = 0, negative = 0;
+
+        answers.forEach(answer => {
+            const text = (answer.answer_value || '').toLowerCase().trim();
+            
+            if (!text) {
+                neutral++;
+                return;
+            }
+
+            let hasPositive = false, hasNegative = false;
+
+            positiveKeywords.forEach(keyword => {
+                if (text.includes(keyword)) hasPositive = true;
+            });
+
+            negativeKeywords.forEach(keyword => {
+                if (text.includes(keyword)) hasNegative = true;
+            });
+
+            if (hasPositive && !hasNegative) {
+                positive++;
+            } else if (hasNegative && !hasPositive) {
+                negative++;
+            } else {
+                neutral++;
+            }
+        });
+
+        console.log(`✅ Sentiment analysis complete: Positive: ${positive}, Neutral: ${neutral}, Negative: ${negative}`);
+
+        res.json({
+            success: true,
+            sentiment: {
+                positive,
+                neutral,
+                negative,
+                total: answers.length
+            }
+        });
+    });
+}); 
+*/
+
+// Sentiment AI analysis of feedback answers (added by Yu Kang)
+router.get('/feedback-sentiment-analysis', async (req, res) => {
+    console.log('🧠 Running LOCAL AI sentiment analysis...');
+
+    const query = `
+        SELECT answer_value
+        FROM feedback_answers
+        WHERE answer_value IS NOT NULL AND answer_value != ''
+    `;
+
+    db.all(query, [], async (err, answers) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        try {
+            const model = await getModel();
+
+            let positive = 0, neutral = 0, negative = 0;
+
+            for (const answer of answers) {
+                const text = answer.answer_value;
+
+                const result = await model(text);
+                const label = result[0].label;
+
+                if (label.includes('5') || label === 'POSITIVE') positive++;
+                else if (label.includes('1') || label === 'NEGATIVE') negative++;
+                else neutral++;
+            }
+
+            res.json({
+                success: true,
+                sentiment: {
+                    positive,
+                    neutral,
+                    negative,
+                    total: answers.length
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ AI Error:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
     });
 });
 
@@ -4431,6 +4626,38 @@ router.post('/vips', (req, res) => {
     });
 });
 
+// Delete VIP (Done by Yu Kang)
+router.delete('/vips/:name', (req, res) => {
+    console.log('🗑️ Deleting VIP...');
+
+    const name = (req.params.name || '').trim();
+
+    if (!name || name.length < 2) {
+        return res.status(400).json({ success: false, error: 'Valid VIP name is required' });
+    }
+
+    const deleteQuery = `DELETE FROM vip_management WHERE name = ?`;
+
+    db.run(deleteQuery, [name], function(err) {
+        if (err) {
+            console.error('❌ Error deleting VIP:', err);
+            return res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+        }
+
+        // this.changes works in SQLite's db.run callback
+        if (this.changes === 0) {
+            return res.status(404).json({ success: false, error: 'VIP not found' });
+        }
+
+        console.log(`✅ VIP deleted: ${name}`);
+        return res.json({
+            success: true,
+            message: 'VIP deleted successfully',
+            name: name
+        });
+    });
+});
+
 
 // ==================== 18. FORM UI CONFIGURATION ====================
 // Read + write feedback form UI settings 
@@ -4445,7 +4672,8 @@ router.get('/form-ui', auth.requireAuth, (req, res) => {
       return res.json({
         background: '',
         landingTitle: '',
-        landingSubtitle: ''
+        landingSubtitle: '',
+        showLandingPageQRCode: false
       });
     }
 
@@ -4462,7 +4690,7 @@ router.get('/form-ui', auth.requireAuth, (req, res) => {
 // Save/update form UI configuration
 router.put('/form-ui', auth.requireAuth, (req, res) => {
   try {
-    const { background, landingTitle, landingSubtitle } = req.body;
+    const { background, landingTitle, landingSubtitle, showLandingPageQRCode } = req.body;
 
     // Basic validation (keeps it safe + prevents weird payloads)
     if (typeof background !== 'string' || background.length > 300) {
@@ -4474,11 +4702,15 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
     if (typeof landingSubtitle !== 'string' || landingSubtitle.length > 200) {
       return res.status(400).json({ success: false, error: 'Invalid landing subtitle' });
     }
+    if (typeof showLandingPageQRCode !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'Invalid landing page QR toggle value' });
+    }
 
     const payload = {
       background: background.trim(),
       landingTitle: landingTitle.trim(),
-      landingSubtitle: landingSubtitle.trim()
+      landingSubtitle: landingSubtitle.trim(),
+      showLandingPageQRCode
     };
 
     // Ensure config folder exists
@@ -4567,6 +4799,47 @@ router.post('/email-config/test', auth.requireAuth, async (req, res) => {
 
     await emailService.testEmailService(to);
     res.json({ success: true, message: 'Test email sent successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==================== BADGE EMAIL TEMPLATE MANAGEMENT ====================
+
+router.get('/badge-email-templates', auth.requireAdmin, (req, res) => {
+  try {
+    const templates = badgeEmailTemplateStore.getBadgeEmailTemplates();
+    const badgeKeys = emailService.ACTIVE_BADGE_KEYS || Object.keys(emailService.BADGE_CONFIGS || {});
+    const badges = badgeKeys.map((key) => {
+      const badge = emailService.BADGE_CONFIGS[key];
+      return badge && {
+      key,
+      name: badge.name,
+      description: badge.description,
+      color: badge.color
+      };
+    }).filter(Boolean);
+
+    res.json({ success: true, badges, templates });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/badge-email-templates', auth.requireAdmin, (req, res) => {
+  try {
+    const templates = req.body?.templates;
+    if (!templates || typeof templates !== 'object') {
+      return res.status(400).json({ success: false, error: 'Templates payload is required' });
+    }
+
+    const saved = badgeEmailTemplateStore.saveBadgeEmailTemplates(templates);
+
+    if (req.session?.user?.username) {
+      logAudit('BADGE_EMAIL_TEMPLATES_UPDATED', req.session.user.username, 'config', 'badge-email-templates', req);
+    }
+
+    res.json({ success: true, message: 'Badge email templates saved', templates: saved });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

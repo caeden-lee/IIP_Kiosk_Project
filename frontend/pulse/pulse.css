@@ -10,7 +10,7 @@ body {
 }
 
 body {
-    overflow: hidden;
+    overflow: auto;
     background:
         linear-gradient(135deg, rgba(8, 20, 28, 0.94), rgba(18, 31, 39, 0.9)),
         url('/assets/Tree/BackGround.png') center / cover no-repeat;
@@ -20,7 +20,7 @@ body {
 
 .pulse-shell {
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     padding: 28px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) 250px;
@@ -381,6 +381,39 @@ h2 {
     50% {
         transform: translateY(-7px) rotate(var(--leaf-rotate, 0deg));
     }
+}
+
+.admin-embed body {
+    overflow: auto;
+}
+
+.admin-embed .pulse-shell {
+    width: 100%;
+    height: auto;
+    min-height: 1120px;
+    padding: 24px;
+    grid-template-rows: auto auto auto auto;
+}
+
+.admin-embed .pulse-layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+    align-items: stretch;
+}
+
+.admin-embed .tree-stage {
+    min-height: 460px;
+}
+
+.admin-embed .tree-base {
+    width: min(72vw, 940px);
+}
+
+.admin-embed .bottom-grid {
+    min-height: 290px;
+}
+
+.admin-embed .pledge-feed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 1100px) {

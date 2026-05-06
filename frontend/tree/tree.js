@@ -1,3 +1,19 @@
+// ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. DIGITAL TREE LEAF PLACEMENT
+//    class TreeManager                - Stable leaf placement on tree canopy instead of flying/floating leaves (DONE BY XY)
+//    badgeConfig mapping              - Badge-specific labels, short labels and preferred leaf sides (DONE BY XY)
+//
+// 2. ACTIVE BADGE CLEANUP
+//    badgeConfig mapping              - Uses Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
+//    Removed inactive badges          - Eco Warrior and Commitment Champion removed from tree mapping (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
 // TREE.JS - TABLE OF CONTENTS
 // ============================================================
 //
@@ -49,6 +65,51 @@ class TreeManager {
 
         // VIP Names (for golden leaves)
         this.vipNames = new Set();
+
+        this.badgeLeafProfiles = {
+            'feedback-completer': {
+                label: 'Feedback Contributor',
+                shortLabel: 'Feedback',
+                className: 'badge-feedback',
+                preferredSide: null
+            },
+            'climate-champion': {
+                label: 'Climate Champion',
+                shortLabel: 'Climate',
+                className: 'badge-climate',
+                preferredSide: 'LeftLeaf.png'
+            },
+            'renewable-innovator': {
+                label: 'Renewable Innovator',
+                shortLabel: 'Energy',
+                className: 'badge-renewable',
+                preferredSide: 'RightLeaf.png'
+            },
+            'sustainable-living-advocate': {
+                label: 'Sustainable Living Advocate',
+                shortLabel: 'Living',
+                className: 'badge-sustainable',
+                preferredSide: 'LeftLeaf.png'
+            },
+            'ocean-guardian': {
+                label: 'Ocean Guardian',
+                shortLabel: 'Ocean',
+                className: 'badge-ocean',
+                preferredSide: 'RightLeaf.png'
+            },
+            'governance-guardian': {
+                label: 'Governance Guardian',
+                shortLabel: 'Ethics',
+                className: 'badge-governance',
+                preferredSide: 'LeftLeaf.png'
+            },
+            'social-champion': {
+                label: 'Social Champion',
+                shortLabel: 'Social',
+                className: 'badge-social',
+                preferredSide: 'RightLeaf.png'
+            }
+        };
 
         // ====================================================
         // CANOPY AREA (UPDATED: smaller + moved up)
@@ -147,6 +208,42 @@ class TreeManager {
 
     isVipName(name) {
         return this.vipNames.has(this.normalizeName(name));
+    }
+
+    getBadgeLeafProfile(visitor) {
+        const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
+        return this.badgeLeafProfiles[badgeKey] || this.badgeLeafProfiles['feedback-completer'];
+    }
+
+    getVisitorSeed(visitor, index) {
+        return [
+            visitor.id || visitor.feedback_id || '',
+            visitor.name || 'visitor',
+            visitor.created_at || '',
+            visitor.badgeKey || '',
+            index
+        ].join('|');
+    }
+
+    hashString(value) {
+        let hash = 2166136261;
+        const text = String(value || '');
+
+        for (let i = 0; i < text.length; i++) {
+            hash ^= text.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+
+        return hash >>> 0;
+    }
+
+    createSeededRandom(seed) {
+        let state = this.hashString(seed) || 1;
+
+        return () => {
+            state = Math.imul(1664525, state) + 1013904223;
+            return (state >>> 0) / 4294967296;
+        };
     }
 
     // ==================== DATA ====================
@@ -248,12 +345,39 @@ class TreeManager {
         return { canvas, ctx, w, h };
     }
 
-    findRandomPositionInLeavesMask(leafSize) {
+    maskPixelHasLeafSupport(ctx, x, y, w, h, leafSize, scaleX, scaleY) {
+        const radiusX = Math.max(8, leafSize * 0.18 * scaleX);
+        const radiusY = Math.max(8, leafSize * 0.18 * scaleY);
+        const samples = [
+            [x, y],
+            [x - radiusX, y],
+            [x + radiusX, y],
+            [x, y - radiusY],
+            [x, y + radiusY]
+        ];
+
+        let supportedSamples = 0;
+
+        for (const [sampleX, sampleY] of samples) {
+            const px = Math.max(0, Math.min(w - 1, Math.floor(sampleX)));
+            const py = Math.max(0, Math.min(h - 1, Math.floor(sampleY)));
+            const alpha = ctx.getImageData(px, py, 1, 1).data[3];
+
+            if (alpha > 45) {
+                supportedSamples += 1;
+            }
+        }
+
+        return supportedSamples >= 4;
+    }
+
+    findRandomPositionInLeavesMask(leafSize, seed) {
         if (!this.maskData || !this.treeImageLeaves) {
             return null;
         }
 
         const { ctx, w, h } = this.maskData;
+        const random = this.createSeededRandom(seed);
 
         const rect = this.treeImageLeaves.getBoundingClientRect();
         const containerRect = this.leavesContainer.getBoundingClientRect();
@@ -271,9 +395,9 @@ class TreeManager {
         const scaleX = w / displayW;
         const scaleY = h / displayH;
 
-        for (let i = 0; i < 700; i++) {
-            const rx = Math.random() * displayW;
-            const ry = Math.random() * displayH;
+        for (let i = 0; i < 900; i++) {
+            const rx = random() * displayW;
+            const ry = random() * displayH;
 
             const nx = Math.floor(rx * scaleX);
             const ny = Math.floor(ry * scaleY);
@@ -281,8 +405,8 @@ class TreeManager {
             const pixel = ctx.getImageData(nx, ny, 1, 1).data;
             const alpha = pixel[3];
 
-            // alpha threshold (higher = stricter)
-            if (alpha > 35) {
+            // Alpha plus neighbour checks keep leaves anchored in the canopy, away from loose edges.
+            if (alpha > 55 && this.maskPixelHasLeafSupport(ctx, nx, ny, w, h, leafSize, scaleX, scaleY)) {
                 return {
                     x: left + rx - leafSize / 2,
                     y: top + ry - leafSize / 2
@@ -298,15 +422,22 @@ class TreeManager {
     createLeaf(visitor, index, ovalArea) {
         const leaf = document.createElement('div');
         leaf.className = 'leaf';
+        const visitorSeed = this.getVisitorSeed(visitor, index);
+        const seededRandom = this.createSeededRandom(`${visitorSeed}|leaf`);
 
         const isVip = this.isVipName(visitor.name);
         if (isVip) {
             leaf.classList.add('vip');
         }
 
-        const side = Math.random() > 0.5
+        const badgeProfile = this.getBadgeLeafProfile(visitor);
+        leaf.classList.add(badgeProfile.className);
+        leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
+        leaf.title = `${visitor.name || 'Visitor'} - ${visitor.badgeName || badgeProfile.label}`;
+
+        const side = badgeProfile.preferredSide || (seededRandom() > 0.5
             ? 'LeftLeaf.png'
-            : 'RightLeaf.png';
+            : 'RightLeaf.png');
 
         const visitTime = new Date(visitor.created_at);
         const now = new Date();
@@ -330,11 +461,11 @@ class TreeManager {
         leaf.style.height = `${leafSize}px`;
 
         // 1) Place within mask
-        let position = this.findRandomPositionInLeavesMask(leafSize);
+        let position = this.findRandomPositionInLeavesMask(leafSize, `${visitorSeed}|position`);
 
         // 2) Fallback to oval
         if (!position) {
-            position = this.findRandomPositionInOval(ovalArea, leafSize);
+            position = this.findRandomPositionInOval(ovalArea, leafSize, `${visitorSeed}|fallback`);
         }
 
         leaf.style.left = `${position.x}px`;
@@ -345,13 +476,21 @@ class TreeManager {
         nameElement.textContent = visitor.name || '';
         leaf.appendChild(nameElement);
 
+        if (visitor.badgeName && !isVip) {
+            const badgeElement = document.createElement('div');
+            badgeElement.className = 'leaf-badge';
+            badgeElement.textContent = badgeProfile.shortLabel;
+            leaf.appendChild(badgeElement);
+        }
+
         this.leavesContainer.appendChild(leaf);
     }
 
-    findRandomPositionInOval(ovalArea, leafSize) {
+    findRandomPositionInOval(ovalArea, leafSize, seed) {
         let x;
         let y;
         let tries = 0;
+        const random = this.createSeededRandom(seed);
 
         const cx = ovalArea.x + ovalArea.width / 2;
         const cy = ovalArea.y + ovalArea.height / 2;
@@ -360,8 +499,8 @@ class TreeManager {
         const b = ovalArea.height / 2;
 
         do {
-            x = (Math.random() * 2 - 1) * a;
-            y = (Math.random() * 2 - 1) * b;
+            x = (random() * 2 - 1) * a;
+            y = (random() * 2 - 1) * b;
 
             tries += 1;
             if (tries > 500) break;

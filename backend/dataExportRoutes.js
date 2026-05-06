@@ -60,6 +60,16 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 
+const pledgeTopicsPath = path.join(__dirname, 'config', 'pledge-topics.json');
+const DEFAULT_PLEDGE_TOPICS = [
+    { value: 'climate-change', label: 'Climate Change' },
+    { value: 'renewable-energy', label: 'Renewable Energy' },
+    { value: 'sustainable-living', label: 'Sustainable Living' },
+    { value: 'ocean-conservation', label: 'Ocean Conservation' },
+    { value: 'ethical-governance', label: 'Ethical Governance' },
+    { value: 'community-impact', label: 'Community Impact' }
+];
+
 // ==================== 2. MIDDLEWARE FUNCTIONS ====================
 
 // Check if data export is unlocked in session
@@ -313,7 +323,377 @@ router.get('/audit-log', requireDataExportUnlocked, async (req, res) => {
     }
 });
 
-// ==================== 7. HELPER FUNCTIONS - EMAIL DECRYPTION ====================
+// ==================== 7. SCHOOL IMPACT REPORT ROUTES ====================
+
+// GET /api/admin/data-export/school-impact/csv
+// Export a school-friendly impact report with anonymized pledge samples.
+router.get('/school-impact/csv', requireDataExportUnlocked, async (req, res) => {
+    const username = req.session.user.username;
+    logAudit('DATA_EXPORT_SCHOOL_IMPACT_CSV', username, 'data_export', null, req);
+
+    try {
+        const report = await buildSchoolImpactReport();
+        const csv = generateSchoolImpactCSV(report);
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename=school_impact_report_' + getTimestamp() + '.csv');
+        res.send(csv);
+    } catch (error) {
+        console.error('Error exporting school impact CSV:', error);
+        res.status(500).json({ error: 'School impact report export failed: ' + error.message });
+    }
+});
+
+// GET /api/admin/data-export/school-impact/pdf
+// Export a compact PDF summary suitable for staff sharing and FYP evidence.
+router.get('/school-impact/pdf', requireDataExportUnlocked, async (req, res) => {
+    const username = req.session.user.username;
+    logAudit('DATA_EXPORT_SCHOOL_IMPACT_PDF', username, 'data_export', null, req);
+
+    try {
+        const report = await buildSchoolImpactReport();
+        const pdf = generateSchoolImpactPDF(report);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=school_impact_report_' + getTimestamp() + '.pdf');
+        res.send(pdf);
+    } catch (error) {
+        console.error('Error exporting school impact PDF:', error);
+        res.status(500).json({ error: 'School impact report export failed: ' + error.message });
+    }
+});
+
+function parseMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function readPledgeTopics() {
+    try {
+        const topics = JSON.parse(fs.readFileSync(pledgeTopicsPath, 'utf8'));
+        if (Array.isArray(topics) && topics.length > 0) return topics;
+    } catch (error) {
+        console.warn('Using default pledge topics for school report:', error.message);
+    }
+    return DEFAULT_PLEDGE_TOPICS;
+}
+
+function getGroupFromMetadata(metadata) {
+    return String(
+        metadata.classGroup ||
+        metadata.className ||
+        metadata.schoolClass ||
+        metadata.course ||
+        metadata.department ||
+        metadata.group ||
+        'Not provided'
+    ).trim() || 'Not provided';
+}
+
+function queryAll(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows || []);
+        });
+    });
+}
+
+async function buildSchoolImpactReport() {
+    const topics = readPledgeTopics();
+    const topicLabels = new Map(topics.map(topic => [topic.value, topic.label]));
+    const campaignGoal = Number(process.env.PULSE_CAMPAIGN_GOAL || 100);
+    const safeGoal = Number.isFinite(campaignGoal) && campaignGoal > 0 ? campaignGoal : 100;
+
+    const rows = await queryAll(`
+        SELECT
+            f.id,
+            u.name,
+            f.comment,
+            f.metadata,
+            f.photo_path,
+            f.processed_photo_path,
+            f.data_retention,
+            f.created_at,
+            COALESCE(like_counts.like_count, 0) AS like_count
+        FROM feedback f
+        JOIN users u ON f.user_id = u.id
+        LEFT JOIN (
+            SELECT feedback_id, COUNT(*) AS like_count
+            FROM pledge_likes
+            GROUP BY feedback_id
+        ) like_counts ON f.id = like_counts.feedback_id
+        WHERE f.is_active = 1
+          AND f.archive_status = 'not_archived'
+        ORDER BY f.created_at DESC
+    `);
+
+    const report = {
+        generatedAt: new Date().toISOString(),
+        campaignGoal: safeGoal,
+        stats: {
+            feedbackCount: rows.length,
+            pledgeCount: 0,
+            approvedPledges: 0,
+            pendingPledges: 0,
+            rejectedPledges: 0,
+            photoSubmissions: 0,
+            pledgesThisMonth: 0,
+            campaignProgressPercent: 0
+        },
+        topicBreakdown: [],
+        classParticipation: [],
+        samplePledges: []
+    };
+
+    const topicCounts = new Map();
+    const classCounts = new Map();
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    rows.forEach((row) => {
+        const metadata = parseMetadata(row.metadata);
+        const pledge = String(row.comment || '').trim();
+        const status = metadata.pledgeStatus || 'approved';
+        const createdAt = row.created_at ? new Date(row.created_at) : null;
+
+        if (row.photo_path || row.processed_photo_path) {
+            report.stats.photoSubmissions++;
+        }
+
+        if (!pledge) return;
+
+        report.stats.pledgeCount++;
+        if (status === 'pending') report.stats.pendingPledges++;
+        if (status === 'rejected') report.stats.rejectedPledges++;
+        if (status === 'approved') report.stats.approvedPledges++;
+
+        if (createdAt && createdAt.getFullYear() === currentYear && createdAt.getMonth() === currentMonth) {
+            report.stats.pledgesThisMonth++;
+        }
+
+        const topicValue = metadata.pledgeTopic || 'not-selected';
+        const topicLabel = topicLabels.get(topicValue) || (topicValue === 'not-selected' ? 'Not Selected' : topicValue);
+        topicCounts.set(topicLabel, (topicCounts.get(topicLabel) || 0) + 1);
+
+        const groupName = getGroupFromMetadata(metadata);
+        if (!classCounts.has(groupName)) {
+            classCounts.set(groupName, {
+                group: groupName,
+                pledgeCount: 0,
+                feedbackCount: 0,
+                latestSubmission: row.created_at
+            });
+        }
+
+        const group = classCounts.get(groupName);
+        group.pledgeCount++;
+        group.feedbackCount++;
+        if (!group.latestSubmission || new Date(row.created_at) > new Date(group.latestSubmission)) {
+            group.latestSubmission = row.created_at;
+        }
+
+        if (status === 'approved' && report.samplePledges.length < 10) {
+            report.samplePledges.push({
+                visitor: `Visitor ${report.samplePledges.length + 1}`,
+                pledge,
+                topic: topicLabel,
+                submittedAt: row.created_at,
+                likeCount: Number(row.like_count) || 0
+            });
+        }
+    });
+
+    report.stats.campaignProgressPercent = Math.min(100, Math.round((report.stats.pledgesThisMonth / safeGoal) * 100));
+    report.topicBreakdown = Array.from(topicCounts.entries())
+        .map(([topic, count]) => ({ topic, count }))
+        .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
+    report.classParticipation = Array.from(classCounts.values())
+        .sort((a, b) => b.pledgeCount - a.pledgeCount || a.group.localeCompare(b.group))
+        .slice(0, 12);
+
+    return report;
+}
+
+function generateSchoolImpactCSV(report) {
+    const rows = [
+        ['School Impact Report'],
+        ['Generated At', report.generatedAt],
+        [],
+        ['Summary Metric', 'Value'],
+        ['Feedback Count', report.stats.feedbackCount],
+        ['Pledge Count', report.stats.pledgeCount],
+        ['Approved Pledges', report.stats.approvedPledges],
+        ['Pending Pledges', report.stats.pendingPledges],
+        ['Rejected Pledges', report.stats.rejectedPledges],
+        ['Photo Submissions', report.stats.photoSubmissions],
+        ['Pledges This Month', report.stats.pledgesThisMonth],
+        ['Campaign Goal', report.campaignGoal],
+        ['Campaign Progress %', report.stats.campaignProgressPercent],
+        [],
+        ['Common Topics', 'Pledge Count'],
+        ...report.topicBreakdown.map(item => [item.topic, item.count]),
+        [],
+        ['Class/Course Participation', 'Pledge Count', 'Feedback Count', 'Latest Submission'],
+        ...report.classParticipation.map(item => [item.group, item.pledgeCount, item.feedbackCount, item.latestSubmission || 'N/A']),
+        [],
+        ['Anonymized Sample Pledges', 'Topic', 'Submitted At', 'Likes'],
+        ...report.samplePledges.map(item => [item.pledge, item.topic, item.submittedAt || 'N/A', item.likeCount])
+    ];
+
+    return convertToCSV(rows);
+}
+
+function formatReportDate(value) {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' });
+}
+
+function addSectionLines(lines, title, rows) {
+    lines.push(title);
+    rows.forEach(row => lines.push(row));
+    lines.push('');
+}
+
+function generateSchoolImpactPDF(report) {
+    const lines = [];
+    lines.push('School Impact Report');
+    lines.push(`Generated: ${formatReportDate(report.generatedAt)}`);
+    lines.push('');
+
+    addSectionLines(lines, 'Summary', [
+        `Feedback count: ${report.stats.feedbackCount}`,
+        `Pledge count: ${report.stats.pledgeCount}`,
+        `Approved pledges: ${report.stats.approvedPledges}`,
+        `Pending pledges: ${report.stats.pendingPledges}`,
+        `Photo submissions: ${report.stats.photoSubmissions}`,
+        `Campaign progress: ${report.stats.pledgesThisMonth}/${report.campaignGoal} pledges (${report.stats.campaignProgressPercent}%)`
+    ]);
+
+    addSectionLines(lines, 'Common Topics', report.topicBreakdown.length
+        ? report.topicBreakdown.map(item => `${item.topic}: ${item.count}`)
+        : ['No pledge topics recorded yet.']);
+
+    addSectionLines(lines, 'Class/Course Participation', report.classParticipation.length
+        ? report.classParticipation.map(item => `${item.group}: ${item.pledgeCount} pledges, latest ${formatReportDate(item.latestSubmission)}`)
+        : ['No class/course metadata recorded yet.']);
+
+    addSectionLines(lines, 'Anonymized Sample Pledges', report.samplePledges.length
+        ? report.samplePledges.map(item => `${item.visitor} (${item.topic}): ${item.pledge}`)
+        : ['No approved pledges available for sampling.']);
+
+    return createSimplePdf(lines);
+}
+
+function escapePdfText(value) {
+    return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)');
+}
+
+function wrapPdfLine(line, maxLength = 92) {
+    const text = String(line || '');
+    if (text.length <= maxLength) return [text];
+
+    const words = text.split(/\s+/);
+    const lines = [];
+    let current = '';
+
+    words.forEach((word) => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxLength && current) {
+            lines.push(current);
+            current = word;
+        } else {
+            current = next;
+        }
+    });
+
+    if (current) lines.push(current);
+    return lines;
+}
+
+function createSimplePdf(lines) {
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const marginX = 54;
+    const topY = 790;
+    const lineHeight = 16;
+    const bottomY = 54;
+    const pages = [];
+    let currentPage = [];
+    let y = topY;
+
+    lines.forEach((line) => {
+        const wrapped = line === '' ? [''] : wrapPdfLine(line);
+        wrapped.forEach((wrappedLine) => {
+            if (y < bottomY) {
+                pages.push(currentPage);
+                currentPage = [];
+                y = topY;
+            }
+            currentPage.push({ text: wrappedLine, x: marginX, y });
+            y -= line === '' ? 10 : lineHeight;
+        });
+    });
+
+    if (currentPage.length) pages.push(currentPage);
+
+    const objects = [];
+    const addObject = (content) => {
+        objects.push(content);
+        return objects.length;
+    };
+
+    const fontObjectId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const pageObjectIds = [];
+
+    pages.forEach((pageLines) => {
+        const content = [
+            'BT',
+            '/F1 10 Tf',
+            '14 TL',
+            ...pageLines.map(line => `1 0 0 1 ${line.x} ${line.y} Tm (${escapePdfText(line.text)}) Tj`),
+            'ET'
+        ].join('\n');
+        const contentObjectId = addObject(`<< /Length ${Buffer.byteLength(content, 'utf8')} >>\nstream\n${content}\nendstream`);
+        const pageObjectId = addObject(`<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontObjectId} 0 R >> >> /Contents ${contentObjectId} 0 R >>`);
+        pageObjectIds.push(pageObjectId);
+    });
+
+    const pagesObjectId = addObject(`<< /Type /Pages /Kids [${pageObjectIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageObjectIds.length} >>`);
+    pageObjectIds.forEach((id) => {
+        objects[id - 1] = objects[id - 1].replace('/Parent 0 0 R', `/Parent ${pagesObjectId} 0 R`);
+    });
+    const catalogObjectId = addObject(`<< /Type /Catalog /Pages ${pagesObjectId} 0 R >>`);
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [0];
+    objects.forEach((object, index) => {
+        offsets.push(Buffer.byteLength(pdf, 'utf8'));
+        pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    });
+
+    const xrefOffset = Buffer.byteLength(pdf, 'utf8');
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += '0000000000 65535 f \n';
+    offsets.slice(1).forEach(offset => {
+        pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObjectId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+    return Buffer.from(pdf, 'utf8');
+}
+
+// ==================== 8. HELPER FUNCTIONS - EMAIL DECRYPTION ====================
 
 // Decrypt emails in feedback array
 function decryptEmailsInFeedback(feedbackArray) {

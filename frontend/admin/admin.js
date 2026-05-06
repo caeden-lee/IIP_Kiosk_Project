@@ -1,4 +1,26 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE ADMIN ACCESS
+//    function openPulsePage()         - Open protected Live Pulse dashboard from admin page (DONE BY XY)
+//    showPage('pulse')                - Added admin Live Pulse launcher page navigation (DONE BY XY)
+//
+// 2. BADGE EMAIL TEMPLATE MANAGEMENT
+//    const DEFAULT_BADGE_EMAIL_BADGES - Active badge fallback list for admin editor (DONE BY XY)
+//    function loadBadgeEmailTemplates - Load editable badge email templates from admin API (DONE BY XY)
+//    function saveBadgeEmailTemplates - Save per-badge subject, message and highlights (DONE BY XY)
+//    function renderBadgeTemplateBadgeList - Render active badge picker cards (DONE BY XY)
+//
+// 3. ACTIVE BADGE CLEANUP
+//    Badge editor list              - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
+//    Removed inactive badges         - Eco Warrior and Commitment Champion removed from editor fallback list (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // ADMIN.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -3481,6 +3503,151 @@ function closeQAPopup() {
         popup.remove();
     }
 }
+// Done by Yu Kang
+// Analyze and display all feedback answer values
+async function analyzeFeedbackData() {
+    const resultsContainer = document.getElementById('feedback-analysis-results');
+    const output = document.getElementById('feedback-analysis-output');
+
+    if (!resultsContainer || !output) {
+        return;
+    }
+
+    resultsContainer.style.display = 'block';
+    output.innerHTML = `
+        <div style="padding: 20px; color: #64748b; text-align: center;">
+            Analyzing feedback sentiment...
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/api/admin/feedback-sentiment-analysis', {
+            headers: {
+                'x-username': sessionStorage.getItem('loggedUser')
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to analyze feedback');
+        }
+
+        const { positive, neutral, negative, total } = data.sentiment;
+
+        output.innerHTML = `
+            <div style="display: flex; gap: 30px; align-items: center;">
+                <div style="flex: 1; position: relative; height: 300px;">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div style="flex: 0.6; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                    <div style="margin-bottom: 15px; font-size: 14px;">
+                        <div style="color: #475569; margin-bottom: 12px;">
+                            <strong style="color: #10b981;">✓ Positive:</strong> ${positive} (${total > 0 ? ((positive/total)*100).toFixed(1) : 0}%)
+                        </div>
+                        <div style="color: #475569; margin-bottom: 12px;">
+                            <strong style="color: #f59e0b;">◆ Neutral:</strong> ${neutral} (${total > 0 ? ((neutral/total)*100).toFixed(1) : 0}%)
+                        </div>
+                        <div style="color: #475569;">
+                            <strong style="color: #ef4444;">✗ Negative:</strong> ${negative} (${total > 0 ? ((negative/total)*100).toFixed(1) : 0}%)
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
+                        <strong>Total answers analyzed:</strong> ${total}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Create sentiment chart
+        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+    } catch (error) {
+        console.error('Error analyzing feedback sentiment:', error);
+        output.innerHTML = `
+            <div style="padding: 20px; color: #ef4444; text-align: center;">
+                Error analyzing feedback sentiment<br>
+                <small>${escapeHtml(error.message)}</small>
+            </div>
+        `;
+    }
+}
+
+// Create sentiment analysis doughnut chart (added by Yu Kang)
+function createSentimentChart(positive, neutral, negative) {
+    const ctx = document.getElementById('sentimentChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if any
+    if (window.sentimentChartInstance) {
+        window.sentimentChartInstance.destroy();
+    }
+
+    window.sentimentChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [positive, neutral, negative],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(16, 185, 129)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleColor: '#fff',
+                    titleFont: {
+                        size: 13,
+                        weight: 'bold'
+                    },
+                    bodyColor: '#fff',
+                    bodyFont: {
+                        size: 12
+                    },
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const value = context.parsed || 0;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return context.label + ': ' + value + ' (' + percentage + ')%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 // ==================== 10. PHOTO MANAGEMENT ====================
 
@@ -6800,7 +6967,7 @@ function showPage(pageName) {
     const userRole = sessionStorage.getItem('userRole');
     
     // Check if user is trying to access admin pages without system_admin role
-    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export'];
+    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates'];
     if (adminPages.includes(pageName) && userRole !== 'system_admin') {
         alert('Access denied. System Administrator privileges required.');
         return;
@@ -6836,6 +7003,7 @@ function showPage(pageName) {
         loadDashboardData();
     } else if (pageName === 'feedback-data') {
         loadFeedbackData();
+        analyzeFeedbackData();
     } else if (pageName === 'digital-tree') {
         loadDigitalTreeData();
     } else if (pageName === 'pledgeboard') {
@@ -6859,11 +7027,21 @@ function showPage(pageName) {
         loadSchedules();
     } else if (pageName === 'form-management') {
     loadFormUISettings();
+    } else if (pageName === 'Land-page-QR') {
+    loadLandingPageQR();
     } else if (pageName === 'email-management') {
     loadEmailConfig();
+    } else if (pageName === 'badge-email-templates') {
+    loadBadgeEmailTemplates();
+    } else if (pageName === 'vip') {
+    loadVipManagementData();
     }
     
     
+}
+
+function openPulsePage() {
+    window.location.href = '/pulse';
 }
 
 // Initialize archive page
@@ -7056,9 +7234,11 @@ function expandPattern(pattern) {
         'dashboard-page',
         'feedback-data-page',
         'digital-tree-page',
+        'pulse-page',
         'overlay-page',
         'questions-page',
         'users-page',
+        'badge-email-templates-page',
         'archive-page',
         'audit-page',
         'data-export-page',
@@ -7202,11 +7382,13 @@ const themeConfig = {
         { id: 'feedback-data-page', name: 'Feedback Data', icon: '💬' },
         { id: 'digital-tree-page', name: 'Digital Tree', icon: '🌳' },
         { id: 'pledgeboard-page', name: 'Pledgeboard', icon: '🏆' },
+        { id: 'pulse-page', name: 'Live Pulse', icon: 'LIVE' },
         { id: 'overlay-page', name: 'Overlay Management', icon: '🎨', requiredRole: 'system_admin' },
         { id: 'questions-page', name: 'Question Management', icon: '❓', requiredRole: 'system_admin' },
         { id: 'users-page', name: 'User Management', icon: '👥', requiredRole: 'system_admin' },
         { id: 'vip-page', name: 'VIP Management', icon: '👑', requiredRole: 'system_admin' },
         { id: 'email-management-page', name: 'Email Management', icon: '📧', requiredRole: 'system_admin' },
+        { id: 'badge-email-templates-page', name: 'Badge Email Templates', icon: 'Mail', requiredRole: 'system_admin' },
         { id: 'form-management-page', name: 'Form Management', icon: '📝', requiredRole: 'system_admin' },
         { id: 'archive-page', name: 'Archive', icon: '📚', requiredRole: 'system_admin' },
         { id: 'audit-page', name: 'Audit Logs', icon: '📋', requiredRole: 'system_admin' },
@@ -10027,10 +10209,14 @@ async function saveFormUISettings() {
   try {
     setFormStatus('Saving changes…', 'info');
 
+    const currentRes = await fetch('/api/admin/form-ui');
+    const currentCfg = await currentRes.json();
+
     const payload = {
       background: document.getElementById('fm-bg').value,
       landingTitle: document.getElementById('fm-title').value,
-      landingSubtitle: document.getElementById('fm-subtitle').value
+      landingSubtitle: document.getElementById('fm-subtitle').value,
+      showLandingPageQRCode: Boolean(currentCfg.showLandingPageQRCode)
     };
 
     const res = await fetch('/api/admin/form-ui', {
@@ -10049,6 +10235,66 @@ async function saveFormUISettings() {
   } catch (err) {
     console.error(err);
     setFormStatus('Failed to save changes', 'error');
+  }
+}
+
+async function loadLandingPageQR() {
+  try {
+    const res = await fetch('/api/admin/form-ui');
+    const cfg = await res.json();
+    const toggle = document.getElementById('qr-code-toggle');
+
+    if (toggle) {
+      toggle.checked = Boolean(cfg.showLandingPageQRCode);
+    }
+
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = 'QR setting loaded';
+      status.className = 'fm-status fm-status--success';
+    }
+  } catch (error) {
+    console.error('Failed to load landing page QR setting:', error);
+  }
+}
+
+async function saveLandingPageQR() {
+  try {
+    const res = await fetch('/api/admin/form-ui');
+    const cfg = await res.json();
+    const toggle = document.getElementById('qr-code-toggle');
+    const showLandingPageQRCode = Boolean(toggle && toggle.checked);
+
+    const payload = {
+      background: typeof cfg.background === 'string' ? cfg.background : '',
+      landingTitle: typeof cfg.landingTitle === 'string' ? cfg.landingTitle : '',
+      landingSubtitle: typeof cfg.landingSubtitle === 'string' ? cfg.landingSubtitle : '',
+      showLandingPageQRCode
+    };
+
+    const saveRes = await fetch('/api/admin/form-ui', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await saveRes.json();
+    if (!saveRes.ok || !data.success) {
+      throw new Error(data.error || 'Save failed');
+    }
+
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = showLandingPageQRCode ? 'Landing QR code enabled' : 'Landing QR code disabled';
+      status.className = 'fm-status fm-status--success';
+    }
+  } catch (error) {
+    console.error('Failed to save landing page QR setting:', error);
+    const status = document.getElementById('landing-qr-status');
+    if (status) {
+      status.textContent = 'Failed to save QR setting';
+      status.className = 'fm-status fm-status--error';
+    }
   }
 }
 
@@ -10256,6 +10502,176 @@ async function sendTestEmail() {
     console.error(err);
     setEmailStatus('error', 'Test email failed.');
   }
+}
+
+// ==================== BADGE EMAIL TEMPLATE MANAGEMENT ====================
+
+let badgeTemplateState = {
+    badges: [],
+    templates: {},
+    selectedKey: ''
+};
+
+const DEFAULT_BADGE_EMAIL_BADGES = [
+    { key: 'feedback-completer', name: 'Feedback Contributor', description: 'For completing the feedback form', color: '#10b981' },
+    { key: 'climate-champion', name: 'Climate Champion', description: 'For pledges focused on climate action and lowering emissions', color: '#0ea5e9' },
+    { key: 'renewable-innovator', name: 'Renewable Innovator', description: 'For clean energy and renewable pledges', color: '#f59e0b' },
+    { key: 'sustainable-living-advocate', name: 'Sustainable Living Advocate', description: 'For sustainable lifestyle pledges', color: '#16a34a' },
+    { key: 'ocean-guardian', name: 'Ocean Guardian', description: 'For ocean conservation pledges', color: '#0284c7' },
+    { key: 'social-champion', name: 'Social Champion', description: 'For community and social impact pledges', color: '#ec4899' },
+    { key: 'governance-guardian', name: 'Governance Guardian', description: 'For ethics and governance pledges', color: '#6366f1' }
+];
+
+function escapeBadgeTemplateHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function setBadgeTemplateStatus(type, message) {
+    const el = document.getElementById('badge-template-status');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `fm-status fm-status--${type}`;
+}
+
+function readCurrentBadgeTemplateForm() {
+    const key = badgeTemplateState.selectedKey;
+    if (!key) return;
+
+    badgeTemplateState.templates[key] = {
+        subject: document.getElementById('badge-template-subject')?.value.trim() || '',
+        message: document.getElementById('badge-template-message')?.value.trim() || '',
+        highlights: (document.getElementById('badge-template-highlights')?.value || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+    };
+}
+
+function renderBadgeTemplateForm(key) {
+    const template = badgeTemplateState.templates[key] || {};
+    document.getElementById('badge-template-subject').value = template.subject || '';
+    document.getElementById('badge-template-message').value = template.message || '';
+    document.getElementById('badge-template-highlights').value = (template.highlights || []).join('\n');
+    renderBadgeTemplateBadgeList();
+}
+
+function selectBadgeEmailTemplate() {
+    readCurrentBadgeTemplateForm();
+    const select = document.getElementById('badge-template-select');
+    badgeTemplateState.selectedKey = select?.value || '';
+    if (badgeTemplateState.selectedKey) {
+        renderBadgeTemplateForm(badgeTemplateState.selectedKey);
+    }
+}
+
+function renderBadgeTemplateBadgeList() {
+    const list = document.getElementById('badge-template-badge-list');
+    if (!list) return;
+
+    list.innerHTML = badgeTemplateState.badges.map(badge => {
+        const isActive = badge.key === badgeTemplateState.selectedKey;
+        return `
+            <button
+                type="button"
+                class="badge-template-badge-card ${isActive ? 'active' : ''}"
+                style="--badge-color:${escapeBadgeTemplateHtml(badge.color || '#10b981')}"
+                onclick="chooseBadgeEmailTemplate('${escapeBadgeTemplateHtml(badge.key)}')"
+            >
+                <span class="badge-template-badge-dot"></span>
+                <strong>${escapeBadgeTemplateHtml(badge.name)}</strong>
+                <small>${escapeBadgeTemplateHtml(badge.description || 'Badge reward')}</small>
+            </button>
+        `;
+    }).join('');
+}
+
+function chooseBadgeEmailTemplate(key) {
+    readCurrentBadgeTemplateForm();
+    badgeTemplateState.selectedKey = key;
+    const select = document.getElementById('badge-template-select');
+    if (select) select.value = key;
+    renderBadgeTemplateForm(key);
+}
+
+function populateBadgeTemplatePicker() {
+    if (!badgeTemplateState.badges.length) {
+        badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+    }
+
+    badgeTemplateState.selectedKey = badgeTemplateState.badges.some(badge => badge.key === badgeTemplateState.selectedKey)
+        ? badgeTemplateState.selectedKey
+        : badgeTemplateState.badges[0]?.key || '';
+
+    const select = document.getElementById('badge-template-select');
+    if (select) {
+        select.innerHTML = badgeTemplateState.badges.map(badge => (
+            `<option value="${escapeBadgeTemplateHtml(badge.key)}">${escapeBadgeTemplateHtml(badge.name)}</option>`
+        )).join('');
+        select.value = badgeTemplateState.selectedKey;
+    }
+
+    renderBadgeTemplateBadgeList();
+}
+
+async function loadBadgeEmailTemplates() {
+    try {
+        setBadgeTemplateStatus('info', 'Loading badge email templates...');
+        const res = await fetch('/api/admin/badge-email-templates', { credentials: 'include' });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+            populateBadgeTemplatePicker();
+            setBadgeTemplateStatus('error', data.error || 'Failed to load badge email templates.');
+            return;
+        }
+
+        badgeTemplateState.badges = (data.badges && data.badges.length) ? data.badges : DEFAULT_BADGE_EMAIL_BADGES;
+        badgeTemplateState.templates = data.templates || {};
+        populateBadgeTemplatePicker();
+
+        if (badgeTemplateState.selectedKey) {
+            renderBadgeTemplateForm(badgeTemplateState.selectedKey);
+        }
+
+        setBadgeTemplateStatus('success', 'Badge email templates loaded.');
+    } catch (err) {
+        console.error(err);
+        badgeTemplateState.badges = DEFAULT_BADGE_EMAIL_BADGES;
+        populateBadgeTemplatePicker();
+        setBadgeTemplateStatus('error', 'Failed to load badge email templates.');
+    }
+}
+
+async function saveBadgeEmailTemplates() {
+    try {
+        readCurrentBadgeTemplateForm();
+        setBadgeTemplateStatus('info', 'Saving badge email templates...');
+
+        const res = await fetch('/api/admin/badge-email-templates', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templates: badgeTemplateState.templates })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            setBadgeTemplateStatus('error', data.error || 'Failed to save badge email templates.');
+            return;
+        }
+
+        badgeTemplateState.templates = data.templates || badgeTemplateState.templates;
+        setBadgeTemplateStatus('success', data.message || 'Badge email templates saved.');
+    } catch (err) {
+        console.error(err);
+        setBadgeTemplateStatus('error', 'Failed to save badge email templates.');
+    }
 }
 
 
@@ -11182,7 +11598,8 @@ const VIP_API_BASE = "/api/admin";
 */
 const VIP_API = {
     list: () => `${VIP_API_BASE}/vips`,
-    create: () => `${VIP_API_BASE}/vips`
+    create: () => `${VIP_API_BASE}/vips`,
+    delete: (id) => `${VIP_API_BASE}/vips/${id}`
 };
 
 // DOM helpers (NEW VIP UI)
@@ -11253,6 +11670,7 @@ function renderVipList() {
 
     vipList.innerHTML = vipData.map((vip) => {
         const name = escapeHtmlSafe(vip.name ?? "");
+        const vipNameForJs = name.replace(/'/g, "\\'"); // escape single quotes
 
         // Support different backend field names
         const createdAt = formatVipDate(vip.created_at ?? vip.createdAt);
@@ -11262,6 +11680,11 @@ function renderVipList() {
                 <div class="vip-item-left">
                     <div class="vip-name">👑 ${name}</div>
                     <div class="vip-date">Added: ${createdAt}</div>
+                </div>
+                <div class="vip-item-actions">
+                    <button type="button" class="vip-delete-btn" onclick="deleteVip('${vipNameForJs}')">
+                        Remove &#128465;
+                    </button>
                 </div>
             </div>
         `;
@@ -11337,8 +11760,43 @@ async function addVip() {
     }
 }
 
+// Delete VIP (Done by Yu Kang)
+async function deleteVip(vipName) {
+    // Validate name (string, at least 2 chars)
+    if (!vipName || typeof vipName !== 'string' || vipName.trim().length < 2) {
+        alert("Invalid VIP name.");
+        return;
+    }
+
+    const confirmed = confirm(`Delete VIP "${vipName}"?`);
+    if (!confirmed) return;
+
+    try {
+        const encodedName = encodeURIComponent(vipName.trim());
+        const url = `/api/admin/vips/${encodedName}`;
+
+        const response = await fetch(url, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || "Failed to delete VIP");
+        }
+
+        await loadVipData();   // refresh the list
+        alert("VIP deleted successfully");
+    } catch (err) {
+        console.error("Delete VIP error:", err);
+        alert(err.message || "Failed to delete VIP.");
+    }
+}
+
 // Expose for HTML onclick
 window.addVip = addVip;
+window.deleteVip = deleteVip;
 
 
 // ==================== KIOSK AUTO-RELOAD ON START/STOP ====================

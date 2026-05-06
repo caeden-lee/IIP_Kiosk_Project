@@ -1,10 +1,36 @@
+// ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. BADGE DATA FOR DIGITAL TREE
+//    const getBadgeSummary            - Import badge summary helper from email service (DONE BY XY)
+//    GET /api/tree                    - Include badge summary data for visitor tree leaves (DONE BY XY)
+//
+// 2. TREE LEAF BEHAVIOR
+//    visitor records                  - Supports one visible leaf per feedback submission (DONE BY XY)
+//    badge summary fallback           - Aligns skipped/no-topic submissions with Feedback Contributor (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
 const express = require('express');
 const router = express.Router();
+const { getBadgeSummary } = require('./emailService');
 
 let db;
 
 function setDatabase(database) {
     db = database;
+}
+
+function parseMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
 }
 
 /**
@@ -34,36 +60,55 @@ router.get('/', (req, res) => {
             (vipRows || []).map(v => String(v.name || '').trim().toLowerCase()).filter(Boolean)
         );
 
-        // 2) Get all visitors
-        const userQuery = `
+        // 2) Get each feedback/pledge submission as its own leaf.
+        // A returning visitor can therefore grow multiple leaves instead of only updating one user row.
+        const leafQuery = `
             SELECT
-                name,
-                visit_count,
-                created_at
-            FROM users
-            ORDER BY created_at ASC
+                f.id AS feedback_id,
+                u.name,
+                u.visit_count,
+                f.created_at,
+                f.comment,
+                f.metadata
+            FROM feedback f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.is_active = 1
+            ORDER BY f.created_at ASC, f.id ASC
         `;
 
-        db.all(userQuery, [], (userErr, rows) => {
+        db.all(leafQuery, [], (userErr, rows) => {
             if (userErr) {
                 console.error('❌ Tree route DB error:', userErr);
                 return res.status(500).json([]);
             }
 
-            const visitors = (rows || []).map(r => {
-                const name = String(r.name || '').trim();
-                return {
-                    name,
-                    visit_count: Number(r.visit_count) || 1,
-                    created_at: r.created_at,
-                    isVip: vipSet.has(name.toLowerCase())
-                };
-            });
-
-            return res.json(visitors);
+            return res.json(mapRowsToVisitors(rows || [], vipSet));
         });
     });
 });
+
+function mapRowsToVisitors(rows, vipSet) {
+    return (rows || []).map(r => {
+        const name = String(r.name || '').trim();
+        const metadata = parseMetadata(r.metadata);
+        const badge = getBadgeSummary({
+            pledge: r.comment || metadata.pledge || '',
+            pledgeTopic: metadata.pledgeTopic || ''
+        });
+
+        return {
+            id: r.feedback_id || r.user_id,
+            name,
+            visit_count: Number(r.visit_count) || 1,
+            created_at: r.created_at,
+            isVip: vipSet.has(name.toLowerCase()),
+            badgeKey: badge.badgeKey,
+            badgeName: badge.badgeName,
+            badgeColor: badge.badgeColor,
+            pledgeTopic: metadata.pledgeTopic || ''
+        };
+    });
+}
 
 /**
  * GET /api/tree/vip-names

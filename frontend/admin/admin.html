@@ -1,3 +1,23 @@
+<!--
+  XY CHANGE SUMMARY (DONE BY XY)
+  ============================================================
+
+  1. LIVE PULSE ADMIN LAUNCHER
+     nav item                       - Added admin-only Live Pulse launcher tab (DONE BY XY)
+     div#pulse-page                 - Added themed Pulse launch page inside admin panel (DONE BY XY)
+
+  2. BADGE EMAIL TEMPLATE MANAGEMENT
+     nav item                       - Added Badge Email Templates administration tab (DONE BY XY)
+     div#badge-email-templates-page - Added editor for badge email subject, message and highlights (DONE BY XY)
+     div#badge-template-badge-list  - Added active badge card picker for 7 active badges (DONE BY XY)
+
+  3. ACTIVE BADGE CLEANUP
+     badge editor UI                - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
+     removed inactive badges        - Eco Warrior and Commitment Champion hidden from admin editor (DONE BY XY)
+
+  FIND COMMAND
+     rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,9 +33,10 @@
     <div id="login-page" class="login-container">
         <div class="login-card">
             <div class="login-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <img src="../../../assets/static/rp-logo.png" width="60" height="60">
+                <!--<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zm-8-2h2v-4h4v-2h-4V7h-2v4H7v2h4v4z" fill="#4F46E5"/>
-                </svg>
+                </svg> -->
             </div>
             <h1>Admin Login</h1>
             <p class="login-subtitle">Access the feedback kiosk administration panel</p>
@@ -23,12 +44,12 @@
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <input type="text" id="username" name="username" autocomplete="username" placeholder="Enter your username" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <input type="password" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
                 </div>
                 
                 <button type="submit" class="login-btn">Sign In</button>
@@ -79,6 +100,10 @@
                             <span class="nav-icon">📜</span>
                             Pledgeboard
                         </a>
+                        <a href="#" class="nav-item" onclick="showPage('pulse')">
+                            <span class="nav-icon">LIVE</span>
+                            Live Pulse
+                        </a>
                         <a href="#" class="nav-item" onclick="showPage('theme-settings')">
                             <span class="nav-icon">🎨</span>
                             Style & Theme Settings
@@ -108,6 +133,10 @@
                             <span class="nav-icon">📧</span>
                             Email Management
                         </a>
+                    <a href="#" class="nav-item" onclick="showPage('badge-email-templates')">
+                        <span class="nav-icon">✉️</span>
+                        Badge Email Templates
+                    </a>
                         <a href="#" class="nav-item" onclick="showPage('form-management')">
                             <span class="nav-icon">📝</span>
                             Form Management
@@ -131,6 +160,10 @@
                         <a href="#" class="nav-item" onclick="showPage('server-schedule')">
                             <span class="nav-icon">❗</span>
                             Server Schedule
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('Land-page-QR')">
+                            <span class="nav-icon">📱</span>
+                            Landing Page QR Code
                         </a>
                     </nav>
                 </div>
@@ -462,6 +495,18 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="feedback-section feedback-analyse">
+                        <div class="section-header">
+                            <h3>Feedback Analysis</h3>
+                            <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                        </div>
+
+                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
+                            <h4 style="margin-bottom: 12px;">All Answer Values:</h4>
+                            <div id="feedback-analysis-output"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Digital Tree Page (DONE BY PRETI)-->
@@ -556,6 +601,53 @@
                         </div>
                     </div>
                 </div>
+                <div id="pulse-page" class="page">
+                    <div class="page-header">
+                        <h2>Live Pulse</h2>
+                        <p>Open the full-screen ESG pulse dashboard. Admin login is required.</p>
+                    </div>
+
+                    <div class="pulse-launch-section">
+                        <div class="pulse-launch-copy">
+                            <span class="pulse-kicker">Admin Only</span>
+                            <h3>Live School Pulse</h3>
+                            <p>Open the full-screen ESG impact dashboard for pledge activity, badge trends, and digital tree momentum.</p>
+                            <div class="pulse-launch-actions">
+                                <button class="btn-primary pulse-launch-btn" onclick="openPulsePage()">
+                                    Open Live Pulse
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pulse-preview-panel" aria-hidden="true">
+                            <div class="pulse-preview-header">
+                                <span>ESG Pulse Preview</span>
+                                <strong>Live</strong>
+                            </div>
+                            <div class="pulse-preview-metrics">
+                                <div>
+                                    <span>Pledges</span>
+                                    <strong>Today</strong>
+                                </div>
+                                <div>
+                                    <span>Badge</span>
+                                    <strong>Mix</strong>
+                                </div>
+                                <div>
+                                    <span>Digital</span>
+                                    <strong>Tree</strong>
+                                </div>
+                            </div>
+                            <div class="pulse-preview-tree">
+                                <span class="preview-leaf leaf-one"></span>
+                                <span class="preview-leaf leaf-two"></span>
+                                <span class="preview-leaf leaf-three"></span>
+                                <span class="preview-leaf leaf-four"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Overlay Management Page (DONE BY PRETI)-->
                 <div id="overlay-page" class="page">
                     <div class="page-header">
@@ -1125,6 +1217,33 @@
                         </div>
                         
                         <div class="export-grid">
+                            <!-- School Impact Report (DONE BY CODEX)-->
+                            <div class="export-card export-card-report">
+                                <div class="export-card-icon">REPORT</div>
+                                <h3 class="export-card-title">School impact report</h3>
+                                <p class="export-card-description">
+                                    Staff-friendly ESG report with pledge count, common topics, campaign progress,
+                                    class participation and anonymized sample pledges.
+                                </p>
+                                <div class="export-card-meta">Format: PDF (.pdf)</div>
+                                <button class="export-btn" onclick="downloadExport('school-impact/pdf')">
+                                    Download PDF
+                                </button>
+                            </div>
+
+                            <div class="export-card export-card-report">
+                                <div class="export-card-icon">CSV</div>
+                                <h3 class="export-card-title">School impact report data</h3>
+                                <p class="export-card-description">
+                                    Spreadsheet version of the school impact report for further analysis,
+                                    evidence tables and FYP documentation.
+                                </p>
+                                <div class="export-card-meta">Format: CSV (.csv)</div>
+                                <button class="export-btn" onclick="downloadExport('school-impact/csv')">
+                                    Download CSV
+                                </button>
+                            </div>
+
                             <!-- Card A: Full Feedback (DONE BY PRETI)-->
                             <div class="export-card">
                                 <div class="export-card-icon">📊</div>
@@ -1433,6 +1552,72 @@
 
                         <!-- Status -->
                         <div id="email-status" style="margin-top: 12px;"></div>
+                    </div>
+                </div>
+
+                <div id="badge-email-templates-page" class="page">
+                    <div class="page-header">
+                        <h2>Badge Email Templates</h2>
+                        <p>Tailor badge emails and personalized exhibit highlights for each reward.</p>
+                    </div>
+
+                    <div class="badge-template-hero">
+                        <div>
+                            <span class="badge-template-kicker">Personalized Rewards</span>
+                            <h3>Match every badge with the right takeaway</h3>
+                            <p>Edit the email subject, reward message, and exhibit highlights shown when visitors earn each badge.</p>
+                        </div>
+                        <div class="badge-template-token-list" aria-label="Supported placeholders">
+                            <span>{name}</span>
+                            <span>{badge}</span>
+                            <span>{pledge}</span>
+                            <span>{topic}</span>
+                            <span>{leaf}</span>
+                        </div>
+                    </div>
+
+                    <div class="overlay-section user-section badge-email-template-section">
+                        <div class="section-header badge-template-section-header">
+                            <div>
+                                <h3>Badge Message Editor</h3>
+                                <p>Choose a badge, then save the version that should be sent to visitors.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn-secondary" type="button" onclick="loadBadgeEmailTemplates()">Reset</button>
+                                <button class="btn-primary" type="button" onclick="saveBadgeEmailTemplates()">Save Changes</button>
+                            </div>
+                        </div>
+
+                        <div class="badge-template-grid">
+                            <div class="form-group">
+                                <label for="badge-template-select">Badge</label>
+                                <select id="badge-template-select" onchange="selectBadgeEmailTemplate()"></select>
+                            </div>
+
+                            <div class="badge-template-help">
+                                <strong>Tip</strong>
+                                <p>Write one exhibit highlight per line. These become the personalized takeaway list in the badge email.</p>
+                            </div>
+                        </div>
+
+                        <div id="badge-template-badge-list" class="badge-template-badge-list" aria-label="Available badges"></div>
+
+                        <div class="form-group">
+                            <label for="badge-template-subject">Email Subject</label>
+                            <input id="badge-template-subject" type="text" maxlength="180" placeholder="Email subject">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="badge-template-message">Badge Message</label>
+                            <textarea id="badge-template-message" rows="5" maxlength="1200" placeholder="Main email message"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="badge-template-highlights">Personalized Exhibit Highlights / Takeaway Messages</label>
+                            <textarea id="badge-template-highlights" rows="7" placeholder="One highlight per line"></textarea>
+                        </div>
+
+                        <div id="badge-template-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
                     </div>
                 </div>
 
@@ -1761,6 +1946,38 @@
 
                 <!-- Notification container (DONE BY BERNISSA) -->
                 <div id="notification-container"></div>
+
+                <!-- Landing Page QR Code (DONE BY Yu Kang) -->
+                <div id="Land-page-QR-page" class="page">
+                    <div class="page-header">
+                        <h2>Landing Page QR Code</h2>
+                        <p>Manage the QR code for the landing page</p>
+                    </div>
+
+                    <div class="overlay-section user-section">
+                        <div class="landing-qr-settings-card">
+                            <div class="section-header">
+                                <h3>QR Code Settings</h3>
+                                <div class="header-actions">
+                                    <button class="btn-primary" onclick="saveLandingPageQR()">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="theme-override-toggle landing-qr-toggle-row">
+                                <label class="toggle-switch" for="qr-code-toggle">
+                                    <input type="checkbox" id="qr-code-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <label for="qr-code-toggle" class="toggle-label">Enable QR Code on Landing Page</label>
+                            </div>
+
+                            <div id="landing-qr-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
             </main>
     <script src="admin.js"></script>
 </body>

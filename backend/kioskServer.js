@@ -1,4 +1,20 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. LIVE PULSE ROUTING
+//    const pulseRoutes                - Live Pulse API routes for kiosk server mode (DONE BY XY)
+//    app.use('/api/pulse')            - Protected Pulse API route wiring (DONE BY XY)
+//    app.get('/pulse')                - Protected Pulse dashboard page route (DONE BY XY)
+//
+// 2. ACCESS CONTROL
+//    auth middleware                  - Prevents guest users from directly accessing Pulse dashboard (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+
+// ============================================================
 // KIOSKSERVER.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -79,6 +95,7 @@ const feedbackRoutes = require('./feedbackRoutes');
 const pledgeboardRoutes = require('./pledgeboardRoutes');
 const pulseRoutes = require('./pulseRoutes');
 const emailService = require('./emailService');
+const auth = require('./auth');
 
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
 const dataRetentionCleanup = require('./dataRetentionCleanup');
@@ -219,6 +236,9 @@ app.use(
   })
 );
 
+// Keep Pulse out of the public kiosk surface.
+app.use('/pulse', auth.requireAuth);
+
 // Static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -231,7 +251,7 @@ setTreeDatabase(db);
 
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
-app.use('/api/pulse', pulseRoutes);
+app.use('/api/pulse', auth.requireAuth, pulseRoutes);
 app.use('/api/tree', treeRoutes);
 
 // Network info
@@ -340,7 +360,7 @@ app.get('/tree', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
 });
 
-app.get('/pulse', (req, res) => {
+app.get('/pulse', auth.requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 
