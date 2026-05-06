@@ -637,6 +637,18 @@ textarea::placeholder {
     transform: scaleX(-1);
 }
 
+/* Beauty filter styles done by nick */
+.beauty-filter-live {
+    filter: brightness(1.2) contrast(0.82) saturate(1.28) blur(0.8px);
+}
+
+.beauty-filter-toggle.active {
+    background: linear-gradient(135deg, #f472b6, #8b5cf6) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 26px rgba(139, 92, 246, 0.22) !important;
+}
+
 .corner {
     position: absolute;
     width: 20px;

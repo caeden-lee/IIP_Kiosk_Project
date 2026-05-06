@@ -104,6 +104,12 @@ const INACTIVITY_TIMEOUT = 300000; // 5 minutes (300,000 milliseconds)
 let countdownSeconds = null; // Loaded from backend when needed (DONE BY BERNISSA)
 let overlayData = {}; // Store full overlay data including file paths from database 
 let isMirrored = false; // to invert camera done by nick
+let beautyFilterEnabled = true; // beauty filter toggle done by nick
+const BEAUTY_FILTER_CSS = 'brightness(1.2) contrast(0.82) saturate(1.28)'; // stronger beauty filter effect done by nick
+const BEAUTY_SMOOTH_FILTER_CSS = 'blur(7px) brightness(1.18) contrast(0.78) saturate(1.2)'; // stronger smoothing done by nick
+const BEAUTY_DETAIL_FILTER_CSS = 'contrast(1.02) saturate(1.08)'; // detail recovery done by nick
+const BEAUTY_FACE_SMOOTH_FILTER_CSS = 'blur(12px) brightness(1.16) contrast(0.78) saturate(1.12)'; // feathered acne cover smoothing done by nick
+const BEAUTY_FACE_SLIM_RATIO = 0.84; // cleaner face slimming strength done by nick
 
 
 // facial detection (Done by Yu Kang)
@@ -169,7 +175,7 @@ async function detectFaceInCurrentFrame() {
         })
     );
 
-    return Boolean(detection);
+    return detection; // return face box for beauty filter done by nick
 }
 
 // Feature to detect face in uploaded image (mobile) - done by Yu Kang
@@ -194,22 +200,22 @@ async function detectFaceInImageData(dataUrl) {
         })
     );
 
-    return Boolean(detection);
+    return detection; // return face box for beauty filter done by nick
 }
 
 async function capturePhotoIfFaceDetected() {
     try {
         updateFaceDetectionStatus('Checking for face...', 'loading');
 
-        const faceDetected = await detectFaceInCurrentFrame();
-        if (!faceDetected) {
+        const faceDetection = await detectFaceInCurrentFrame(); // reuse face box for slimming filter done by nick
+        if (!faceDetection) {
             updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
             alert('No face detected. Please position your face clearly in the camera frame and capture again.');
             return false;
         }
 
         updateFaceDetectionStatus('Face detected. Capturing photo...', 'success');
-        takePhoto();
+        takePhoto(faceDetection); // pass face box into beauty filter done by nick
         return true;
     } catch (error) {
         console.error('Face detection check failed:', error);
@@ -323,6 +329,13 @@ document.addEventListener('DOMContentLoaded', function() {
 if (invertBtn) {
     invertBtn.addEventListener('click', toggleMirror);
 }
+
+    // Beauty filter button done by nick
+    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
+    if (beautyFilterBtn) {
+        beautyFilterBtn.addEventListener('click', toggleBeautyFilter);
+        updateBeautyFilterButton();
+    }
 
     // Load overlay options from database
     loadOverlayOptions();
@@ -875,15 +888,17 @@ async function handlePhotoUpload(event) {
     }
 
     try {
-        const hasFace = await detectFaceInImageData(dataUrl);
-        if (!hasFace) {
+        const faceDetection = await detectFaceInImageData(dataUrl); // reuse face box for upload beauty filter done by nick
+        if (!faceDetection) {
             event.target.value = '';
             updateFaceDetectionStatus('No face detected. Please retake and upload a clearer face photo.', 'error', 'upload-face-detection-status');
             alert('No face detected. Please retake the photo and make sure your face is clearly visible.');
             return;
         }
 
-        photoData = dataUrl;
+        // Apply beauty filter to uploaded mobile photos done by nick
+        const uploadedImage = await loadImageElement(dataUrl);
+        photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
 
         const previewImg = document.getElementById('uploaded-photo-preview');
         previewImg.src = photoData;
@@ -935,6 +950,172 @@ function retakePhotoFromUpload() {
     document.getElementById('photo-input').click();
 }
 
+// Beauty filter canvas helpers done by nick
+function getBeautyFaceRegion(faceDetection, width, height) {
+    if (!faceDetection || !faceDetection.box) {
+        return null;
+    }
+
+    const box = faceDetection.box;
+    const expandedWidth = box.width * 1.48;
+    const expandedHeight = box.height * 1.68;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+
+    const faceWidth = Math.min(expandedWidth, width);
+    const faceHeight = Math.min(expandedHeight, height);
+    const faceX = Math.max(0, Math.min(width - faceWidth, centerX - faceWidth / 2));
+    const faceY = Math.max(0, Math.min(height - faceHeight, centerY - faceHeight * 0.46));
+
+    return {
+        x: faceX,
+        y: faceY,
+        width: faceWidth,
+        height: faceHeight
+    };
+}
+
+// Face acne cover and slimming beauty filter done by nick
+function drawFaceBeautyPass(ctx, sourceCanvas, faceRegion) {
+    if (!faceRegion) {
+        return;
+    }
+
+    const centerX = faceRegion.x + faceRegion.width / 2;
+    const centerY = faceRegion.y + faceRegion.height / 2;
+    const radiusX = faceRegion.width / 2;
+    const radiusY = faceRegion.height / 2;
+    const passCanvas = document.createElement('canvas');
+    const passCtx = passCanvas.getContext('2d');
+    passCanvas.width = sourceCanvas.width;
+    passCanvas.height = sourceCanvas.height;
+
+    const smoothCanvas = document.createElement('canvas');
+    const smoothCtx = smoothCanvas.getContext('2d');
+    smoothCanvas.width = sourceCanvas.width;
+    smoothCanvas.height = sourceCanvas.height;
+    smoothCtx.filter = BEAUTY_FACE_SMOOTH_FILTER_CSS;
+    smoothCtx.drawImage(sourceCanvas, 0, 0);
+
+    // Cover acne and uneven texture with a feathered face-only smoothing pass done by nick
+    passCtx.globalAlpha = 0.62;
+    passCtx.drawImage(smoothCanvas, 0, 0);
+
+    // Slim face by redrawing the detected face area slightly narrower done by nick
+    const slimWidth = faceRegion.width * BEAUTY_FACE_SLIM_RATIO;
+    const slimX = faceRegion.x + (faceRegion.width - slimWidth) / 2;
+    passCtx.globalAlpha = 0.48;
+    passCtx.filter = 'brightness(1.06) contrast(0.92) saturate(1.06)';
+    passCtx.drawImage(
+        sourceCanvas,
+        faceRegion.x,
+        faceRegion.y,
+        faceRegion.width,
+        faceRegion.height,
+        slimX,
+        faceRegion.y,
+        slimWidth,
+        faceRegion.height
+    );
+
+    // Blend a final soft skin-tone veil over the face done by nick
+    passCtx.globalAlpha = 0.1;
+    passCtx.filter = 'none';
+    passCtx.globalCompositeOperation = 'screen';
+    passCtx.fillStyle = '#ffd6c6';
+    passCtx.fillRect(faceRegion.x, faceRegion.y, faceRegion.width, faceRegion.height);
+
+    // Feather the face pass so there is no visible oval edge done by nick
+    passCtx.globalCompositeOperation = 'destination-in';
+    const mask = passCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(radiusX, radiusY));
+    mask.addColorStop(0, 'rgba(0, 0, 0, 0.92)');
+    mask.addColorStop(0.58, 'rgba(0, 0, 0, 0.76)');
+    mask.addColorStop(0.82, 'rgba(0, 0, 0, 0.28)');
+    mask.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    passCtx.fillStyle = mask;
+    passCtx.fillRect(
+        faceRegion.x - radiusX * 0.2,
+        faceRegion.y - radiusY * 0.2,
+        faceRegion.width * 1.4,
+        faceRegion.height * 1.4
+    );
+
+    ctx.drawImage(passCanvas, 0, 0);
+}
+
+function drawPhotoWithBeautyFilter(ctx, image, x, y, width, height, faceDetection = null) {
+    if (!beautyFilterEnabled) {
+        ctx.drawImage(image, x, y, width, height);
+        return;
+    }
+
+    const sourceCanvas = document.createElement('canvas');
+    const sourceCtx = sourceCanvas.getContext('2d');
+    sourceCanvas.width = width;
+    sourceCanvas.height = height;
+    sourceCtx.drawImage(image, 0, 0, width, height);
+
+    ctx.save();
+    ctx.filter = BEAUTY_FILTER_CSS;
+    ctx.drawImage(sourceCanvas, x, y, width, height);
+
+    // Stronger beauty smoothing layer done by nick
+    ctx.globalAlpha = faceDetection ? 0.18 : 0.38;
+    ctx.filter = BEAUTY_SMOOTH_FILTER_CSS;
+    ctx.drawImage(sourceCanvas, x, y, width, height);
+
+    // Restore some edges so the photo does not look overly blurry done by nick
+    ctx.globalAlpha = 0.12;
+    ctx.filter = BEAUTY_DETAIL_FILTER_CSS;
+    ctx.drawImage(sourceCanvas, x, y, width, height);
+
+    // Subtle warm tint for healthier skin tone done by nick
+    ctx.globalAlpha = 0.08;
+    ctx.filter = 'none';
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = '#ffd8c8';
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
+
+    const faceRegion = getBeautyFaceRegion(faceDetection, width, height);
+    drawFaceBeautyPass(ctx, sourceCanvas, faceRegion);
+}
+
+// Beauty filter for uploaded image data done by nick
+function createBeautyFilteredPhotoDataUrl(image, faceDetection = null) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = image.naturalWidth || image.videoWidth || image.width;
+    canvas.height = image.naturalHeight || image.videoHeight || image.height;
+
+    drawPhotoWithBeautyFilter(ctx, image, 0, 0, canvas.width, canvas.height, faceDetection);
+    return canvas.toDataURL('image/png');
+}
+
+// Beauty filter button state done by nick
+function updateBeautyFilterButton() {
+    const video = document.getElementById('video');
+    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
+
+    if (video) {
+        video.classList.toggle('beauty-filter-live', beautyFilterEnabled);
+    }
+
+    if (beautyFilterBtn) {
+        beautyFilterBtn.textContent = beautyFilterEnabled ? 'Beauty Filter On' : 'Beauty Filter Off';
+        beautyFilterBtn.classList.toggle('active', beautyFilterEnabled);
+        beautyFilterBtn.setAttribute('aria-pressed', beautyFilterEnabled ? 'true' : 'false');
+    }
+}
+
+// Beauty filter toggle done by nick
+function toggleBeautyFilter() {
+    beautyFilterEnabled = !beautyFilterEnabled;
+    updateBeautyFilterButton();
+    resetInactivityTimer();
+}
+
 // Initialize camera with mobile device check
 async function initializeCamera() {
     // Don't initialize camera for mobile users
@@ -964,6 +1145,7 @@ async function initializeCamera() {
 
         const video = document.getElementById('video');
         video.srcObject = stream;
+        updateBeautyFilterButton(); // apply live beauty filter preview done by nick
 
         // facial detection (Done by Yu Kang)
         await ensureFaceDetectionReady();
@@ -1055,7 +1237,7 @@ async function capturePhoto() {
 }
 
 // Take photo from camera stream (desktop)
-function takePhoto() {
+function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
     const video = document.getElementById('video');
     const canvas = document.getElementById('photo-canvas');
     
@@ -1070,7 +1252,8 @@ function takePhoto() {
     context.scale(-1, 1);
 }
 
-context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Apply beauty filter to captured camera photo done by nick
+    drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
     
     // Convert canvas to data URL
     photoData = canvas.toDataURL('image/png');
