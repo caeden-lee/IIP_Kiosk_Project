@@ -17,6 +17,17 @@
 
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+
+  CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+  ============================================================
+
+  1. PARAMETER ADJUSTMENT ADMIN PANEL
+     nav item                         - Added Parameter Adjustment entry in admin sidebar (DONE BY CAEDEN)
+     div#parameter-adjustment-page    - Added editable tabs for messages, email content, tree, photo and visual assets (DONE BY CAEDEN)
+     upload/background controls       - Added UI for selecting overlay default and uploading feedback backgrounds (DONE BY CAEDEN)
+
+  FIND COMMAND
+     rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -140,6 +151,10 @@
                         <a href="#" class="nav-item" onclick="showPage('form-management')">
                             <span class="nav-icon">📝</span>
                             Form Management
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('parameter-adjustment')">
+                            <span class="nav-icon">⚙️</span>
+                            Parameter Adjustment
                         </a>
                         <a href="#" class="nav-item" onclick="showPage('archive')">
                             <span class="nav-icon">📚</span>
@@ -1666,6 +1681,315 @@
                         <div id="fm-status" class="fm-status fm-status--hidden" aria-live="polite"></div>
                 </div>
                 </div>
+                
+                <!-- Parameter Adjustment Page -->
+                <div id="parameter-adjustment-page" class="page">
+                    <div class="page-header">
+                        <h2>Parameter Adjustment</h2>
+                        <p>Configure system-wide parameters including feedback messages, tree visualization settings, and photo options</p>
+                    </div>
+
+                    <!-- Tabs Navigation -->
+                    <div class="parameter-tabs">
+                        <button class="param-tab active" onclick="switchParameterTab('feedback-tab')">
+                            <span class="tab-icon">💬</span> Feedback Messages
+                        </button>
+                        <button class="param-tab" onclick="switchParameterTab('email-tab')">
+                            <span class="tab-icon">Mail</span> Email Content
+                        </button>
+                        <button class="param-tab" onclick="switchParameterTab('tree-tab')">
+                            <span class="tab-icon">🌳</span> Tree Parameters
+                        </button>
+                        <button class="param-tab" onclick="switchParameterTab('photo-tab')">
+                            <span class="tab-icon">📸</span> Photo Settings
+                        </button>
+                        <button class="param-tab" onclick="switchParameterTab('assets-tab')">
+                            <span class="tab-icon">Image</span> Backgrounds & Overlays
+                        </button>
+                    </div>
+
+                    <!-- Feedback Messages Tab -->
+                    <div id="feedback-tab" class="parameter-section active">
+                        <div class="section-header">
+                            <h3>Feedback Messages Configuration</h3>
+                            <p class="section-description">Edit messages displayed throughout the feedback flow</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouTitle">Thank You Title</label>
+                            <input type="text" id="param-thankYouTitle" placeholder="e.g., Thank You! ☀️" maxlength="100">
+                            <small class="text-muted">Displayed on completion screen</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouSubtitle">Thank You Subtitle</label>
+                            <input type="text" id="param-thankYouSubtitle" placeholder="e.g., Your feedback makes a difference" maxlength="200">
+                            <small class="text-muted">Secondary message under thank you title</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouMessage">Thank You Message</label>
+                            <textarea id="param-thankYouMessage" placeholder="Main thank you message..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Main message shown on the completion screen</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouFooter">Thank You Footer</label>
+                            <textarea id="param-thankYouFooter" placeholder="Thank you message..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Final message shown at the bottom</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-consentPrompt">Consent Prompt</label>
+                            <textarea id="param-consentPrompt" placeholder="Consent message..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Message on consent page</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-detailsPrompt">Details Prompt</label>
+                            <textarea id="param-detailsPrompt" placeholder="Details prompt..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Message on details collection page</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-feedbackPrompt">Feedback Prompt</label>
+                            <textarea id="param-feedbackPrompt" placeholder="Feedback prompt..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Message on feedback form page</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-pledgePrompt">Pledge Prompt</label>
+                            <textarea id="param-pledgePrompt" placeholder="Pledge prompt..." maxlength="500" rows="3"></textarea>
+                            <small class="text-muted">Message on pledge selection page</small>
+                        </div>
+                    </div>
+
+                    <!-- Email Content Tab -->
+                    <div id="email-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Thank You Email Content</h3>
+                            <p class="section-description">Edit the photo email sent after a visitor completes the feedback flow</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouSubject">Email Subject</label>
+                            <input type="text" id="param-thankYouSubject" maxlength="180" placeholder="Thank you for visiting RP ESG Centre, {name}!">
+                            <small class="text-muted">Use {name} to personalize the subject</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouIntro">Email Intro</label>
+                            <textarea id="param-thankYouIntro" maxlength="900" rows="4"></textarea>
+                            <small class="text-muted">Opening paragraph before the attached photo</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-thankYouClosing">Email Closing</label>
+                            <textarea id="param-thankYouClosing" maxlength="900" rows="4"></textarea>
+                            <small class="text-muted">Closing paragraph after the photo section</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="param-senderName">Sender Name</label>
+                                <input type="text" id="param-senderName" maxlength="100" placeholder="ESG Centre Team">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-footerNote">Footer Note</label>
+                                <input type="text" id="param-footerNote" maxlength="220">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tree Parameters Tab -->
+                    <div id="tree-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Digital Tree Visualization Parameters</h3>
+                            <p class="section-description">Configure leaf placement and animation settings</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalWidth">Leaf Canopy Width (pixels)</label>
+                            <input type="number" id="param-ovalWidth" min="100" max="2000" step="10" placeholder="850">
+                            <small class="text-muted">Width of the area where leaves can appear</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalHeight">Leaf Canopy Height (pixels)</label>
+                            <input type="number" id="param-ovalHeight" min="50" max="1000" step="10" placeholder="300">
+                            <small class="text-muted">Height of the area where leaves can appear</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalTopOffset">Canopy Top Offset (pixels)</label>
+                            <input type="number" id="param-ovalTopOffset" min="-500" max="500" step="10" placeholder="-100">
+                            <small class="text-muted">Vertical position adjustment (negative = move up)</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-leafRefreshInterval">Leaf Refresh Interval (milliseconds)</label>
+                            <input type="number" id="param-leafRefreshInterval" min="5000" max="120000" step="1000" placeholder="30000">
+                            <small class="text-muted">How often the tree updates (30000 = 30 seconds)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafOpacity">Leaf Opacity (0-1)</label>
+                            <input type="number" id="param-leafOpacity" min="0" max="1" step="0.1" placeholder="0.9">
+                            <small class="text-muted">Transparency of leaf elements (1 = fully opaque)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafAnimationDuration">Leaf Animation Duration (milliseconds)</label>
+                            <input type="number" id="param-leafAnimationDuration" min="100" max="5000" step="100" placeholder="500">
+                            <small class="text-muted">Duration of leaf appearance animation</small>
+                        </div>
+                    </div>
+
+                    <!-- Photo Settings Tab -->
+                    <div id="photo-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Photo & Overlay Settings</h3>
+                            <p class="section-description">Configure photo capture and beauty filter options</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Beauty Filter</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="beauty-filter" value="true" onchange="updateBeautyFilterOption()">
+                                    <span>Enabled</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="beauty-filter" value="false" onchange="updateBeautyFilterOption()">
+                                    <span>Disabled</span>
+                                </label>
+                            </div>
+                            <small class="text-muted">Apply beauty/smoothing effects to captured photos</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-beautyFilterStrength">Beauty Filter Strength</label>
+                            <select id="param-beautyFilterStrength">
+                                <option value="light">Light</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="strong">Strong</option>
+                            </select>
+                            <small class="text-muted">Intensity of beauty filter effects</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-maxPhotoFileSize">Max Photo File Size (MB)</label>
+                            <input type="number" id="param-maxPhotoFileSize" min="1" max="100" step="1" placeholder="5">
+                            <small class="text-muted">Maximum allowed photo size in megabytes</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Supported Photo Formats</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="photo-format" value="jpeg" checked>
+                                    <span>JPEG</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="photo-format" value="png" checked>
+                                    <span>PNG</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="photo-format" value="webp">
+                                    <span>WebP</span>
+                                </label>
+                            </div>
+                            <small class="text-muted">Allowed image file formats</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label>Overlay Upload</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="overlay-upload" value="true" onchange="updateOverlayUploadOption()">
+                                    <span>Enabled</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="overlay-upload" value="false" onchange="updateOverlayUploadOption()">
+                                    <span>Disabled</span>
+                                </label>
+                            </div>
+                            <small class="text-muted">Allow custom overlay uploads</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-maxOverlayFileSize">Max Overlay File Size (MB)</label>
+                            <input type="number" id="param-maxOverlayFileSize" min="1" max="100" step="1" placeholder="10">
+                            <small class="text-muted">Maximum allowed overlay size in megabytes</small>
+                        </div>
+                    </div>
+
+                    <!-- Backgrounds & Overlays Tab -->
+                    <div id="assets-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Backgrounds & Digital Overlays</h3>
+                            <p class="section-description">Select active image paths and default overlay behavior</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-feedbackBackground">Feedback Background CSS</label>
+                            <input type="text" id="param-feedbackBackground" placeholder="url('/assets/static/rpPicture.jpg') center / cover no-repeat fixed">
+                            <small class="text-muted">Leave blank to use the current feedback form theme background</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-backgroundUpload">Upload Feedback Background</label>
+                            <input type="file" id="param-backgroundUpload" accept="image/png,image/jpeg,image/webp">
+                            <small class="text-muted">Uploads a PNG, JPG, or WebP and sets it as the active feedback background</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-treeBackground">Digital Tree Background Path</label>
+                            <input type="text" id="param-treeBackground" placeholder="/assets/Tree/BackGround.png">
+                            <small class="text-muted">Image path used behind the digital tree</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-defaultOverlayTheme">Default Overlay Theme ID</label>
+                            <input type="text" id="param-defaultOverlayTheme" list="param-overlay-options" placeholder="Optional overlay theme id">
+                            <datalist id="param-overlay-options"></datalist>
+                            <small class="text-muted">When available, this overlay is pre-selected in the visitor photo flow</small>
+                        </div>
+
+                        <div class="parameter-upload-note">
+                            Upload new overlay image files from <button type="button" class="inline-link-btn" onclick="showPage('overlay')">Overlay Management</button>.
+                            Use <button type="button" class="inline-link-btn" onclick="showPage('form-management')">Form Management</button> for landing page background presets.
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="parameter-actions">
+                        <button class="btn-primary" onclick="saveParameters()">
+                            <span class="btn-icon">💾</span> Save All Changes
+                        </button>
+                        <button class="btn-secondary" onclick="uploadParameterBackground()">
+                            <span class="btn-icon">Image</span> Upload Background
+                        </button>
+                        <button class="btn-secondary" onclick="loadParameters()">
+                            <span class="btn-icon">🔄</span> Reload
+                        </button>
+                        <button class="btn-tertiary" onclick="resetParametersToDefaults()">
+                            <span class="btn-icon">⚠️</span> Reset to Defaults
+                        </button>
+                    </div>
+
+                    <!-- Status Message -->
+                    <div id="parameter-status" class="status-message" style="display: none;"></div>
+                </div>
+
                 <!-- Timer Countdown Page (DONE BY BERNISSA) -->
                 <div id="timer-countdown-page" class="page">
                     <div class="page-header">

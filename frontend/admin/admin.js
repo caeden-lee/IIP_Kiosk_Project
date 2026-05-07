@@ -18,6 +18,19 @@
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+//
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. PARAMETER ADJUSTMENT ADMIN BEHAVIOR
+//    showPage('parameter-adjustment') - Load parameter settings when opening the admin section (DONE BY CAEDEN)
+//    function loadParameters          - Fetch saved editable kiosk parameters from admin API (DONE BY CAEDEN)
+//    function saveParameters          - Persist text, email, tree, photo and visual asset parameters (DONE BY CAEDEN)
+//    function uploadParameterBackground - Upload and activate a feedback background image (DONE BY CAEDEN)
+//    function resetParametersToDefaults - Restore parameter defaults from admin UI (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
 
 // ============================================================
@@ -6967,7 +6980,7 @@ function showPage(pageName) {
     const userRole = sessionStorage.getItem('userRole');
     
     // Check if user is trying to access admin pages without system_admin role
-    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates'];
+    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates', 'parameter-adjustment'];
     if (adminPages.includes(pageName) && userRole !== 'system_admin') {
         alert('Access denied. System Administrator privileges required.');
         return;
@@ -7033,6 +7046,8 @@ function showPage(pageName) {
     loadEmailConfig();
     } else if (pageName === 'badge-email-templates') {
     loadBadgeEmailTemplates();
+    } else if (pageName === 'parameter-adjustment') {
+    loadParameters();
     } else if (pageName === 'vip') {
     loadVipManagementData();
     }
@@ -10674,6 +10689,254 @@ async function saveBadgeEmailTemplates() {
     }
 }
 
+
+// ==================== PARAMETER ADJUSTMENT MANAGEMENT ====================
+
+function switchParameterTab(tabId) {
+    document.querySelectorAll('#parameter-adjustment-page .param-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('onclick')?.includes(tabId));
+    });
+
+    document.querySelectorAll('#parameter-adjustment-page .parameter-section').forEach(section => {
+        section.classList.toggle('active', section.id === tabId);
+    });
+}
+
+function setParameterStatus(message, type = 'info') {
+    const status = document.getElementById('parameter-status');
+    if (!status) return;
+    status.textContent = message;
+    status.className = `status-message status-message-${type}`;
+    status.style.display = 'block';
+}
+
+function setInputValue(id, value) {
+    const input = document.getElementById(id);
+    if (input) input.value = value ?? '';
+}
+
+function getInputValue(id) {
+    return document.getElementById(id)?.value.trim() || '';
+}
+
+function setRadioValue(name, value) {
+    const selected = document.querySelector(`input[name="${name}"][value="${String(Boolean(value))}"]`);
+    if (selected) selected.checked = true;
+}
+
+function getRadioBoolean(name) {
+    const selected = document.querySelector(`input[name="${name}"]:checked`);
+    return selected ? selected.value === 'true' : false;
+}
+
+function setCheckboxValues(name, values = []) {
+    const valueSet = new Set(values);
+    document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+        input.checked = valueSet.has(input.value);
+    });
+}
+
+function getCheckboxValues(name) {
+    return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(input => input.value);
+}
+
+function bytesToMegabytes(bytes, fallback) {
+    const number = Number(bytes);
+    return Number.isFinite(number) ? Math.round(number / 1024 / 1024) : fallback;
+}
+
+function megabytesToBytes(value, fallbackMb) {
+    const number = Number(value);
+    return Math.max(1, Number.isFinite(number) ? number : fallbackMb) * 1024 * 1024;
+}
+
+function populateParameterForm(config) {
+    const feedback = config.feedbackMessages || {};
+    const email = config.emailContent || {};
+    const tree = config.treeParameters || {};
+    const photo = config.photoSettings || {};
+    const overlay = config.overlaySettings || {};
+    const assets = config.visualAssets || {};
+
+    setInputValue('param-thankYouTitle', feedback.thankYouTitle);
+    setInputValue('param-thankYouSubtitle', feedback.thankYouSubtitle);
+    setInputValue('param-thankYouMessage', feedback.thankYouMessage);
+    setInputValue('param-thankYouFooter', feedback.thankYouFooter);
+    setInputValue('param-consentPrompt', feedback.consentPrompt);
+    setInputValue('param-detailsPrompt', feedback.detailsPrompt);
+    setInputValue('param-feedbackPrompt', feedback.feedbackPrompt);
+    setInputValue('param-pledgePrompt', feedback.pledgePrompt);
+    setInputValue('param-thankYouSubject', email.thankYouSubject);
+    setInputValue('param-thankYouIntro', email.thankYouIntro);
+    setInputValue('param-thankYouClosing', email.thankYouClosing);
+    setInputValue('param-senderName', email.senderName);
+    setInputValue('param-footerNote', email.footerNote);
+    setInputValue('param-ovalWidth', tree.ovalWidth);
+    setInputValue('param-ovalHeight', tree.ovalHeight);
+    setInputValue('param-ovalTopOffset', tree.ovalTopOffset);
+    setInputValue('param-leafRefreshInterval', tree.leafRefreshInterval);
+    setInputValue('param-leafOpacity', tree.leafOpacity);
+    setInputValue('param-leafAnimationDuration', tree.leafAnimationDuration);
+    setRadioValue('beauty-filter', photo.beautyFilterEnabled);
+    setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
+    setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
+    setCheckboxValues('photo-format', photo.supportedFormats || ['jpeg', 'png']);
+    setRadioValue('overlay-upload', overlay.enableOverlayUpload);
+    setInputValue('param-maxOverlayFileSize', bytesToMegabytes(overlay.maxOverlayFileSize, 10));
+    setInputValue('param-feedbackBackground', assets.feedbackBackground);
+    setInputValue('param-treeBackground', assets.treeBackground);
+    setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
+}
+
+function collectParameterForm() {
+    return {
+        feedbackMessages: {
+            thankYouTitle: getInputValue('param-thankYouTitle'),
+            thankYouSubtitle: getInputValue('param-thankYouSubtitle'),
+            thankYouMessage: getInputValue('param-thankYouMessage'),
+            thankYouFooter: getInputValue('param-thankYouFooter'),
+            consentPrompt: getInputValue('param-consentPrompt'),
+            detailsPrompt: getInputValue('param-detailsPrompt'),
+            feedbackPrompt: getInputValue('param-feedbackPrompt'),
+            pledgePrompt: getInputValue('param-pledgePrompt')
+        },
+        emailContent: {
+            thankYouSubject: getInputValue('param-thankYouSubject'),
+            thankYouIntro: getInputValue('param-thankYouIntro'),
+            thankYouClosing: getInputValue('param-thankYouClosing'),
+            senderName: getInputValue('param-senderName'),
+            footerNote: getInputValue('param-footerNote')
+        },
+        treeParameters: {
+            ovalWidth: Number(getInputValue('param-ovalWidth')) || 850,
+            ovalHeight: Number(getInputValue('param-ovalHeight')) || 300,
+            ovalTopOffset: Number(getInputValue('param-ovalTopOffset')) || -100,
+            leafRefreshInterval: Number(getInputValue('param-leafRefreshInterval')) || 30000,
+            leafOpacity: Number(getInputValue('param-leafOpacity')) || 0.9,
+            leafAnimationDuration: Number(getInputValue('param-leafAnimationDuration')) || 500
+        },
+        photoSettings: {
+            beautyFilterEnabled: getRadioBoolean('beauty-filter'),
+            beautyFilterStrength: getInputValue('param-beautyFilterStrength') || 'medium',
+            maxPhotoFileSize: megabytesToBytes(getInputValue('param-maxPhotoFileSize'), 5),
+            supportedFormats: getCheckboxValues('photo-format')
+        },
+        overlaySettings: {
+            enableOverlayUpload: getRadioBoolean('overlay-upload'),
+            maxOverlayFileSize: megabytesToBytes(getInputValue('param-maxOverlayFileSize'), 10),
+            supportedFormats: ['png', 'jpg', 'jpeg']
+        },
+        visualAssets: {
+            feedbackBackground: getInputValue('param-feedbackBackground'),
+            treeBackground: getInputValue('param-treeBackground'),
+            defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
+        }
+    };
+}
+
+async function loadParameters() {
+    try {
+        setParameterStatus('Loading parameters...', 'info');
+        loadParameterOverlayOptions();
+        const response = await fetch('/api/admin/parameters', { credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to load parameters');
+        populateParameterForm(data.parameters || {});
+        setParameterStatus('Parameters loaded.', 'success');
+    } catch (error) {
+        console.error('Error loading parameters:', error);
+        setParameterStatus(error.message || 'Failed to load parameters.', 'error');
+    }
+}
+
+async function loadParameterOverlayOptions() {
+    const list = document.getElementById('param-overlay-options');
+    if (!list) return;
+
+    try {
+        const response = await fetch('/api/admin/overlays', { credentials: 'include' });
+        const data = await response.json();
+        const overlays = data.overlays || data.data || [];
+        list.innerHTML = overlays.map(overlay => {
+            const id = escapeHtmlSafe(overlay.theme_id || '');
+            const label = escapeHtmlSafe(overlay.display_name || overlay.theme_id || '');
+            return `<option value="${id}" label="${label}"></option>`;
+        }).join('');
+    } catch (error) {
+        console.warn('Unable to load overlay choices:', error);
+    }
+}
+
+async function uploadParameterBackground() {
+    const fileInput = document.getElementById('param-backgroundUpload');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        setParameterStatus('Choose a background image first.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Uploading background...', 'info');
+        const formData = new FormData();
+        formData.append('background', file);
+
+        const response = await fetch('/api/admin/parameters/background', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload background');
+        }
+
+        setInputValue('param-feedbackBackground', data.backgroundCss);
+        populateParameterForm(data.parameters || {});
+        if (fileInput) fileInput.value = '';
+        setParameterStatus(data.message || 'Background uploaded.', 'success');
+    } catch (error) {
+        console.error('Error uploading parameter background:', error);
+        setParameterStatus(error.message || 'Failed to upload background.', 'error');
+    }
+}
+
+async function saveParameters() {
+    try {
+        setParameterStatus('Saving parameters...', 'info');
+        const response = await fetch('/api/admin/parameters', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(collectParameterForm())
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to save parameters');
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Parameters saved successfully.', 'success');
+    } catch (error) {
+        console.error('Error saving parameters:', error);
+        setParameterStatus(error.message || 'Failed to save parameters.', 'error');
+    }
+}
+
+async function resetParametersToDefaults() {
+    if (!confirm('Reset all parameter adjustments to their default values?')) return;
+    try {
+        setParameterStatus('Resetting parameters...', 'info');
+        const response = await fetch('/api/admin/parameters/reset', { method: 'POST', credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to reset parameters');
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Parameters reset to defaults.', 'success');
+    } catch (error) {
+        console.error('Error resetting parameters:', error);
+        setParameterStatus(error.message || 'Failed to reset parameters.', 'error');
+    }
+}
+
+function updateBeautyFilterOption() {}
+function updateOverlayUploadOption() {}
 
 // ==================== 29. TIMER COUNTDOWN MANAGEMENT (DONE BY BERNISSA) ====================
 

@@ -18,6 +18,17 @@
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+//
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. ADMIN-CONFIGURABLE TREE PARAMETERS
+//    function fetchParameterConfig    - Load tree and visual settings from /api/parameters (DONE BY CAEDEN)
+//    TreeManager canopy fields        - Apply configurable canopy size, offset, refresh rate and leaf appearance (DONE BY CAEDEN)
+//    refreshTreeFromServer            - Refresh tree using admin-configured interval (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
 
 // TREE.JS - TABLE OF CONTENTS
@@ -147,6 +158,9 @@ class TreeManager {
         this.ovalWidth = 850;
         this.ovalHeight = 300;
         this.ovalTopOffset = -100;
+        this.leafRefreshInterval = 30000;
+        this.leafOpacity = 0.9;
+        this.leafAnimationDuration = 500;
 
         // Mask cache
         this.maskData = null;
@@ -161,6 +175,7 @@ class TreeManager {
 
     async init() {
         try {
+            await this.fetchParameterConfig();
             await this.loadTreeImage();
 
             // Force mask image hidden always
@@ -184,6 +199,30 @@ class TreeManager {
             if (this.loadingMessage) {
                 this.loadingMessage.style.display = 'none';
             }
+        }
+    }
+
+    async fetchParameterConfig() {
+        try {
+            const response = await fetch('/api/parameters');
+            const data = await response.json();
+            if (!response.ok || !data.success) return;
+
+            const tree = data.parameters?.treeParameters || {};
+            const assets = data.parameters?.visualAssets || {};
+
+            this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
+            this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
+            this.ovalTopOffset = Number(tree.ovalTopOffset) || this.ovalTopOffset;
+            this.leafRefreshInterval = Number(tree.leafRefreshInterval) || this.leafRefreshInterval;
+            this.leafOpacity = Number(tree.leafOpacity) || this.leafOpacity;
+            this.leafAnimationDuration = Number(tree.leafAnimationDuration) || this.leafAnimationDuration;
+
+            if (assets.treeBackground) {
+                document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
+            }
+        } catch (error) {
+            console.warn('Tree parameter config unavailable:', error);
         }
     }
 
@@ -743,6 +782,8 @@ class TreeManager {
         }
 
         leaf.style.backgroundImage = `url('/assets/Tree/${finalLeafImage}')`;
+        leaf.style.opacity = String(this.leafOpacity);
+        leaf.style.animationDuration = `${this.leafAnimationDuration}ms`;
 
         const leafSize = 80 + ((visitor.visit_count || 1) * 5);
         leaf.style.width = `${leafSize}px`;
@@ -847,11 +888,14 @@ window.addEventListener('load', () => {
     treeManager = new TreeManager();
 });
 
-setInterval(() => {
+let treeRefreshTimer;
+
+function refreshTreeFromServer() {
     if (treeManager) {
         const yearToRefresh = treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear;
 
         Promise.all([
+            treeManager.fetchParameterConfig(),
             treeManager.fetchVipNames(),
             treeManager.fetchYearReviewData(),
             treeManager.fetchVisitorData(yearToRefresh)
@@ -859,9 +903,23 @@ setInterval(() => {
             treeManager.updateTreeHeading();
             treeManager.renderYearReviewBook();
             treeManager.refreshTree();
+        }).catch((error) => {
+            console.warn('Tree refresh failed:', error);
+        }).finally(() => {
+            scheduleTreeRefresh();
         });
+    } else {
+        scheduleTreeRefresh();
     }
-}, 30000);
+}
+
+function scheduleTreeRefresh() {
+    window.clearTimeout(treeRefreshTimer);
+    const interval = Math.max(5000, Number(treeManager?.leafRefreshInterval) || 30000);
+    treeRefreshTimer = window.setTimeout(refreshTreeFromServer, interval);
+}
+
+scheduleTreeRefresh();
 
 window.addEventListener('resize', () => {
     if (treeManager) {

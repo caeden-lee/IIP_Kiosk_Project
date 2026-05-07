@@ -12,6 +12,16 @@
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+//
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. PUBLIC PARAMETER CONFIG ROUTE
+//    const parametersConfigStore      - Read shared kiosk parameter configuration (DONE BY CAEDEN)
+//    GET /api/parameters              - Expose saved feedback/tree visual parameters to kiosk pages (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
 
 // ============================================================
@@ -96,6 +106,7 @@ const pledgeboardRoutes = require('./pledgeboardRoutes');
 const pulseRoutes = require('./pulseRoutes');
 const emailService = require('./emailService');
 const auth = require('./auth');
+const parametersConfigStore = require('./parametersConfigStore');
 
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
 const dataRetentionCleanup = require('./dataRetentionCleanup');
@@ -253,6 +264,15 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
 app.use('/api/pulse', auth.requireAuth, pulseRoutes);
 app.use('/api/tree', treeRoutes);
+
+app.get('/api/parameters', (req, res) => {
+  try {
+    res.json({ success: true, parameters: parametersConfigStore.readParametersConfig() });
+  } catch (error) {
+    console.error('Error loading public parameters:', error);
+    res.status(500).json({ success: false, error: 'Failed to load parameters' });
+  }
+});
 
 // Network info
 app.get('/api/network-interfaces', (req, res) => {

@@ -13,6 +13,19 @@
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+//
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. PARAMETER ADJUSTMENT ADMIN API
+//    const parametersConfigStore      - JSON-backed parameter configuration helper import (DONE BY CAEDEN)
+//    GET /parameters                  - Load all editable kiosk parameters for admin UI (DONE BY CAEDEN)
+//    PUT /parameters                  - Save text, email, tree, photo and visual asset settings (DONE BY CAEDEN)
+//    POST /parameters/reset           - Restore parameter defaults for system admins (DONE BY CAEDEN)
+//    POST /parameters/background      - Upload and activate feedback background image files (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
 
 // ============================================================
@@ -150,7 +163,14 @@
 //     router.get('/server/status'     - Get current server status 
 //     router.get('/kiosk-status'      - Get kiosk server status 
 //
-// 23. HELPER FUNCTIONS
+// 24. PARAMETER ADJUSTMENT ROUTES
+//     router.get('/parameters'        - Get all system parameters (DONE BY USER)
+//     router.get('/parameters/:category' - Get parameters by category (DONE BY USER)
+//     router.put('/parameters'        - Update system parameters (DONE BY USER)
+//     router.put('/parameters/:category' - Update specific category (DONE BY USER)
+//     router.post('/parameters/reset' - Reset parameters to defaults (DONE BY USER)
+//
+// 25. HELPER FUNCTIONS
 //     function deleteUserPhotos()     - Delete user photo files from filesystem (DONE BY PRETI)
 //     function deleteOverlayFiles()   - Delete overlay image files from assets directory (DONE BY PRETI)
 //     function checkDirectoryForPhotos() - Check if directory contains image files (DONE BY PRETI)
@@ -173,6 +193,7 @@ const archiver = require('archiver');
 const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
+const parametersConfigStore = require('./parametersConfigStore');
 
 
 //AI for sentiment analysis testing (Done by Yu Kang)
@@ -276,6 +297,34 @@ const upload = multer({
     },
     limits: {
         fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
+const parameterBackgroundStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/backgrounds');
+        if (!fs.existsSync(destFolder)) {
+            fs.mkdirSync(destFolder, { recursive: true });
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        cb(null, `feedback-bg-${Date.now()}${ext}`);
+    }
+});
+
+const uploadParameterBackground = multer({
+    storage: parameterBackgroundStorage,
+    fileFilter: (req, file, cb) => {
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024
     }
 });
 
@@ -4728,6 +4777,191 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
   } catch (error) {
     console.error('❌ Error writing form-ui.json:', error);
     res.status(500).json({ success: false, error: 'Failed to save form UI config' });
+  }
+});
+
+// ==================== 24. PARAMETER ADJUSTMENT MANAGEMENT ====================
+// System-wide parameter configuration (feedback messages, tree parameters, photo settings)
+
+// GET /api/admin/parameters
+// Load all system parameters
+router.get('/parameters', auth.requireAuth, (req, res) => {
+  try {
+    const config = parametersConfigStore.readParametersConfig();
+    res.json({ success: true, parameters: config });
+  } catch (error) {
+    console.error('❌ Error reading parameters:', error);
+    res.status(500).json({ success: false, error: 'Failed to load parameters' });
+  }
+});
+
+router.post('/parameters/background', auth.requireAdmin, uploadParameterBackground.single('background'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No background file uploaded' });
+    }
+
+    const assetPath = `/assets/backgrounds/${req.file.filename}`;
+    const backgroundCss = `url('${assetPath}') center / cover no-repeat fixed`;
+    const config = parametersConfigStore.readParametersConfig();
+    config.visualAssets = {
+      ...config.visualAssets,
+      feedbackBackground: backgroundCss
+    };
+
+    const success = parametersConfigStore.writeParametersConfig(config);
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to save uploaded background setting' });
+    }
+
+    if (req.session?.user?.username) {
+      logAudit('PARAMETER_BACKGROUND_UPLOADED', req.session.user.username, 'config', 'visualAssets.feedbackBackground', req);
+    }
+
+    res.json({
+      success: true,
+      message: 'Background uploaded successfully',
+      assetPath,
+      backgroundCss,
+      parameters: parametersConfigStore.readParametersConfig()
+    });
+  } catch (error) {
+    console.error('Error uploading parameter background:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload background' });
+  }
+});
+
+// GET /api/admin/parameters/:category
+// Load parameters for specific category
+router.get('/parameters/:category', auth.requireAuth, (req, res) => {
+  try {
+    const { category } = req.params;
+    const categoryData = parametersConfigStore.getCategory(category);
+    
+    if (!categoryData || Object.keys(categoryData).length === 0) {
+      return res.status(404).json({ success: false, error: 'Category not found' });
+    }
+    
+    res.json({ success: true, category, parameters: categoryData });
+  } catch (error) {
+    console.error('❌ Error reading parameter category:', error);
+    res.status(500).json({ success: false, error: 'Failed to load parameter category' });
+  }
+});
+
+// PUT /api/admin/parameters
+// Update all system parameters
+router.put('/parameters', auth.requireAuth, (req, res) => {
+  try {
+    const { feedbackMessages, emailContent, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
+    
+    // Validate inputs
+    if (feedbackMessages && typeof feedbackMessages !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid feedbackMessages format' });
+    }
+    if (treeParameters && typeof treeParameters !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid treeParameters format' });
+    }
+    if (emailContent && typeof emailContent !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid emailContent format' });
+    }
+    if (photoSettings && typeof photoSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid photoSettings format' });
+    }
+    if (overlaySettings && typeof overlaySettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid overlaySettings format' });
+    }
+    if (visualAssets && typeof visualAssets !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid visualAssets format' });
+    }
+    
+    // Read current config
+    const config = parametersConfigStore.readParametersConfig();
+    
+    // Update only provided categories
+    if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
+    if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
+    if (treeParameters) config.treeParameters = { ...config.treeParameters, ...treeParameters };
+    if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
+    if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
+    if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
+    
+    // Save updated config
+    const success = parametersConfigStore.writeParametersConfig(config);
+    
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to save parameters' });
+    }
+    
+    // Audit log
+    if (req.session?.user?.username) {
+      logAudit('PARAMETERS_UPDATED', req.session.user.username, 'config', 'parameters', req);
+    }
+    
+    res.json({ success: true, message: 'Parameters updated successfully', parameters: config });
+  } catch (error) {
+    console.error('❌ Error updating parameters:', error);
+    res.status(500).json({ success: false, error: 'Failed to update parameters' });
+  }
+});
+
+// PUT /api/admin/parameters/:category
+// Update specific parameter category
+router.put('/parameters/:category', auth.requireAuth, (req, res) => {
+  try {
+    const { category } = req.params;
+    const updates = req.body;
+    
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid parameter updates format' });
+    }
+    
+    // Validate category exists
+    const config = parametersConfigStore.readParametersConfig();
+    if (!config[category]) {
+      return res.status(404).json({ success: false, error: `Category '${category}' not found` });
+    }
+    
+    // Update category
+    const success = parametersConfigStore.updateCategory(category, updates);
+    
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to save parameters' });
+    }
+    
+    // Audit log
+    if (req.session?.user?.username) {
+      logAudit('PARAMETERS_UPDATED', req.session.user.username, 'config', `parameters.${category}`, req);
+    }
+    
+    const updatedConfig = parametersConfigStore.readParametersConfig();
+    res.json({ success: true, message: `${category} updated successfully`, parameters: updatedConfig });
+  } catch (error) {
+    console.error('❌ Error updating parameter category:', error);
+    res.status(500).json({ success: false, error: 'Failed to update parameter category' });
+  }
+});
+
+// POST /api/admin/parameters/reset
+// Reset all parameters to defaults
+router.post('/parameters/reset', auth.requireAdmin, (req, res) => {
+  try {
+    const success = parametersConfigStore.resetToDefaults();
+    
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to reset parameters' });
+    }
+    
+    // Audit log
+    if (req.session?.user?.username) {
+      logAudit('PARAMETERS_RESET', req.session.user.username, 'config', 'parameters', req);
+    }
+    
+    const resetConfig = parametersConfigStore.readParametersConfig();
+    res.json({ success: true, message: 'Parameters reset to defaults', parameters: resetConfig });
+  } catch (error) {
+    console.error('❌ Error resetting parameters:', error);
+    res.status(500).json({ success: false, error: 'Failed to reset parameters' });
   }
 });
 
