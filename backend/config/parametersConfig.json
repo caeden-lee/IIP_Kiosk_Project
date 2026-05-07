@@ -16,6 +16,30 @@
     "senderName": "ESG Centre Team",
     "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message."
   },
+  "featureFlags": {
+    "cameraCaptureEnabled": true,
+    "photoUploadEnabled": true,
+    "beautyFilterEnabled": true,
+    "pledgeEnabled": true,
+    "badgeEmailEnabled": true,
+    "thankYouEmailEnabled": true,
+    "socialSharingEnabled": true
+  },
+  "validationRules": {
+    "nameRequired": true,
+    "nameMinLength": 2,
+    "nameMaxLength": 80,
+    "emailRequired": true,
+    "emailPattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+    "requiredQuestionsEnabled": true,
+    "pledgeRequired": true,
+    "pledgeMinLength": 5,
+    "pledgeMaxLength": 500,
+    "pledgeTopicRequired": true,
+    "photoRequired": true,
+    "maxPhotoFileSizeMb": 5,
+    "allowedPhotoFormats": ["jpeg", "jpg", "png", "webp"]
+  },
   "treeParameters": {
     "ovalWidth": 850,
     "ovalHeight": 300,

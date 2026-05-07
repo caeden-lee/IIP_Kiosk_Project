@@ -20,7 +20,7 @@
 // 1. PARAMETER ADJUSTMENT ADMIN API
 //    const parametersConfigStore      - JSON-backed parameter configuration helper import (DONE BY CAEDEN)
 //    GET /parameters                  - Load all editable kiosk parameters for admin UI (DONE BY CAEDEN)
-//    PUT /parameters                  - Save text, email, tree, photo and visual asset settings (DONE BY CAEDEN)
+//    PUT /parameters                  - Save feature flags, validation rules, text, email, tree, photo and visual asset settings (DONE BY CAEDEN)
 //    POST /parameters/reset           - Restore parameter defaults for system admins (DONE BY CAEDEN)
 //    POST /parameters/background      - Upload and activate feedback background image files (DONE BY CAEDEN)
 //
@@ -4781,7 +4781,7 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
 });
 
 // ==================== 24. PARAMETER ADJUSTMENT MANAGEMENT ====================
-// System-wide parameter configuration (feedback messages, tree parameters, photo settings)
+// System-wide parameter configuration, including feature toggles and centralized validation rules (DONE BY CAEDEN)
 
 // GET /api/admin/parameters
 // Load all system parameters
@@ -4853,7 +4853,8 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 // Update all system parameters
 router.put('/parameters', auth.requireAuth, (req, res) => {
   try {
-    const { feedbackMessages, emailContent, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
+    // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
+    const { feedbackMessages, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -4864,6 +4865,12 @@ router.put('/parameters', auth.requireAuth, (req, res) => {
     }
     if (emailContent && typeof emailContent !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid emailContent format' });
+    }
+    if (featureFlags && typeof featureFlags !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid featureFlags format' });
+    }
+    if (validationRules && typeof validationRules !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid validationRules format' });
     }
     if (photoSettings && typeof photoSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid photoSettings format' });
@@ -4881,6 +4888,8 @@ router.put('/parameters', auth.requireAuth, (req, res) => {
     // Update only provided categories
     if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
+    if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
+    if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
     if (treeParameters) config.treeParameters = { ...config.treeParameters, ...treeParameters };
     if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };

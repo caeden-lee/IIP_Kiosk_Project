@@ -5680,6 +5680,48 @@ input:checked + .slider:before {
     text-decoration: underline;
 }
 
+/* Feature toggle and validation rule cards (DONE BY CAEDEN) */
+.parameter-toggle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.parameter-toggle-grid.compact {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.parameter-toggle-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 76px;
+    padding: 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #1e293b;
+    cursor: pointer;
+}
+
+.parameter-toggle-card input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex: 0 0 auto;
+}
+
+.parameter-toggle-card strong,
+.parameter-toggle-card small {
+    display: block;
+}
+
+.parameter-toggle-card small {
+    margin-top: 4px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
 #pulse-page .page-header {
     margin-bottom: 24px;
 }

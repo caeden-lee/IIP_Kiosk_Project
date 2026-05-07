@@ -25,7 +25,7 @@
 // 1. PARAMETER ADJUSTMENT ADMIN BEHAVIOR
 //    showPage('parameter-adjustment') - Load parameter settings when opening the admin section (DONE BY CAEDEN)
 //    function loadParameters          - Fetch saved editable kiosk parameters from admin API (DONE BY CAEDEN)
-//    function saveParameters          - Persist text, email, tree, photo and visual asset parameters (DONE BY CAEDEN)
+//    function saveParameters          - Persist feature flags, validation rules, text, email, tree, photo and visual asset parameters (DONE BY CAEDEN)
 //    function uploadParameterBackground - Upload and activate a feedback background image (DONE BY CAEDEN)
 //    function resetParametersToDefaults - Restore parameter defaults from admin UI (DONE BY CAEDEN)
 //
@@ -10719,6 +10719,15 @@ function getInputValue(id) {
     return document.getElementById(id)?.value.trim() || '';
 }
 
+function setCheckedValue(id, value) {
+    const input = document.getElementById(id);
+    if (input) input.checked = value !== false;
+}
+
+function getCheckedValue(id) {
+    return Boolean(document.getElementById(id)?.checked);
+}
+
 function setRadioValue(name, value) {
     const selected = document.querySelector(`input[name="${name}"][value="${String(Boolean(value))}"]`);
     if (selected) selected.checked = true;
@@ -10753,6 +10762,9 @@ function megabytesToBytes(value, fallbackMb) {
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
     const email = config.emailContent || {};
+    // Feature flags and centralized validation rules loaded into admin controls (DONE BY CAEDEN)
+    const flags = config.featureFlags || {};
+    const rules = config.validationRules || {};
     const tree = config.treeParameters || {};
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
@@ -10771,6 +10783,28 @@ function populateParameterForm(config) {
     setInputValue('param-thankYouClosing', email.thankYouClosing);
     setInputValue('param-senderName', email.senderName);
     setInputValue('param-footerNote', email.footerNote);
+
+    setCheckedValue('flag-cameraCaptureEnabled', flags.cameraCaptureEnabled);
+    setCheckedValue('flag-photoUploadEnabled', flags.photoUploadEnabled);
+    setCheckedValue('flag-beautyFilterEnabled', flags.beautyFilterEnabled);
+    setCheckedValue('flag-pledgeEnabled', flags.pledgeEnabled);
+    setCheckedValue('flag-badgeEmailEnabled', flags.badgeEmailEnabled);
+    setCheckedValue('flag-thankYouEmailEnabled', flags.thankYouEmailEnabled);
+    setCheckedValue('flag-socialSharingEnabled', flags.socialSharingEnabled);
+
+    setCheckedValue('rule-nameRequired', rules.nameRequired);
+    setInputValue('rule-nameMinLength', rules.nameMinLength);
+    setInputValue('rule-nameMaxLength', rules.nameMaxLength);
+    setCheckedValue('rule-emailRequired', rules.emailRequired);
+    setInputValue('rule-emailPattern', rules.emailPattern);
+    setCheckedValue('rule-requiredQuestionsEnabled', rules.requiredQuestionsEnabled);
+    setCheckedValue('rule-pledgeRequired', rules.pledgeRequired);
+    setInputValue('rule-pledgeMinLength', rules.pledgeMinLength);
+    setInputValue('rule-pledgeMaxLength', rules.pledgeMaxLength);
+    setCheckedValue('rule-pledgeTopicRequired', rules.pledgeTopicRequired);
+    setCheckedValue('rule-photoRequired', rules.photoRequired);
+    setInputValue('rule-maxPhotoFileSizeMb', rules.maxPhotoFileSizeMb);
+    setInputValue('rule-allowedPhotoFormats', (rules.allowedPhotoFormats || []).join(','));
     setInputValue('param-ovalWidth', tree.ovalWidth);
     setInputValue('param-ovalHeight', tree.ovalHeight);
     setInputValue('param-ovalTopOffset', tree.ovalTopOffset);
@@ -10806,6 +10840,32 @@ function collectParameterForm() {
             thankYouClosing: getInputValue('param-thankYouClosing'),
             senderName: getInputValue('param-senderName'),
             footerNote: getInputValue('param-footerNote')
+        },
+        // Feature toggles controlled by admin configuration (DONE BY CAEDEN)
+        featureFlags: {
+            cameraCaptureEnabled: getCheckedValue('flag-cameraCaptureEnabled'),
+            photoUploadEnabled: getCheckedValue('flag-photoUploadEnabled'),
+            beautyFilterEnabled: getCheckedValue('flag-beautyFilterEnabled'),
+            pledgeEnabled: getCheckedValue('flag-pledgeEnabled'),
+            badgeEmailEnabled: getCheckedValue('flag-badgeEmailEnabled'),
+            thankYouEmailEnabled: getCheckedValue('flag-thankYouEmailEnabled'),
+            socialSharingEnabled: getCheckedValue('flag-socialSharingEnabled')
+        },
+        // Centralized validation rules controlled by admin configuration (DONE BY CAEDEN)
+        validationRules: {
+            nameRequired: getCheckedValue('rule-nameRequired'),
+            nameMinLength: Number(getInputValue('rule-nameMinLength')) || 0,
+            nameMaxLength: Number(getInputValue('rule-nameMaxLength')) || 80,
+            emailRequired: getCheckedValue('rule-emailRequired'),
+            emailPattern: getInputValue('rule-emailPattern') || '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+            requiredQuestionsEnabled: getCheckedValue('rule-requiredQuestionsEnabled'),
+            pledgeRequired: getCheckedValue('rule-pledgeRequired'),
+            pledgeMinLength: Number(getInputValue('rule-pledgeMinLength')) || 0,
+            pledgeMaxLength: Number(getInputValue('rule-pledgeMaxLength')) || 500,
+            pledgeTopicRequired: getCheckedValue('rule-pledgeTopicRequired'),
+            photoRequired: getCheckedValue('rule-photoRequired'),
+            maxPhotoFileSizeMb: Number(getInputValue('rule-maxPhotoFileSizeMb')) || 5,
+            allowedPhotoFormats: getInputValue('rule-allowedPhotoFormats').split(',').map(format => format.trim().toLowerCase()).filter(Boolean)
         },
         treeParameters: {
             ovalWidth: Number(getInputValue('param-ovalWidth')) || 850,
