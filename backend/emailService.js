@@ -10,11 +10,24 @@
 //  - Find command: rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
 
+// ============================================================
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. ADMIN-EDITABLE THANK YOU EMAIL CONTENT
+//    const parametersConfigStore      - Load thank-you email content configured in admin panel (DONE BY CAEDEN)
+//    function sendThankYouEmail       - Apply editable subject, intro, closing, sender and footer text (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+// ============================================================
+
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const { getEmailConfig } = require('./emailConfigStore');
 const { getBadgeEmailTemplates } = require('./badgeEmailTemplateStore');
+const parametersConfigStore = require('./parametersConfigStore');
 
 // ==================== BADGE SYSTEM IMPLEMENTATION ====================
 // Done by XY - Complete badge awarding system for ESG Kiosk
@@ -929,6 +942,17 @@ function initEmailService() {
 // Send thank you email with photo attachment
 async function sendThankYouEmail(name, email, photoFilename, pledgeText) {
     try {
+        const emailContent = parametersConfigStore.readParametersConfig().emailContent || {};
+        const personalize = (value, fallback = '') => String(value || fallback).replace(/\{name\}/g, name || 'Visitor');
+        const emailIntro = personalize(emailContent.thankYouIntro, 'Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.');
+        const emailClosing = personalize(emailContent.thankYouClosing, 'We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.');
+        const senderName = personalize(emailContent.senderName, 'ESG Centre Team');
+        const footerNote = personalize(emailContent.footerNote, 'This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.');
+        const emailSubject = personalize(emailContent.thankYouSubject, `Thank you for visiting RP ESG Centre, ${name}!`);
+        const emailIntroHtml = escapeHtml(emailIntro);
+        const emailClosingHtml = escapeHtml(emailClosing);
+        const senderNameHtml = escapeHtml(senderName);
+        const footerNoteHtml = escapeHtml(footerNote);
         console.log(`📧 Preparing to send email to ${email}...`);
         
         if (!emailTransporter) {
@@ -1011,19 +1035,18 @@ async function sendThankYouEmail(name, email, photoFilename, pledgeText) {
         const textBody = `
 Dear ${name},
 
-Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback.
-Attached below is your commemorative photo from your visit.
+${emailIntro}
 
 Your pledge:
 "${pledgeText || '—'}"
 
-We hope your experience has inspired you to take meaningful steps towards sustainability.
+${emailClosing}
 
 Warm regards,
-ESG Centre Team
+${senderName}
 Republic Polytechnic
 
-This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.
+${footerNote}
         `;
 
         // Pledge text
@@ -1066,8 +1089,7 @@ This is an automated email sent from the RP ESG kiosk system. Please do not repl
                     Dear ${name},
                 </p>
                 <p style="font-size:14px; color:#333; line-height:1.5; margin:0 0 16px 0;">
-                    Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback.
-                    Attached below is your commemorative photo from your visit.
+                    ${emailIntroHtml}
                 </p>
 
                 <div style="text-align:center; margin:24px 0; padding:16px; background:#f9f9f9; border-radius:4px;">
@@ -1077,19 +1099,18 @@ This is an automated email sent from the RP ESG kiosk system. Please do not repl
                 </div>
 
                 <p style="font-size:13px; color:#555; line-height:1.5; margin:0 0 16px 0;">
-                    We hope your experience has inspired you to take meaningful steps towards sustainability.
-                    Your feedback helps us improve and create better experiences for future visitors.
+                    ${emailClosingHtml}
                 </p>
 
                 <p style="font-size:13px; color:#555; margin-top:24px; padding-top:16px; border-top:1px solid #eee;">
                     Warm regards,<br/>
-                    <strong style="color:#006937;">ESG Centre Team</strong><br/>
+                    <strong style="color:#006937;">${senderNameHtml}</strong><br/>
                     Republic Polytechnic
                 </p>
             </div>
 
             <div style="background:#f0f0f0; padding:12px 24px; font-size:11px; color:#777; text-align:center; border-top:1px solid #ddd;">
-                This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.
+                ${footerNoteHtml}
             </div>
         </div>
     </body>
@@ -1100,7 +1121,7 @@ This is an automated email sent from the RP ESG kiosk system. Please do not repl
             from: `"RP ESG Centre" <${SENDER_EMAIL}>`,
             to: email,
             replyTo: 'no-reply@rp.edu.sg',
-            subject: `Thank you for visiting RP ESG Centre, ${name}!`,
+            subject: emailSubject,
             text: textBody,
             html: htmlBody,
             attachments: [

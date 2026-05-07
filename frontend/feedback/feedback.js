@@ -31,6 +31,18 @@
 //    function stayOnForm()            - Let active users keep going from the idle warning (DONE BY XY)
 //
 
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+//
+// 1. KIOSK PARAMETER CONFIG CONSUMPTION
+//    let kioskParameters              - Store parameters loaded from /api/parameters (DONE BY CAEDEN)
+//    function loadKioskParameters     - Fetch admin-configured text and visual parameters (DONE BY CAEDEN)
+//    function applyParameterOverrides - Apply editable English prompts, thank-you text and feedback background (DONE BY CAEDEN)
+//    function loadOverlayOptions      - Preselect configured default overlay after parameter load (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+
 // ============================================================
 
 // ============================================================
@@ -149,6 +161,8 @@ const INACTIVITY_TIMEOUT = 60000; // 1 minute kiosk reset timeout
 const IDLE_WARNING_SECONDS = 10;
 let countdownSeconds = null; // Loaded from backend when needed (DONE BY BERNISSA)
 let overlayData = {}; // Store full overlay data including file paths from database 
+let kioskParameters = {};
+let kioskParametersLoadPromise = null;
 let isMirrored = false; // to invert camera done by nick
 let beautyFilterEnabled = true; // beauty filter toggle done by nick
 const BEAUTY_FILTER_CSS = 'brightness(1.2) contrast(0.82) saturate(1.28)'; // stronger beauty filter effect done by nick
@@ -426,6 +440,7 @@ function detectDeviceType() {
 // Initialize page when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     applyFormUIConfig();
+    kioskParametersLoadPromise = loadKioskParameters();
     
     // Check if mobile
     const isMobile = window.innerWidth <= 768;
@@ -1644,6 +1659,10 @@ async function loadOverlayOptions() {
     if (!overlayOptions) return;
 
     try {
+        if (kioskParametersLoadPromise) {
+            await kioskParametersLoadPromise;
+        }
+
         // Fetch overlays from the API
         const response = await fetch('/api/feedback/overlays');
         const data = await response.json();
@@ -1680,16 +1699,19 @@ async function loadOverlayOptions() {
                 overlayOptions.appendChild(themeOption);
             });
 
-            // Select the first theme by default
+            // Select configured default theme when available; otherwise use the first theme.
             setTimeout(() => {
-                const firstTheme = document.querySelector('.theme-option');
-                if (firstTheme && data.overlays.length > 0) {
-                    const firstThemeId = data.overlays[0].theme_id;
-                    const firstThemeName = data.overlays[0].display_name;
-                    selectTheme(firstThemeId, firstTheme);
+                const defaultThemeId = kioskParameters.visualAssets?.defaultOverlayTheme;
+                const defaultIndex = data.overlays.findIndex(overlay => overlay.theme_id === defaultThemeId);
+                const selectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
+                const themeElement = document.querySelectorAll('.theme-option')[selectedIndex];
+
+                if (themeElement && data.overlays[selectedIndex]) {
+                    const selectedOverlay = data.overlays[selectedIndex];
+                    selectTheme(selectedOverlay.theme_id, themeElement);
                     
                     // Update the selected overlay name display
-                    document.getElementById('selected-overlay-name').textContent = firstThemeName;
+                    document.getElementById('selected-overlay-name').textContent = selectedOverlay.display_name;
                 }
             }, 100);
             
@@ -2435,6 +2457,38 @@ async function applyFormUIConfig() {
   }
 }
 
+async function loadKioskParameters() {
+  try {
+    const response = await fetch('/api/parameters');
+    const data = await response.json();
+    if (!response.ok || !data.success) return;
+
+    kioskParameters = data.parameters || {};
+    applyParameterOverrides();
+  } catch (error) {
+    console.warn('Parameter config unavailable:', error);
+  }
+}
+
+function applyParameterOverrides() {
+    const messages = kioskParameters.feedbackMessages || {};
+    const assets = kioskParameters.visualAssets || {};
+
+    if (assets.feedbackBackground) {
+        document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
+    }
+
+    if (currentLanguage === 'en') {
+        setText('consent-description', messages.consentPrompt);
+        setText('details-description', messages.detailsPrompt);
+        setText('feedback-description', messages.feedbackPrompt);
+        setText('pledge-description', messages.pledgePrompt);
+        setText('thankyou-title', messages.thankYouTitle);
+        setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
+        setText('thankyou-footer-text', messages.thankYouFooter);
+    }
+}
+
 // Load countdown timer setting from server (DONE BY BERNISSA)
 async function loadCountdownTimer() {
     try {
@@ -2950,6 +3004,7 @@ function applyTranslations() {
     setText('thankyou-pledgeboards-btn', t.pledgeboardButton);
 
     updateLanguageButtons();
+    applyParameterOverrides();
 }
 
 function setLanguage(lang) {
