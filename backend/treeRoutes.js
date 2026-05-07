@@ -10,6 +10,11 @@
 //    visitor records                  - Supports one visible leaf per feedback submission (DONE BY XY)
 //    badge summary fallback           - Aligns skipped/no-topic submissions with Feedback Contributor (DONE BY XY)
 //
+// 3. YEARLY TREE REVIEW
+//    getCurrentTreeYear               - Default live tree to current calendar year (DONE BY XY)
+//    GET /api/tree?year=YYYY          - Load a completed tree for a selected year (DONE BY XY)
+//    GET /api/tree/years              - Return available years for the year review book (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -31,6 +36,16 @@ function parseMetadata(metadata) {
     } catch {
         return {};
     }
+}
+
+function getCurrentTreeYear() {
+    return new Date().getFullYear();
+}
+
+function parseTreeYear(value) {
+    const year = Number(value);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return null;
+    return year;
 }
 
 /**
@@ -62,6 +77,8 @@ router.get('/', (req, res) => {
 
         // 2) Get each feedback/pledge submission as its own leaf.
         // A returning visitor can therefore grow multiple leaves instead of only updating one user row.
+        const requestedYear = parseTreeYear(req.query.year);
+        const treeYear = requestedYear || getCurrentTreeYear();
         const leafQuery = `
             SELECT
                 f.id AS feedback_id,
@@ -73,10 +90,11 @@ router.get('/', (req, res) => {
             FROM feedback f
             JOIN users u ON f.user_id = u.id
             WHERE f.is_active = 1
+              AND YEAR(f.created_at) = ?
             ORDER BY f.created_at ASC, f.id ASC
         `;
 
-        db.all(leafQuery, [], (userErr, rows) => {
+        db.all(leafQuery, [treeYear], (userErr, rows) => {
             if (userErr) {
                 console.error('❌ Tree route DB error:', userErr);
                 return res.status(500).json([]);
@@ -84,6 +102,57 @@ router.get('/', (req, res) => {
 
             return res.json(mapRowsToVisitors(rows || [], vipSet));
         });
+    });
+});
+
+/**
+ * GET /api/tree/years
+ * Returns yearly tree summary data for the review book.
+ */
+router.get('/years', (req, res) => {
+    if (!db) {
+        console.error('❌ TreeRoutes: DB not initialized');
+        return res.status(500).json({ success: false, currentYear: getCurrentTreeYear(), years: [] });
+    }
+
+    const currentYear = getCurrentTreeYear();
+    const sql = `
+        SELECT
+            YEAR(created_at) AS year,
+            COUNT(*) AS leaf_count,
+            MIN(created_at) AS first_submission,
+            MAX(created_at) AS last_submission
+        FROM feedback
+        WHERE is_active = 1
+        GROUP BY YEAR(created_at)
+        ORDER BY year DESC
+    `;
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Tree years DB error:', err);
+            return res.status(500).json({ success: false, currentYear, years: [] });
+        }
+
+        const years = (rows || []).map(row => ({
+            year: Number(row.year),
+            leafCount: Number(row.leaf_count) || 0,
+            firstSubmission: row.first_submission,
+            lastSubmission: row.last_submission,
+            isCurrentYear: Number(row.year) === currentYear
+        }));
+
+        if (!years.some(item => item.year === currentYear)) {
+            years.unshift({
+                year: currentYear,
+                leafCount: 0,
+                firstSubmission: null,
+                lastSubmission: null,
+                isCurrentYear: true
+            });
+        }
+
+        return res.json({ success: true, currentYear, years });
     });
 });
 

@@ -1045,7 +1045,7 @@ router.get('/feedback-answers', (req, res) => {
 });
 
 /*
-// Sentiment analysis of feedback answers (added by Yu Kang)
+// Rule-based sentiment analysis of feedback answers (added by Yu Kang)
 router.get('/feedback-sentiment-analysis', (req, res) => {
     console.log('🧠 Performing sentiment analysis on feedback answers...');
 
