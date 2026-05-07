@@ -7,6 +7,11 @@
         yearReviewBook                - Flip-book panel for completed yearly trees (DONE BY XY)
         bookTurnSheet                 - Animated page sheet used during year flipping (DONE BY XY)
 
+     2. INTERACTIVE LEAF DETAIL UI
+        leafDetailCard                - Small side card opened when a visitor leaf is clicked (DONE BY XY)
+        leafDetailPrivacy             - Shows whether the visitor name is hidden or public (DONE BY XY)
+        leafDetailSnippet             - Displays the pledge snippet returned by /api/tree (DONE BY XY)
+
      FIND COMMAND
         rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
      ============================================================ -->
@@ -64,6 +69,17 @@
         <div class="loading" id="loadingMessage">
             Loading tree data...
         </div>
+
+        <aside class="leaf-detail-card" id="leafDetailCard" aria-live="polite" aria-hidden="true">
+            <button class="leaf-detail-close" id="leafDetailClose" type="button" aria-label="Close leaf details">×</button>
+            <p class="leaf-detail-kicker" id="leafDetailPrivacy">Leaf details</p>
+            <h2 id="leafDetailName">Anonymous visitor</h2>
+            <div class="leaf-detail-meta">
+                <span id="leafDetailBadge">Feedback Contributor</span>
+                <span id="leafDetailDate">Today</span>
+            </div>
+            <p class="leaf-detail-quote" id="leafDetailSnippet">Select a leaf to view its pledge snippet.</p>
+        </aside>
     </div>
 
 </body>

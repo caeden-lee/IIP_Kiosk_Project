@@ -9,6 +9,14 @@
     "feedbackPrompt": "Share your thoughts on our sustainability initiatives.",
     "pledgePrompt": "Would you like to make a pledge to support sustainability?"
   },
+  "contentSettings": {
+    "temporaryRetentionDays": 7,
+    "pledgeExamples": [
+      "Carry a reusable bottle and cutlery every day",
+      "Sort waste properly and recycle whenever possible",
+      "Reduce food waste by taking only what I can finish"
+    ]
+  },
   "emailContent": {
     "thankYouSubject": "Thank you for visiting RP ESG Centre, {name}!",
     "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",

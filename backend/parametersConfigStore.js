@@ -22,6 +22,11 @@
 //    leafFallDuration                - Default smooth falling animation duration for tree leaves (DONE BY XY)
 //    leafGreenResetTime              - Default daily time for badge-coloured leaves to turn green, midnight by default (DONE BY XY)
 //
+// 2. CONSENT AND PLEDGE CONTENT DEFAULTS
+//    contentSettings                 - Stores admin-editable retention duration and pledge examples (DONE BY XY)
+//    temporaryRetentionDays          - Default temporary retention duration used by consent text and cleanup (DONE BY XY)
+//    pledgeExamples                  - Default visitor-facing pledge example lines (DONE BY XY)
+//
 // FIND COMMAND
 //   rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -42,6 +47,14 @@ const DEFAULT_CONFIG = {
     detailsPrompt: "Please provide your details so we can track your contributions.",
     feedbackPrompt: "Share your thoughts on our sustainability initiatives.",
     pledgePrompt: "Would you like to make a pledge to support sustainability?"
+  },
+  contentSettings: {
+    temporaryRetentionDays: 7,
+    pledgeExamples: [
+      "Carry a reusable bottle and cutlery every day",
+      "Sort waste properly and recycle whenever possible",
+      "Reduce food waste by taking only what I can finish"
+    ]
   },
   emailContent: {
     thankYouSubject: "Thank you for visiting RP ESG Centre, {name}!",
@@ -110,6 +123,7 @@ function mergeWithDefaults(config) {
     ...DEFAULT_CONFIG,
     ...config,
     feedbackMessages: { ...DEFAULT_CONFIG.feedbackMessages, ...(config.feedbackMessages || {}) },
+    contentSettings: { ...DEFAULT_CONFIG.contentSettings, ...(config.contentSettings || {}) },
     emailContent: { ...DEFAULT_CONFIG.emailContent, ...(config.emailContent || {}) },
     featureFlags: { ...DEFAULT_CONFIG.featureFlags, ...(config.featureFlags || {}) },
     validationRules: { ...DEFAULT_CONFIG.validationRules, ...(config.validationRules || {}) },

@@ -10,6 +10,10 @@
 // 2. ACCESS CONTROL
 //    auth middleware                  - Keeps Pulse dashboard behind authenticated admin flow (DONE BY XY)
 //
+// 3. PUBLIC PARAMETER CONFIG ROUTE
+//    parametersConfigStore            - Reads shared kiosk parameter settings for public pages (DONE BY XY)
+//    GET /api/parameters              - Exposes retention text, pledge examples, tree settings and assets to frontend (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -102,6 +106,7 @@ const pulseRoutes = require('./pulseRoutes');
 const os = require('os');
 const emailService = require('./emailService');
 const auth = require('./auth');
+const parametersConfigStore = require('./parametersConfigStore');
 
 // Import tree routes and wire them to the shared DB
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
@@ -343,6 +348,15 @@ app.use('/api/pulse', auth.requireAuth, pulseRoutes);
 
 // Tree API for the leaves (names from feedback.db)
 app.use('/api/tree', treeRoutes);
+
+app.get('/api/parameters', (req, res) => {
+    try {
+        res.json({ success: true, parameters: parametersConfigStore.readParametersConfig() });
+    } catch (error) {
+        console.error('Error loading public parameters:', error);
+        res.status(500).json({ success: false, error: 'Failed to load parameters' });
+    }
+});
 
 // API endpoint to get all network interfaces
 app.get('/api/network-interfaces', (req, res) => {

@@ -15,6 +15,11 @@
 //    GET /api/tree?year=YYYY          - Load a completed tree for a selected year (DONE BY XY)
 //    GET /api/tree/years              - Return available years for the year review book (DONE BY XY)
 //
+// 4. INTERACTIVE LEAF DETAILS
+//    GET /api/tree                    - Return pledgeSnippet for click-to-view leaf detail cards (DONE BY XY)
+//    privacy-safe displayName         - Show Anonymous visitor unless retention allows public name display (DONE BY XY)
+//    privacyLabel                     - Explain whether the visitor name is shown or hidden for privacy (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -86,6 +91,7 @@ router.get('/', (req, res) => {
                 u.visit_count,
                 f.created_at,
                 f.comment,
+                f.data_retention,
                 f.metadata
             FROM feedback f
             JOIN users u ON f.user_id = u.id
@@ -160,21 +166,30 @@ function mapRowsToVisitors(rows, vipSet) {
     return (rows || []).map(r => {
         const name = String(r.name || '').trim();
         const metadata = parseMetadata(r.metadata);
+        const retention = String(r.data_retention || '').toLowerCase();
+        const canShowName = retention === 'longterm' || retention === 'indefinite';
+        const displayName = canShowName ? name : 'Anonymous visitor';
+        const pledgeText = String(r.comment || metadata.pledge || '').trim();
+        const pledgeSnippet = pledgeText.length > 140 ? `${pledgeText.slice(0, 137)}...` : pledgeText;
+        const isVip = canShowName && vipSet.has(name.toLowerCase());
         const badge = getBadgeSummary({
-            pledge: r.comment || metadata.pledge || '',
+            pledge: pledgeText,
             pledgeTopic: metadata.pledgeTopic || ''
         });
 
         return {
             id: r.feedback_id || r.user_id,
-            name,
+            name: displayName,
             visit_count: Number(r.visit_count) || 1,
             created_at: r.created_at,
-            isVip: vipSet.has(name.toLowerCase()),
+            isVip,
             badgeKey: badge.badgeKey,
             badgeName: badge.badgeName,
             badgeColor: badge.badgeColor,
-            pledgeTopic: metadata.pledgeTopic || ''
+            pledgeTopic: metadata.pledgeTopic || '',
+            pledgeSnippet,
+            hasPublicName: canShowName,
+            privacyLabel: canShowName ? 'Name shown with long-term consent' : 'Name hidden for privacy'
         };
     });
 }

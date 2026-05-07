@@ -30,6 +30,11 @@
 //    function showIdleWarning()       - Show 10-second reset warning before clearing the form (DONE BY XY)
 //    function stayOnForm()            - Let active users keep going from the idle warning (DONE BY XY)
 //
+// 7. ADMIN-CONTROLLED CONSENT AND PLEDGE TEXT
+//    getTemporaryRetentionDays        - Read temporary retention duration from contentSettings (DONE BY XY)
+//    applyParameterOverrides          - Apply editable retention wording and pledge examples on visitor pages (DONE BY XY)
+//    updateConfirmationDetails        - Show configured retention label on confirmation screen (DONE BY XY)
+//
 
 // CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 // ============================================================
@@ -2160,7 +2165,7 @@ function updateConfirmationDetails() {
     document.getElementById('confirm-email').textContent = userData.email || 'Not provided';
     document.getElementById('confirm-pledge').textContent = userData.pledgeSkipped ? 'Skipped - Feedback Contributor badge' : (userData.pledge || 'Not provided');
     document.getElementById('confirm-theme').textContent = selectedTheme;
-    document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : '7 Days';
+    document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : getTemporaryRetentionLabel();
     const photoReady = document.getElementById('confirm-photo-ready');
     const emailPhotoReady = document.getElementById('confirm-email-photo-ready');
     if (!photoData && !userData.processedPhoto) {
@@ -2572,11 +2577,27 @@ async function loadKioskParameters() {
   }
 }
 
+function getTemporaryRetentionDays() {
+    const days = Number(kioskParameters.contentSettings?.temporaryRetentionDays);
+    return Number.isFinite(days) && days > 0 ? Math.round(days) : 7;
+}
+
+function formatRetentionDays(days) {
+    return `${days} ${days === 1 ? 'Day' : 'Days'}`;
+}
+
+function getTemporaryRetentionLabel() {
+    return formatRetentionDays(getTemporaryRetentionDays());
+}
+
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
+    const content = kioskParameters.contentSettings || {};
     const assets = kioskParameters.visualAssets || {};
     const flags = getFeatureFlags();
     const rules = getValidationRules();
+    const retentionDays = getTemporaryRetentionDays();
+    const retentionLabel = formatRetentionDays(retentionDays);
 
     if (assets.feedbackBackground) {
         document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
@@ -2605,9 +2626,16 @@ function applyParameterOverrides() {
 
     if (currentLanguage === 'en') {
         setText('consent-description', messages.consentPrompt);
+        setText('option-7days-title', retentionLabel);
+        setText('option-7days-description', `Your feedback data will be deleted after ${retentionDays} ${retentionDays === 1 ? 'day' : 'days'}.`);
+        setText('privacy-notice-text', `${retentionLabel} Retention: Your photo and email is retained for ${retentionDays} ${retentionDays === 1 ? 'day' : 'days'} then deleted. Your name and pledge may be displayed publicly.`);
         setText('details-description', messages.detailsPrompt);
         setText('feedback-description', messages.feedbackPrompt);
         setText('pledge-description', messages.pledgePrompt);
+        const examples = Array.isArray(content.pledgeExamples) ? content.pledgeExamples : [];
+        setText('pledge-example-1', examples[0] || 'Carry a reusable bottle and cutlery every day');
+        setText('pledge-example-2', examples[1] || 'Sort waste properly and recycle whenever possible');
+        setText('pledge-example-3', examples[2] || 'Reduce food waste by taking only what I can finish');
         setText('thankyou-title', messages.thankYouTitle);
         setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
         setText('thankyou-footer-text', messages.thankYouFooter);
