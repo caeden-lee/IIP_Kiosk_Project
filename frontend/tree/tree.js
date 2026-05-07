@@ -10,6 +10,12 @@
 //    badgeConfig mapping              - Uses Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
 //    Removed inactive badges          - Eco Warrior and Commitment Champion removed from tree mapping (DONE BY XY)
 //
+// 3. YEAR REVIEW BOOK
+//    yearReviewToggle                 - Opens/closes the yearly review book from a corner button (DONE BY XY)
+//    fetchYearReviewData()            - Loads yearly tree summary data from /api/tree/years (DONE BY XY)
+//    turnReviewPage()                 - Flips between yearly review pages with animation (DONE BY XY)
+//    demoYearsEnabled                 - Supports ?demoYears=1 preview years without database edits (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -59,9 +65,31 @@ class TreeManager {
         this.treeImageLeaves = document.getElementById('treeImageLeaves');
         this.leavesContainer = document.getElementById('leavesContainer');
         this.loadingMessage = document.getElementById('loadingMessage');
+        this.treeTitle = document.getElementById('treeTitle');
+        this.treeSubtitle = document.getElementById('treeSubtitle');
+        this.yearReviewToggle = document.getElementById('yearReviewToggle');
+        this.yearReviewBook = document.getElementById('yearReviewBook');
+        this.bookYear = document.getElementById('bookYear');
+        this.bookCount = document.getElementById('bookCount');
+        this.reviewTreePreview = document.getElementById('reviewTreePreview');
+        this.bookPrevButton = document.getElementById('bookPrevButton');
+        this.bookNextButton = document.getElementById('bookNextButton');
+        this.bookViewButton = document.getElementById('bookViewButton');
+        this.bookLiveButton = document.getElementById('bookLiveButton');
+        this.bookCloseButton = document.getElementById('bookCloseButton');
+        this.bookTurnSheet = document.getElementById('bookTurnSheet');
+        this.bookTurnYear = document.getElementById('bookTurnYear');
 
         // Data
         this.visitors = [];
+        this.currentYear = new Date().getFullYear();
+        this.selectedYear = this.currentYear;
+        this.reviewYears = [];
+        this.reviewIndex = 0;
+        this.isReviewMode = false;
+        this.isBookOpen = false;
+        this.demoYearsEnabled = new URLSearchParams(window.location.search).get('demoYears') === '1';
+        this.isBookFlipping = false;
 
         // VIP Names (for golden leaves)
         this.vipNames = new Set();
@@ -142,8 +170,12 @@ class TreeManager {
             this.maskData = this.buildMaskCanvas();
 
             // Load VIP list first, then visitors
+            this.bindYearReviewControls();
             await this.fetchVipNames();
-            await this.fetchVisitorData();
+            await this.fetchYearReviewData();
+            await this.fetchVisitorData(this.currentYear);
+            this.updateTreeHeading();
+            this.renderYearReviewBook();
 
             this.createLeaves();
         } catch (err) {
@@ -248,9 +280,10 @@ class TreeManager {
 
     // ==================== DATA ====================
 
-    async fetchVisitorData() {
+    async fetchVisitorData(year = this.selectedYear) {
         try {
-            const response = await fetch('/api/tree');
+            const query = year ? `?year=${encodeURIComponent(year)}` : '';
+            const response = await fetch(`/api/tree${query}`);
             const data = await response.json();
 
             this.visitors = Array.isArray(data) ? data : [];
@@ -259,6 +292,261 @@ class TreeManager {
             console.error('Error fetching visitor data:', error);
             this.visitors = [];
         }
+    }
+
+    async fetchYearReviewData() {
+        try {
+            const response = await fetch('/api/tree/years');
+            const data = await response.json();
+
+            this.currentYear = Number(data.currentYear) || new Date().getFullYear();
+            this.selectedYear = this.isReviewMode ? this.selectedYear : this.currentYear;
+            this.reviewYears = Array.isArray(data.years) ? data.years : [];
+            this.addDemoYearsIfNeeded();
+
+            if (!this.reviewYears.some(item => Number(item.year) === this.currentYear)) {
+                this.reviewYears.unshift({
+                    year: this.currentYear,
+                    leafCount: 0,
+                    isCurrentYear: true
+                });
+            }
+
+            if (!this.reviewYears.length) {
+                this.reviewYears = [{
+                    year: this.currentYear,
+                    leafCount: 0,
+                    isCurrentYear: true
+                }];
+            }
+
+            const activeIndex = this.reviewYears.findIndex(item => Number(item.year) === this.selectedYear);
+            this.reviewIndex = activeIndex >= 0 ? activeIndex : 0;
+        } catch (error) {
+            console.error('Error fetching tree year review data:', error);
+            this.reviewYears = [{
+                year: this.currentYear,
+                leafCount: this.visitors.length,
+                isCurrentYear: true
+            }];
+            this.addDemoYearsIfNeeded();
+            this.reviewIndex = 0;
+        }
+    }
+
+    addDemoYearsIfNeeded() {
+        if (!this.demoYearsEnabled) return;
+
+        const demoYears = [
+            { year: this.currentYear - 1, leafCount: 48 },
+            { year: this.currentYear - 2, leafCount: 72 },
+            { year: this.currentYear - 3, leafCount: 35 }
+        ];
+
+        demoYears.forEach((demoYear) => {
+            const hasYear = this.reviewYears.some(item => Number(item.year) === demoYear.year);
+            if (!hasYear) {
+                this.reviewYears.push({
+                    ...demoYear,
+                    firstSubmission: `${demoYear.year}-01-12T09:00:00.000Z`,
+                    lastSubmission: `${demoYear.year}-12-18T17:30:00.000Z`,
+                    isCurrentYear: false,
+                    isDemo: true
+                });
+            }
+        });
+
+        this.reviewYears.sort((a, b) => Number(b.year) - Number(a.year));
+    }
+
+    bindYearReviewControls() {
+        if (this.yearReviewToggle) {
+            this.yearReviewToggle.addEventListener('click', () => this.toggleYearReviewBook());
+        }
+
+        if (this.bookCloseButton) {
+            this.bookCloseButton.addEventListener('click', () => this.closeYearReviewBook());
+        }
+
+        if (this.bookPrevButton) {
+            this.bookPrevButton.addEventListener('click', () => this.turnReviewPage(-1));
+        }
+
+        if (this.bookNextButton) {
+            this.bookNextButton.addEventListener('click', () => this.turnReviewPage(1));
+        }
+
+        if (this.bookViewButton) {
+            this.bookViewButton.addEventListener('click', () => this.viewReviewYear());
+        }
+
+        if (this.bookLiveButton) {
+            this.bookLiveButton.addEventListener('click', () => this.viewLiveYear());
+        }
+    }
+
+    toggleYearReviewBook() {
+        if (this.isBookOpen) {
+            this.closeYearReviewBook();
+        } else {
+            this.openYearReviewBook();
+        }
+    }
+
+    openYearReviewBook() {
+        this.isBookOpen = true;
+        if (this.yearReviewBook) {
+            this.yearReviewBook.classList.add('open');
+            this.yearReviewBook.setAttribute('aria-hidden', 'false');
+        }
+        if (this.yearReviewToggle) {
+            this.yearReviewToggle.classList.add('active');
+            this.yearReviewToggle.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    closeYearReviewBook() {
+        this.isBookOpen = false;
+        if (this.yearReviewBook) {
+            this.yearReviewBook.classList.remove('open');
+            this.yearReviewBook.setAttribute('aria-hidden', 'true');
+        }
+        if (this.yearReviewToggle) {
+            this.yearReviewToggle.classList.remove('active');
+            this.yearReviewToggle.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    turnReviewPage(direction) {
+        if (!this.reviewYears.length || this.isBookFlipping) return;
+
+        const nextIndex = (this.reviewIndex + direction + this.reviewYears.length) % this.reviewYears.length;
+        const nextPage = this.reviewYears[nextIndex];
+
+        this.animateBookFlip(direction, nextPage);
+
+        window.setTimeout(() => {
+            this.reviewIndex = nextIndex;
+            this.renderYearReviewBook();
+        }, 260);
+    }
+
+    animateBookFlip(direction, nextPage) {
+        if (!this.yearReviewBook) return;
+
+        this.yearReviewBook.classList.remove('flip-forward', 'flip-back');
+        this.isBookFlipping = true;
+
+        if (this.bookTurnYear && nextPage) {
+            this.bookTurnYear.textContent = nextPage.year;
+        }
+
+        void this.yearReviewBook.offsetWidth;
+        this.yearReviewBook.classList.add(direction > 0 ? 'flip-forward' : 'flip-back');
+
+        window.setTimeout(() => {
+            if (this.yearReviewBook) {
+                this.yearReviewBook.classList.remove('flip-forward', 'flip-back');
+            }
+            this.isBookFlipping = false;
+        }, 720);
+    }
+
+    async viewReviewYear() {
+        const page = this.reviewYears[this.reviewIndex];
+        if (!page) return;
+
+        this.selectedYear = Number(page.year) || this.currentYear;
+        this.isReviewMode = this.selectedYear !== this.currentYear;
+        await this.fetchVisitorData(this.selectedYear);
+        if (this.demoYearsEnabled && !this.visitors.length && page.isDemo) {
+            this.visitors = this.createDemoVisitors(this.selectedYear, Number(page.leafCount) || 36);
+        }
+        this.updateTreeHeading();
+        this.renderYearReviewBook();
+        this.refreshTree();
+    }
+
+    async viewLiveYear() {
+        this.selectedYear = this.currentYear;
+        this.isReviewMode = false;
+        await this.fetchVisitorData(this.currentYear);
+        this.updateTreeHeading();
+        this.refreshTree();
+        this.renderYearReviewBook();
+    }
+
+    updateTreeHeading() {
+        if (this.treeTitle) {
+            this.treeTitle.textContent = this.isReviewMode
+                ? `${this.selectedYear} ESG Tree Review`
+                : '🌳 ESG Digital Tree';
+        }
+
+        if (this.treeSubtitle) {
+            this.treeSubtitle.textContent = this.isReviewMode
+                ? `Completed yearly tree with ${this.visitors.length} contribution${this.visitors.length === 1 ? '' : 's'}`
+                : `Growing with every visitor's contribution in ${this.currentYear}`;
+        }
+    }
+
+    renderYearReviewBook() {
+        if (!this.yearReviewBook || !this.bookYear || !this.bookCount || !this.reviewTreePreview) return;
+
+        const page = this.reviewYears[this.reviewIndex] || {
+            year: this.currentYear,
+            leafCount: this.visitors.length,
+            isCurrentYear: true
+        };
+        const leafCount = Number(page.leafCount) || 0;
+
+        this.bookYear.textContent = page.year;
+        this.bookCount.textContent = `${leafCount} ${leafCount === 1 ? 'leaf' : 'leaves'}`;
+        this.reviewTreePreview.innerHTML = '';
+
+        const dotCount = Math.min(leafCount, 90);
+        for (let i = 0; i < dotCount; i++) {
+            const dot = document.createElement('span');
+            dot.className = 'review-leaf-dot';
+            const random = this.createSeededRandom(`${page.year}|review-dot|${i}`);
+            const angle = random() * Math.PI * 2;
+            const radius = Math.sqrt(random());
+            const x = 50 + Math.cos(angle) * radius * 33;
+            const y = 35 + Math.sin(angle) * radius * 22;
+
+            dot.style.left = `${x}%`;
+            dot.style.top = `${y}%`;
+            this.reviewTreePreview.appendChild(dot);
+        }
+
+        if (this.bookViewButton) {
+            this.bookViewButton.textContent = Number(page.year) === this.currentYear ? 'View Live' : 'View Tree';
+        }
+
+        if (this.bookLiveButton) {
+            this.bookLiveButton.classList.toggle('active', !this.isReviewMode);
+        }
+    }
+
+    createDemoVisitors(year, count) {
+        const badgeKeys = Object.keys(this.badgeLeafProfiles);
+        return Array.from({ length: count }, (_, index) => {
+            const badgeKey = badgeKeys[index % badgeKeys.length];
+            const month = String((index % 12) + 1).padStart(2, '0');
+            const day = String((index % 26) + 1).padStart(2, '0');
+
+            return {
+                id: `demo-${year}-${index + 1}`,
+                name: `Visitor ${index + 1}`,
+                visit_count: 1 + (index % 4),
+                created_at: `${year}-${month}-${day}T10:00:00.000Z`,
+                isVip: false,
+                badgeKey,
+                badgeName: this.badgeLeafProfiles[badgeKey].label,
+                badgeColor: '',
+                pledgeTopic: ''
+            };
+        });
     }
 
     // ==================== VISUALIZATION ====================
@@ -561,10 +849,15 @@ window.addEventListener('load', () => {
 
 setInterval(() => {
     if (treeManager) {
+        const yearToRefresh = treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear;
+
         Promise.all([
             treeManager.fetchVipNames(),
-            treeManager.fetchVisitorData()
+            treeManager.fetchYearReviewData(),
+            treeManager.fetchVisitorData(yearToRefresh)
         ]).then(() => {
+            treeManager.updateTreeHeading();
+            treeManager.renderYearReviewBook();
             treeManager.refreshTree();
         });
     }
