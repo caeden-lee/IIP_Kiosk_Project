@@ -39,6 +39,8 @@
 //    function loadKioskParameters     - Fetch admin-configured text and visual parameters (DONE BY CAEDEN)
 //    function applyParameterOverrides - Apply editable English prompts, thank-you text and feedback background (DONE BY CAEDEN)
 //    function loadOverlayOptions      - Preselect configured default overlay after parameter load (DONE BY CAEDEN)
+//    feature flags                    - Toggle pledge, capture, upload, beauty filter and social share UI (DONE BY CAEDEN)
+//    validation rules                 - Centralize details, pledge and photo upload validation from config (DONE BY CAEDEN)
 //
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -911,6 +913,10 @@ function getQuestionType(questionElement) {
 
 // Validate that all required questions are answered
 function validateRequiredQuestions() {
+    if (getValidationRules().requiredQuestionsEnabled === false) {
+        return true;
+    }
+
     const requiredQuestions = document.querySelectorAll('#questions-container .question-group[data-question-id]');
     
     for (const question of requiredQuestions) {
@@ -1016,6 +1022,11 @@ function submitFeedback(event) {
         return;
     }
     
+    if (getFeatureFlags().pledgeEnabled === false) {
+        skipPledge();
+        return;
+    }
+
     showFlowPage('pledge-page');
     resetInactivityTimer();
 }
@@ -1024,22 +1035,33 @@ function submitFeedback(event) {
 function submitDetails(event) {
     event.preventDefault();
     clearValidationMessages();
+    const rules = getValidationRules();
     const nameInput = document.getElementById('user-name');
     const emailInput = document.getElementById('user-email');
     userData.name = nameInput.value.trim();
     userData.email = emailInput.value.trim();
     
-    if (!userData.name) {
+    if (rules.nameRequired !== false && !userData.name) {
         showFieldError('user-name', 'Please enter your name so we can add it to your submission.');
         return;
     }
 
-    if (!userData.email) {
+    if (userData.name && userData.name.length < Number(rules.nameMinLength || 0)) {
+        showFieldError('user-name', `Please enter at least ${rules.nameMinLength} characters.`);
+        return;
+    }
+
+    if (userData.name && userData.name.length > Number(rules.nameMaxLength || 9999)) {
+        showFieldError('user-name', `Please keep your name within ${rules.nameMaxLength} characters.`);
+        return;
+    }
+
+    if (rules.emailRequired !== false && !userData.email) {
         showFieldError('user-email', 'Please enter your email so we can send your RP memory photo.');
         return;
     }
 
-    if (!emailInput.checkValidity()) {
+    if (userData.email && !matchesConfiguredPattern(userData.email, rules.emailPattern)) {
         showFieldError('user-email', 'Please enter a valid email address, for example name@example.com.');
         return;
     }
@@ -1049,13 +1071,48 @@ function submitDetails(event) {
 }
 
 function continueAfterPledgeChoice() {
+    const flags = getFeatureFlags();
+    const rules = getValidationRules();
+
+    if (flags.cameraCaptureEnabled === false && flags.photoUploadEnabled === false) {
+        if (rules.photoRequired !== false) {
+            showFormAlert('pledge-form-alert', 'Photo capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable capture.');
+            alert('Photo capture is currently disabled, but photo is still required.');
+            return;
+        }
+        showFlowPage('confirmation-page');
+        updateConfirmationDetails();
+        resetInactivityTimer();
+        return;
+    }
+
     // MOBILE: Use file upload instead of camera
     if (currentDevice === 'mobile') {
-        showFlowPage('file-upload-page');
+        if (flags.photoUploadEnabled === false) {
+            if (rules.photoRequired !== false) {
+                showFormAlert('pledge-form-alert', 'Mobile photo upload is currently disabled. Please ask an administrator to disable the photo requirement or re-enable uploads.');
+                alert('Mobile photo upload is currently disabled, but photo is still required.');
+                return;
+            }
+            showFlowPage('confirmation-page');
+            updateConfirmationDetails();
+        } else {
+            showFlowPage('file-upload-page');
+        }
     } else {
         // DESKTOP: Use camera as before
-        showFlowPage('photo-page');
-        initializeCamera();
+        if (flags.cameraCaptureEnabled === false) {
+            if (rules.photoRequired !== false) {
+                showFormAlert('pledge-form-alert', 'Desktop camera capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable camera capture.');
+                alert('Desktop camera capture is currently disabled, but photo is still required.');
+                return;
+            }
+            showFlowPage('confirmation-page');
+            updateConfirmationDetails();
+        } else {
+            showFlowPage('photo-page');
+            initializeCamera();
+        }
     }
 
     resetInactivityTimer();
@@ -1066,16 +1123,27 @@ function continueAfterPledgeChoice() {
 function submitPledge(event) {
     event.preventDefault();
     clearValidationMessages();
+    const rules = getValidationRules();
     userData.pledge = document.getElementById('pledge-text').value.trim();
     userData.pledgeTopic = document.getElementById('pledge-topic').value;
     userData.pledgeSkipped = false;
 
-    if (!userData.pledge) {
+    if (rules.pledgeRequired !== false && !userData.pledge) {
         showFieldError('pledge-text', 'Write one short action you will try. You can also skip the pledge below.');
         return;
     }
 
-    if (!userData.pledgeTopic) {
+    if (userData.pledge && userData.pledge.length < Number(rules.pledgeMinLength || 0)) {
+        showFieldError('pledge-text', `Please write at least ${rules.pledgeMinLength} characters.`);
+        return;
+    }
+
+    if (userData.pledge && userData.pledge.length > Number(rules.pledgeMaxLength || 9999)) {
+        showFieldError('pledge-text', `Please keep your pledge within ${rules.pledgeMaxLength} characters.`);
+        return;
+    }
+
+    if (rules.pledgeTopicRequired !== false && !userData.pledgeTopic) {
         showFieldError('pledge-topic', 'Choose your sustainability focus before continuing.');
         return;
     }
@@ -1104,20 +1172,23 @@ function skipPledge() {
 // Handle photo upload from file input (mobile) - with face detection validation (Done by Yu Kang)
 async function handlePhotoUpload(event) {
     const file = event.target.files[0];
+    const rules = getValidationRules();
+    const allowedFormats = rules.allowedPhotoFormats || ['jpeg', 'jpg', 'png', 'webp'];
+    const maxPhotoFileSizeMb = Number(rules.maxPhotoFileSizeMb) || 5;
 
     if (!file) {
         return;
     }
 
     // Validate it's an image file
-    if (!file.type.match('image.*')) {
-        alert('Please upload an image file (JPG, PNG, etc.)');
+    const fileExtension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!file.type.match('image.*') || !allowedFormats.includes(fileExtension)) {
+        alert(`Please upload an allowed image file (${allowedFormats.join(', ')}).`);
         return;
     }
 
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('File is too large. Please upload an image smaller than 5MB.');
+    if (file.size > maxPhotoFileSizeMb * 1024 * 1024) {
+        alert(`File is too large. Please upload an image smaller than ${maxPhotoFileSizeMb}MB.`);
         return;
     }
 
@@ -1417,6 +1488,10 @@ function toggleBeautyFilter() {
 
 // Initialize camera with mobile device check
 async function initializeCamera() {
+    if (getFeatureFlags().cameraCaptureEnabled === false) {
+        return;
+    }
+
     // Don't initialize camera for mobile users
     if (currentDevice === 'mobile') {
         return;
@@ -1467,8 +1542,19 @@ async function initializeCamera() {
 
 // Capture photo with countdown timer (desktop) or redirect to upload (mobile)
 async function capturePhoto() {
+    const flags = getFeatureFlags();
+
+    if (flags.cameraCaptureEnabled === false && currentDevice !== 'mobile') {
+        showFormAlert('photo-form-alert', 'Camera capture is currently disabled.');
+        return;
+    }
+
     // For mobile, redirect to file upload
     if (currentDevice === 'mobile') {
+        if (flags.photoUploadEnabled === false) {
+            showFormAlert('photo-form-alert', 'Photo upload is currently disabled.');
+            return;
+        }
         showFlowPage('file-upload-page');
         resetInactivityTimer();
         return;
@@ -2075,6 +2161,12 @@ function updateConfirmationDetails() {
     document.getElementById('confirm-pledge').textContent = userData.pledgeSkipped ? 'Skipped - Feedback Contributor badge' : (userData.pledge || 'Not provided');
     document.getElementById('confirm-theme').textContent = selectedTheme;
     document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : '7 Days';
+    const photoReady = document.getElementById('confirm-photo-ready');
+    const emailPhotoReady = document.getElementById('confirm-email-photo-ready');
+    if (!photoData && !userData.processedPhoto) {
+        if (photoReady) photoReady.textContent = 'Not required';
+        if (emailPhotoReady) emailPhotoReady.textContent = getFeatureFlags().thankYouEmailEnabled === false ? 'Disabled' : 'No photo to send';
+    }
     
     // Show how many questions were answered
     const answeredCount = Object.keys(userData.answers || {}).length;
@@ -2128,6 +2220,13 @@ function finalSubmit() {
         });
     }).then(response => response.json())
     .then(data => {
+        if (data.success === false) {
+            const validationMessage = Array.isArray(data.errors)
+                ? data.errors.map(error => error.message).join('\n')
+                : (data.message || 'Submission validation failed.');
+            throw new Error(validationMessage);
+        }
+
         console.log('Feedback submitted successfully:', data);
         const submissionData = data.data || data;
         
@@ -2261,6 +2360,11 @@ function setupSocialShare(data) {
     const shareSection = document.getElementById('thankyou-share-section');
     const shareStatus = document.getElementById('thankyou-share-status');
     if (!shareSection || !shareStatus) return;
+
+    if (getFeatureFlags().socialSharingEnabled === false) {
+        shareSection.style.display = 'none';
+        return;
+    }
 
     // Configure the share section only after badge email status is known - done by XY
     const emailStatusText = data?.badgeEmailSent
@@ -2473,9 +2577,32 @@ async function loadKioskParameters() {
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
     const assets = kioskParameters.visualAssets || {};
+    const flags = getFeatureFlags();
+    const rules = getValidationRules();
 
     if (assets.feedbackBackground) {
         document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
+    }
+
+    const pledgePage = document.getElementById('pledge-page');
+    if (pledgePage) pledgePage.dataset.featureEnabled = String(flags.pledgeEnabled !== false);
+
+    const photoPage = document.getElementById('photo-page');
+    if (photoPage) photoPage.dataset.featureEnabled = String(flags.cameraCaptureEnabled !== false);
+
+    const uploadPage = document.getElementById('file-upload-page');
+    if (uploadPage) uploadPage.dataset.featureEnabled = String(flags.photoUploadEnabled !== false);
+
+    const photoInput = document.getElementById('photo-input');
+    if (photoInput && Array.isArray(rules.allowedPhotoFormats)) {
+        photoInput.accept = rules.allowedPhotoFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`).join(',');
+    }
+
+    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
+    if (beautyFilterBtn) {
+        beautyFilterBtn.style.display = flags.beautyFilterEnabled === false ? 'none' : '';
+        beautyFilterEnabled = flags.beautyFilterEnabled !== false && beautyFilterEnabled;
+        updateBeautyFilterButton();
     }
 
     if (currentLanguage === 'en') {
@@ -2486,6 +2613,48 @@ function applyParameterOverrides() {
         setText('thankyou-title', messages.thankYouTitle);
         setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
         setText('thankyou-footer-text', messages.thankYouFooter);
+    }
+}
+
+function getFeatureFlags() {
+    // Feature toggles loaded from admin-controlled parameter config (DONE BY CAEDEN)
+    return {
+        cameraCaptureEnabled: true,
+        photoUploadEnabled: true,
+        beautyFilterEnabled: true,
+        pledgeEnabled: true,
+        badgeEmailEnabled: true,
+        thankYouEmailEnabled: true,
+        socialSharingEnabled: true,
+        ...(kioskParameters.featureFlags || {})
+    };
+}
+
+function getValidationRules() {
+    // Centralized validation rules loaded from admin-controlled parameter config (DONE BY CAEDEN)
+    return {
+        nameRequired: true,
+        nameMinLength: 2,
+        nameMaxLength: 80,
+        emailRequired: true,
+        emailPattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+        requiredQuestionsEnabled: true,
+        pledgeRequired: true,
+        pledgeMinLength: 5,
+        pledgeMaxLength: 500,
+        pledgeTopicRequired: true,
+        photoRequired: true,
+        maxPhotoFileSizeMb: 5,
+        allowedPhotoFormats: ['jpeg', 'jpg', 'png', 'webp'],
+        ...(kioskParameters.validationRules || {})
+    };
+}
+
+function matchesConfiguredPattern(value, pattern) {
+    try {
+        return new RegExp(pattern).test(value);
+    } catch (error) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     }
 }
 

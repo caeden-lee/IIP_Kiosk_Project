@@ -23,7 +23,7 @@
 
   1. PARAMETER ADJUSTMENT ADMIN PANEL
      nav item                         - Added Parameter Adjustment entry in admin sidebar (DONE BY CAEDEN)
-     div#parameter-adjustment-page    - Added editable tabs for messages, email content, tree, photo and visual assets (DONE BY CAEDEN)
+     div#parameter-adjustment-page    - Added editable tabs for feature toggles, validation rules, messages, email content, tree, photo and visual assets (DONE BY CAEDEN)
      upload/background controls       - Added UI for selecting overlay default and uploading feedback backgrounds (DONE BY CAEDEN)
 
   FIND COMMAND
@@ -1697,6 +1697,12 @@
                         <button class="param-tab" onclick="switchParameterTab('email-tab')">
                             <span class="tab-icon">Mail</span> Email Content
                         </button>
+                        <button class="param-tab" onclick="switchParameterTab('features-tab')">
+                            <span class="tab-icon">Flags</span> Feature Toggles
+                        </button>
+                        <button class="param-tab" onclick="switchParameterTab('validation-tab')">
+                            <span class="tab-icon">Rules</span> Validation Rules
+                        </button>
                         <button class="param-tab" onclick="switchParameterTab('tree-tab')">
                             <span class="tab-icon">🌳</span> Tree Parameters
                         </button>
@@ -1800,6 +1806,81 @@
                                 <label for="param-footerNote">Footer Note</label>
                                 <input type="text" id="param-footerNote" maxlength="220">
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Feature Toggles Tab (DONE BY CAEDEN) -->
+                    <div id="features-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Feature Toggles</h3>
+                            <p class="section-description">Enable or disable kiosk features without changing code</p>
+                        </div>
+
+                        <div class="parameter-toggle-grid">
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-cameraCaptureEnabled"><span><strong>Desktop Camera Capture</strong><small>Use live video camera capture on desktop kiosks</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-photoUploadEnabled"><span><strong>Mobile Photo Upload</strong><small>Allow mobile visitors to upload or take a photo through the file picker</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-beautyFilterEnabled"><span><strong>Beauty Filter</strong><small>Show and apply the photo smoothing controls</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-pledgeEnabled"><span><strong>Pledge Step</strong><small>Ask visitors to make a pledge before photo capture</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-badgeEmailEnabled"><span><strong>Badge Email</strong><small>Send badge reward emails during feedback submission</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-thankYouEmailEnabled"><span><strong>Photo Thank You Email</strong><small>Send the visitor photo thank-you email after database save</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-socialSharingEnabled"><span><strong>Social Sharing</strong><small>Show the thank-you page social sharing controls</small></span></label>
+                        </div>
+                    </div>
+
+                    <!-- Validation Rules Tab (DONE BY CAEDEN) -->
+                    <div id="validation-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Data Validation Rules</h3>
+                            <p class="section-description">Central rules used by the feedback form and backend submission checks</p>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rule-nameMinLength">Name Minimum Length</label>
+                                <input type="number" id="rule-nameMinLength" min="0" max="50" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="rule-nameMaxLength">Name Maximum Length</label>
+                                <input type="number" id="rule-nameMaxLength" min="1" max="200" step="1">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rule-emailPattern">Email Pattern</label>
+                            <input type="text" id="rule-emailPattern" placeholder="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$">
+                            <small class="text-muted">JavaScript regular expression used by frontend and backend validation</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rule-pledgeMinLength">Pledge Minimum Length</label>
+                                <input type="number" id="rule-pledgeMinLength" min="0" max="200" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="rule-pledgeMaxLength">Pledge Maximum Length</label>
+                                <input type="number" id="rule-pledgeMaxLength" min="1" max="2000" step="1">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rule-maxPhotoFileSizeMb">Max Photo File Size (MB)</label>
+                                <input type="number" id="rule-maxPhotoFileSizeMb" min="1" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="rule-allowedPhotoFormats">Allowed Photo Formats</label>
+                                <input type="text" id="rule-allowedPhotoFormats" placeholder="jpeg,jpg,png,webp">
+                                <small class="text-muted">Comma-separated extensions</small>
+                            </div>
+                        </div>
+
+                        <div class="parameter-toggle-grid compact">
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-nameRequired"><span><strong>Name Required</strong></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-emailRequired"><span><strong>Email Required</strong></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-requiredQuestionsEnabled"><span><strong>Required Questions Enforced</strong></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-pledgeRequired"><span><strong>Pledge Required</strong></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-pledgeTopicRequired"><span><strong>Pledge Topic Required</strong></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="rule-photoRequired"><span><strong>Photo Required</strong></span></label>
                         </div>
                     </div>
 

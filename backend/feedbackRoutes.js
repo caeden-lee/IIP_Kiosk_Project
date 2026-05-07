@@ -6,6 +6,14 @@
 //  - Added badge email sending into the feedback submission path.
 //  - Sends the badge email before the API response so the frontend can show accurate badge status.
 //  - Supports the thank-you page social sharing state based on badge email success or failure.
+//
+// CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
+// ============================================================
+// - Added admin-configurable feature flag checks for badge email and thank-you email sending. (DONE BY CAEDEN)
+// - Added centralized validation rule enforcement for feedback submissions. (DONE BY CAEDEN)
+//
+// FIND COMMAND
+//   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // 
 // 1. DEPENDENCIES & CONFIGURATION
 //    const express                    - Express framework import (DONE BY PRETI)
@@ -60,6 +68,8 @@ const os = require('os');
 const db = require('./db'); // Import database connection
 const emailService = require('./emailService');
 const auth = require('./auth');
+const parametersConfigStore = require('./parametersConfigStore');
+const { validateFeedbackSubmission } = require('./validationRules');
 const sharp = require('sharp');
 const { pipeline } = require('@xenova/transformers');
 
@@ -320,6 +330,15 @@ router.get('/questions', (req, res) => {
 router.post('/save-photo', (req, res) => {
     try {
         const { photo, userName, device } = req.body;
+        // Enforce capture feature flags and photo size validation before saving raw photos (DONE BY CAEDEN)
+        const { featureFlags, validationRules } = parametersConfigStore.readParametersConfig();
+        const captureEnabled = device === 'mobile'
+            ? featureFlags.photoUploadEnabled !== false
+            : featureFlags.cameraCaptureEnabled !== false;
+
+        if (!captureEnabled) {
+            return res.status(403).json({ error: 'Photo capture is disabled by feature flag' });
+        }
         
         if (!photo) {
             return res.status(400).json({ error: 'No photo data provided' });
@@ -328,6 +347,10 @@ router.post('/save-photo', (req, res) => {
         // Convert base64 to buffer
         const base64Data = photo.replace(/^data:image\/png;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
+        const maxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
+        if (buffer.length > maxBytes) {
+            return res.status(400).json({ error: `Photo exceeds ${validationRules.maxPhotoFileSizeMb || 5}MB limit` });
+        }
 
         // Generate filename with user name, device, and timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -358,6 +381,15 @@ router.post('/save-photo', (req, res) => {
 router.post('/save-processed-photo', (req, res) => {
     try {
         const { photo, userName, device, theme } = req.body;
+        // Enforce capture feature flags and photo size validation before saving processed photos (DONE BY CAEDEN)
+        const { featureFlags, validationRules } = parametersConfigStore.readParametersConfig();
+        const captureEnabled = device === 'mobile'
+            ? featureFlags.photoUploadEnabled !== false
+            : featureFlags.cameraCaptureEnabled !== false;
+
+        if (!captureEnabled) {
+            return res.status(403).json({ error: 'Photo processing is disabled by feature flag' });
+        }
         
         if (!photo) {
             return res.status(400).json({ error: 'No processed photo data provided' });
@@ -366,6 +398,10 @@ router.post('/save-processed-photo', (req, res) => {
         // Convert base64 to buffer
         const base64Data = photo.replace(/^data:image\/png;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
+        const maxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
+        if (buffer.length > maxBytes) {
+            return res.status(400).json({ error: `Processed photo exceeds ${validationRules.maxPhotoFileSizeMb || 5}MB limit` });
+        }
 
         // Generate filename for processed photo
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -437,6 +473,19 @@ router.post('/submit-feedback', async (req, res) => {
     
     try {
         const { userData, device, theme, retention } = req.body;
+        // Centralized feature flag and validation rule enforcement for feedback submission (DONE BY CAEDEN)
+        const parameterConfig = parametersConfigStore.readParametersConfig();
+        const featureFlags = parameterConfig.featureFlags || {};
+        const validationRules = parameterConfig.validationRules || {};
+        const validation = validateFeedbackSubmission(req.body, validationRules, featureFlags);
+
+        if (!validation.valid) {
+            return res.status(400).json({
+                success: false,
+                message: 'Feedback validation failed',
+                errors: validation.errors
+            });
+        }
         
         console.log('📝 Feedback submitted:', {
             userName: userData.name,
@@ -480,7 +529,7 @@ router.post('/submit-feedback', async (req, res) => {
         // If user provided a valid email, attempt badge email before returning response.
         // This ensures the user sees the share options only after badge email has been processed.
         // Added by XY: badge email send is performed before response so share UI can depend on success/failure.
-        if (userData.email && userData.email.includes('@')) {
+        if (featureFlags.badgeEmailEnabled !== false && userData.email && userData.email.includes('@')) {
             try {
                 const badgeResult = await emailService.sendBadgeEmail(userData.email, userData);
                 responseData.data.badgeEmailSent = badgeResult.success;
@@ -520,7 +569,7 @@ router.post('/submit-feedback', async (req, res) => {
                     console.log(`🔄 Database completed in ${bgTime}ms`);
                     
                     // Send thank-you email AFTER database is committed (only if photo exists)
-                    if (shouldQueueEmail && result && result.feedbackId) {
+                    if (featureFlags.thankYouEmailEnabled !== false && shouldQueueEmail && result && result.feedbackId) {
                         const photoToSend = userData.processedPhotoId || userData.photoId;
                         
                         console.log(`📧 Starting thank-you email for ${userData.email}...`);

@@ -7,7 +7,7 @@
 // CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 // ============================================================
 // - Added shared JSON-backed storage for editable feedback messages, thank-you email text,
-//   digital tree parameters, photo settings, overlay settings and visual assets. (DONE BY CAEDEN)
+//   feature flags, validation rules, digital tree parameters, photo settings, overlay settings and visual assets. (DONE BY CAEDEN)
 // - Added default merging so older config files receive newly introduced parameter categories. (DONE BY CAEDEN)
 //
 // FIND COMMAND
@@ -37,6 +37,32 @@ const DEFAULT_CONFIG = {
     thankYouClosing: "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
     senderName: "ESG Centre Team",
     footerNote: "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message."
+  },
+  // Feature toggles configurable from the admin panel (DONE BY CAEDEN)
+  featureFlags: {
+    cameraCaptureEnabled: true,
+    photoUploadEnabled: true,
+    beautyFilterEnabled: true,
+    pledgeEnabled: true,
+    badgeEmailEnabled: true,
+    thankYouEmailEnabled: true,
+    socialSharingEnabled: true
+  },
+  // Centralized validation rules configurable from the admin panel (DONE BY CAEDEN)
+  validationRules: {
+    nameRequired: true,
+    nameMinLength: 2,
+    nameMaxLength: 80,
+    emailRequired: true,
+    emailPattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+    requiredQuestionsEnabled: true,
+    pledgeRequired: true,
+    pledgeMinLength: 5,
+    pledgeMaxLength: 500,
+    pledgeTopicRequired: true,
+    photoRequired: true,
+    maxPhotoFileSizeMb: 5,
+    allowedPhotoFormats: ["jpeg", "jpg", "png", "webp"]
   },
   treeParameters: {
     ovalWidth: 850,
@@ -70,6 +96,8 @@ function mergeWithDefaults(config) {
     ...config,
     feedbackMessages: { ...DEFAULT_CONFIG.feedbackMessages, ...(config.feedbackMessages || {}) },
     emailContent: { ...DEFAULT_CONFIG.emailContent, ...(config.emailContent || {}) },
+    featureFlags: { ...DEFAULT_CONFIG.featureFlags, ...(config.featureFlags || {}) },
+    validationRules: { ...DEFAULT_CONFIG.validationRules, ...(config.validationRules || {}) },
     treeParameters: { ...DEFAULT_CONFIG.treeParameters, ...(config.treeParameters || {}) },
     photoSettings: { ...DEFAULT_CONFIG.photoSettings, ...(config.photoSettings || {}) },
     overlaySettings: { ...DEFAULT_CONFIG.overlaySettings, ...(config.overlaySettings || {}) },
