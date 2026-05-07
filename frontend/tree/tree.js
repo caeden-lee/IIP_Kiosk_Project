@@ -22,6 +22,11 @@
 //    leafGreenResetTime               - Turn badge-coloured leaves green after the configured daily reset time, default midnight (DONE BY XY)
 //    shouldLeafBeGreen()              - Keep VIP leaves gold while older badge leaves become green after reset time (DONE BY XY)
 //
+// 5. INTERACTIVE LEAF DETAILS
+//    bindLeafDetailControls()         - Close leaf detail card with button or Escape key (DONE BY XY)
+//    openLeafDetail()                 - Show visitor display name, badge, date and pledge snippet on leaf click (DONE BY XY)
+//    createLeaf()                     - Add click and keyboard handlers to each visible leaf (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 //
@@ -96,6 +101,13 @@ class TreeManager {
         this.bookCloseButton = document.getElementById('bookCloseButton');
         this.bookTurnSheet = document.getElementById('bookTurnSheet');
         this.bookTurnYear = document.getElementById('bookTurnYear');
+        this.leafDetailCard = document.getElementById('leafDetailCard');
+        this.leafDetailClose = document.getElementById('leafDetailClose');
+        this.leafDetailPrivacy = document.getElementById('leafDetailPrivacy');
+        this.leafDetailName = document.getElementById('leafDetailName');
+        this.leafDetailBadge = document.getElementById('leafDetailBadge');
+        this.leafDetailDate = document.getElementById('leafDetailDate');
+        this.leafDetailSnippet = document.getElementById('leafDetailSnippet');
 
         // Data
         this.visitors = [];
@@ -199,6 +211,7 @@ class TreeManager {
 
             // Load VIP list first, then visitors
             this.bindYearReviewControls();
+            this.bindLeafDetailControls();
             await this.fetchVipNames();
             await this.fetchYearReviewData();
             await this.fetchVisitorData(this.currentYear);
@@ -466,6 +479,58 @@ class TreeManager {
         }
     }
 
+    bindLeafDetailControls() {
+        if (this.leafDetailClose) {
+            this.leafDetailClose.addEventListener('click', () => this.closeLeafDetail());
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') this.closeLeafDetail();
+        });
+    }
+
+    formatLeafDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Date unavailable';
+        return date.toLocaleDateString('en-SG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+
+    openLeafDetail(visitor, badgeProfile) {
+        if (!this.leafDetailCard) return;
+
+        const badgeName = visitor.badgeName || badgeProfile.label || 'Feedback Contributor';
+        const snippet = visitor.pledgeSnippet || 'No pledge snippet was shared for this leaf.';
+
+        if (this.leafDetailPrivacy) {
+            this.leafDetailPrivacy.textContent = visitor.privacyLabel || 'Leaf details';
+        }
+        if (this.leafDetailName) {
+            this.leafDetailName.textContent = visitor.name || 'Anonymous visitor';
+        }
+        if (this.leafDetailBadge) {
+            this.leafDetailBadge.textContent = badgeName;
+        }
+        if (this.leafDetailDate) {
+            this.leafDetailDate.textContent = this.formatLeafDate(visitor.created_at);
+        }
+        if (this.leafDetailSnippet) {
+            this.leafDetailSnippet.textContent = snippet;
+        }
+
+        this.leafDetailCard.classList.add('active');
+        this.leafDetailCard.setAttribute('aria-hidden', 'false');
+    }
+
+    closeLeafDetail() {
+        if (!this.leafDetailCard) return;
+        this.leafDetailCard.classList.remove('active');
+        this.leafDetailCard.setAttribute('aria-hidden', 'true');
+    }
+
     toggleYearReviewBook() {
         if (this.isBookOpen) {
             this.closeYearReviewBook();
@@ -625,7 +690,10 @@ class TreeManager {
                 badgeKey,
                 badgeName: this.badgeLeafProfiles[badgeKey].label,
                 badgeColor: '',
-                pledgeTopic: ''
+                pledgeTopic: '',
+                pledgeSnippet: 'Demo pledge snippet for the yearly review tree.',
+                hasPublicName: false,
+                privacyLabel: 'Demo visitor'
             };
         });
     }
@@ -634,6 +702,7 @@ class TreeManager {
 
     createLeaves() {
         this.leavesContainer.innerHTML = '';
+        this.closeLeafDetail();
         const leafCycle = this.getLeafCycleState();
 
         const treeRect = this.treeImage.getBoundingClientRect();
@@ -853,7 +922,7 @@ class TreeManager {
         const visitorSeed = this.getVisitorSeed(visitor, index);
         const seededRandom = this.createSeededRandom(`${visitorSeed}|leaf`);
 
-        const isVip = this.isVipName(visitor.name);
+        const isVip = Boolean(visitor.isVip) || this.isVipName(visitor.name);
         if (isVip) {
             leaf.classList.add('vip');
         }
@@ -864,7 +933,10 @@ class TreeManager {
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
-        leaf.title = `${visitor.name || 'Visitor'} - ${visitor.badgeName || badgeProfile.label}`;
+        leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
+        leaf.setAttribute('role', 'button');
+        leaf.setAttribute('tabindex', '0');
+        leaf.setAttribute('aria-label', `View ${visitor.name || 'anonymous visitor'} leaf details`);
 
         const side = badgeProfile.preferredSide || (seededRandom() > 0.5
             ? 'LeftLeaf.png'
@@ -916,7 +988,7 @@ class TreeManager {
 
         const nameElement = document.createElement('div');
         nameElement.className = 'leaf-name';
-        nameElement.textContent = visitor.name || '';
+        nameElement.textContent = visitor.name || 'Anonymous';
         leaf.appendChild(nameElement);
 
         if (visitor.badgeName && !isVip) {
@@ -925,6 +997,17 @@ class TreeManager {
             badgeElement.textContent = badgeProfile.shortLabel;
             leaf.appendChild(badgeElement);
         }
+
+        leaf.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.openLeafDetail(visitor, badgeProfile);
+        });
+        leaf.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.openLeafDetail(visitor, badgeProfile);
+            }
+        });
 
         this.leavesContainer.appendChild(leaf);
     }

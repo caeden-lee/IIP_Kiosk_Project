@@ -20,6 +20,15 @@
      param-leafFallDuration         - Added admin setting for smooth leaf falling animation duration (DONE BY XY)
      param-leafGreenResetTime       - Added admin time picker for daily badge-leaf green reset, default midnight (DONE BY XY)
 
+  5. CONSENT AND PLEDGE TEXT PARAMETERS
+     content-tab                    - Added admin tab for retention days and pledge example text (DONE BY XY)
+     param-temporaryRetentionDays   - Lets system admin change temporary retention duration from 7 days to another value (DONE BY XY)
+     param-pledgeExample fields     - Lets system admin edit the three visitor-facing pledge examples (DONE BY XY)
+
+  6. DAILY LEAVES AND PLEDGES DASHBOARD
+     dailyLeafPledgeChart           - Added dashboard chart for last 6 days of leaves and pledges (DONE BY XY)
+     daily-leaf-summary             - Added totals and handover-friendly daily count cards (DONE BY XY)
+
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 
@@ -265,6 +274,31 @@
                             </div>
                             <div class="chart-container">
                                 <canvas id="feedbackDistributionChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card daily-leaf-card">
+                            <div class="chart-header">
+                                <div>
+                                    <h3>Daily Leaves & Pledges</h3>
+                                    <p class="chart-subtitle">Last 6 days of tree growth and pledge activity</p>
+                                </div>
+                            </div>
+                            <div class="chart-container daily-leaf-chart-container">
+                                <canvas id="dailyLeafPledgeChart"></canvas>
+                            </div>
+                            <div class="daily-leaf-summary">
+                                <div class="daily-leaf-total">
+                                    <span>Total Leaves</span>
+                                    <strong id="daily-leaf-total">0</strong>
+                                </div>
+                                <div class="daily-leaf-total">
+                                    <span>Total Pledges</span>
+                                    <strong id="daily-pledge-total">0</strong>
+                                </div>
+                            </div>
+                            <div id="daily-leaf-list" class="daily-leaf-list">
+                                <p class="daily-leaf-empty">Loading daily leaf and pledge counts...</p>
                             </div>
                         </div>
                     </div>
@@ -1699,6 +1733,9 @@
                         <button class="param-tab active" onclick="switchParameterTab('feedback-tab')">
                             <span class="tab-icon">💬</span> Feedback Messages
                         </button>
+                        <button class="param-tab" onclick="switchParameterTab('content-tab')">
+                            <span class="tab-icon">Text</span> Consent & Pledge Text
+                        </button>
                         <button class="param-tab" onclick="switchParameterTab('email-tab')">
                             <span class="tab-icon">Mail</span> Email Content
                         </button>
@@ -1774,6 +1811,42 @@
                             <label for="param-pledgePrompt">Pledge Prompt</label>
                             <textarea id="param-pledgePrompt" placeholder="Pledge prompt..." maxlength="500" rows="3"></textarea>
                             <small class="text-muted">Message on pledge selection page</small>
+                        </div>
+                    </div>
+
+                    <!-- Consent & Pledge Text Tab -->
+                    <div id="content-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Consent & Pledge Text</h3>
+                            <p class="section-description">Edit the temporary retention duration and pledge examples shown to visitors</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-temporaryRetentionDays">Temporary Retention Duration (days)</label>
+                            <input type="number" id="param-temporaryRetentionDays" min="1" max="365" step="1" placeholder="7">
+                            <small class="text-muted">Visitor consent text and automatic cleanup will use this duration</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="parameter-field-heading">
+                            <h4>Pledge Examples</h4>
+                            <p>These three lines appear in the visitor pledge page as example pledge text.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-pledgeExample1">Pledge Example 1</label>
+                            <input type="text" id="param-pledgeExample1" maxlength="180" placeholder="Carry a reusable bottle and cutlery every day">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-pledgeExample2">Pledge Example 2</label>
+                            <input type="text" id="param-pledgeExample2" maxlength="180" placeholder="Sort waste properly and recycle whenever possible">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-pledgeExample3">Pledge Example 3</label>
+                            <input type="text" id="param-pledgeExample3" maxlength="180" placeholder="Reduce food waste by taking only what I can finish">
                         </div>
                     </div>
 

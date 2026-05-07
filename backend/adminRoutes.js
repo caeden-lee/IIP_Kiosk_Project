@@ -11,6 +11,15 @@
 //    emailService.ACTIVE_BADGE_KEYS   - Limit admin editor to Feedback Contributor plus 6 topic badges (DONE BY XY)
 //    auth.requireAdmin                - Protect badge email template API with system admin access (DONE BY XY)
 //
+// 3. DAILY LEAVES AND PLEDGES REPORTING
+//    GET /leaf-pledge-trends          - Return day-by-day leaf and pledge counts for admin dashboard (DONE BY XY)
+//    leaves count                     - Count active feedback submissions as digital tree leaves (DONE BY XY)
+//    pledges count                    - Count submissions with non-empty pledge text for each day (DONE BY XY)
+//
+// 4. PARAMETER CONTENT ADMIN API
+//    PUT /parameters                  - Save contentSettings such as retention days and pledge examples (DONE BY XY)
+//    auth.requireAdmin                - Restrict parameter edits to system admin users only (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 //
@@ -729,6 +738,79 @@ router.get('/visitor-trends', (req, res) => {
                 labels,
                 feedbackData
                 // No visitorData - feedback only
+            }
+        });
+    });
+});
+
+// Get daily digital tree leaf and pledge counts for admin handover/reporting.
+router.get('/leaf-pledge-trends', (req, res) => {
+    const days = Math.min(30, Math.max(1, Number(req.query.days) || 6));
+    console.log(`🌿 Fetching leaf and pledge trends for last ${days} days (SGT)...`);
+
+    const trendQuery = `
+        SELECT
+            DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+08:00'), '%Y-%m-%d') AS date,
+            COUNT(*) AS leaves,
+            SUM(CASE WHEN comment IS NOT NULL AND TRIM(comment) != '' THEN 1 ELSE 0 END) AS pledges
+        FROM feedback
+        WHERE DATE(CONVERT_TZ(created_at, '+00:00', '+08:00')) >= DATE(DATE_SUB(CONVERT_TZ(NOW(), '+00:00', '+08:00'), INTERVAL ? DAY))
+          AND is_active = 1
+          AND archive_status = 'not_archived'
+        GROUP BY DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+08:00'), '%Y-%m-%d')
+        ORDER BY date ASC
+    `;
+
+    db.pool.query(trendQuery, [days - 1], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching leaf and pledge trends:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        const rowMap = {};
+        (rows || []).forEach(row => {
+            const dateStr = row.date instanceof Date
+                ? `${row.date.getUTCFullYear()}-${String(row.date.getUTCMonth() + 1).padStart(2, '0')}-${String(row.date.getUTCDate()).padStart(2, '0')}`
+                : String(row.date || '').split(' ')[0];
+
+            rowMap[dateStr] = {
+                leaves: Number(row.leaves) || 0,
+                pledges: Number(row.pledges) || 0
+            };
+        });
+
+        const labels = [];
+        const dates = [];
+        const leafData = [];
+        const pledgeData = [];
+        const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
+        const sgtNow = new Date(Date.now() + SGT_OFFSET_MS);
+
+        for (let i = days - 1; i >= 0; i--) {
+            const sgtDate = new Date(sgtNow);
+            sgtDate.setUTCDate(sgtDate.getUTCDate() - i);
+
+            const dateStr = `${sgtDate.getUTCFullYear()}-${String(sgtDate.getUTCMonth() + 1).padStart(2, '0')}-${String(sgtDate.getUTCDate()).padStart(2, '0')}`;
+            const labelDate = new Date(`${dateStr}T00:00:00Z`);
+            const dayName = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
+            const dateLabel = labelDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const counts = rowMap[dateStr] || { leaves: 0, pledges: 0 };
+
+            dates.push(dateStr);
+            labels.push(`${dayName}\n${dateLabel}`);
+            leafData.push(counts.leaves);
+            pledgeData.push(counts.pledges);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                labels,
+                dates,
+                leafData,
+                pledgeData,
+                totalLeaves: leafData.reduce((sum, value) => sum + value, 0),
+                totalPledges: pledgeData.reduce((sum, value) => sum + value, 0)
             }
         });
     });
@@ -4851,14 +4933,17 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 
 // PUT /api/admin/parameters
 // Update all system parameters
-router.put('/parameters', auth.requireAuth, (req, res) => {
+router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
+    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid feedbackMessages format' });
+    }
+    if (contentSettings && typeof contentSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid contentSettings format' });
     }
     if (treeParameters && typeof treeParameters !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid treeParameters format' });
@@ -4887,6 +4972,7 @@ router.put('/parameters', auth.requireAuth, (req, res) => {
     
     // Update only provided categories
     if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
+    if (contentSettings) config.contentSettings = { ...config.contentSettings, ...contentSettings };
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
@@ -4916,7 +5002,7 @@ router.put('/parameters', auth.requireAuth, (req, res) => {
 
 // PUT /api/admin/parameters/:category
 // Update specific parameter category
-router.put('/parameters/:category', auth.requireAuth, (req, res) => {
+router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
   try {
     const { category } = req.params;
     const updates = req.body;

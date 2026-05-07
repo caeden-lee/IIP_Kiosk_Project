@@ -21,6 +21,15 @@
 //    collectParameterForm            - Save leaf fall threshold, duration and daily green reset time to tree parameters (DONE BY XY)
 //    param-leafGreenResetTime        - Store reset as a daily time instead of a millisecond delay (DONE BY XY)
 //
+// 5. CONSENT AND PLEDGE TEXT PARAMETERS
+//    populateParameterForm           - Load temporary retention days and editable pledge examples (DONE BY XY)
+//    collectParameterForm            - Save contentSettings for retention duration and pledge example text (DONE BY XY)
+//
+// 6. DAILY LEAVES AND PLEDGES DASHBOARD
+//    loadDailyLeafPledgeData          - Fetch last 6 days of leaf and pledge counts from admin API (DONE BY XY)
+//    createDailyLeafPledgeChart       - Render bar chart comparing leaves and pledges per day (DONE BY XY)
+//    updateDailyLeafPledgeSummary     - Render totals and daily handover summary cards (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 //
@@ -1440,6 +1449,7 @@ async function downloadAuditExcel() {
 // Global chart instances
 let visitorTrendsChart = null;
 let feedbackDistributionChart = null;
+let dailyLeafPledgeChart = null;
 let currentChartRange = 'week';
 
 // ==================== ENHANCED DASHBOARD DATA LOADING ====================
@@ -1721,6 +1731,7 @@ async function loadChartData() {
         console.log('📊 Loading REAL chart data from database...');
         await loadVisitorTrendsData();
         await loadFeedbackDistributionData();
+        await loadDailyLeafPledgeData();
     } catch (error) {
         console.error('❌ Error loading chart data:', error);
         showNotification('Failed to load chart data', 'error');
@@ -1794,6 +1805,28 @@ async function loadFeedbackDistributionData() {
     } catch (error) {
         console.error('❌ Error loading feedback distribution:', error);
         createEmptyFeedbackDistributionChart();
+    }
+}
+
+async function loadDailyLeafPledgeData() {
+    try {
+        console.log('Fetching daily leaf and pledge counts...');
+
+        const response = await fetch('/api/admin/leaf-pledge-trends?days=6');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+        if (data.success && data.data) {
+            createDailyLeafPledgeChart(data.data.labels, data.data.leafData, data.data.pledgeData);
+            updateDailyLeafPledgeSummary(data.data);
+            return;
+        }
+
+        throw new Error(data.error || 'Invalid daily leaf and pledge data');
+    } catch (error) {
+        console.error('Error loading daily leaf and pledge counts:', error);
+        createDailyLeafPledgeChart([], [], []);
+        updateDailyLeafPledgeSummary({ labels: [], leafData: [], pledgeData: [], totalLeaves: 0, totalPledges: 0 });
     }
 }
 
@@ -2026,6 +2059,117 @@ function createFeedbackDistributionChart(stats) {
     });
     
     console.log('✅ Feedback distribution chart created with REAL data');
+}
+
+function createDailyLeafPledgeChart(labels, leafData, pledgeData) {
+    const ctx = document.getElementById('dailyLeafPledgeChart');
+    if (!ctx) {
+        console.warn('dailyLeafPledgeChart canvas not found');
+        return;
+    }
+
+    if (dailyLeafPledgeChart) {
+        dailyLeafPledgeChart.destroy();
+    }
+
+    dailyLeafPledgeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Leaves',
+                    data: leafData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.72)',
+                    borderColor: 'rgb(22, 163, 74)',
+                    borderWidth: 1,
+                    borderRadius: 8
+                },
+                {
+                    label: 'Pledges',
+                    data: pledgeData,
+                    backgroundColor: 'rgba(14, 165, 233, 0.72)',
+                    borderColor: 'rgb(2, 132, 199)',
+                    borderWidth: 1,
+                    borderRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return ` ${context.dataset.label}: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateDailyLeafPledgeSummary(data) {
+    const totalLeavesEl = document.getElementById('daily-leaf-total');
+    const totalPledgesEl = document.getElementById('daily-pledge-total');
+    const listEl = document.getElementById('daily-leaf-list');
+
+    if (totalLeavesEl) totalLeavesEl.textContent = Number(data.totalLeaves || 0).toLocaleString();
+    if (totalPledgesEl) totalPledgesEl.textContent = Number(data.totalPledges || 0).toLocaleString();
+    if (!listEl) return;
+
+    const labels = data.labels || [];
+    const leafData = data.leafData || [];
+    const pledgeData = data.pledgeData || [];
+
+    if (!labels.length) {
+        listEl.innerHTML = '<p class="daily-leaf-empty">No daily leaf or pledge data available yet.</p>';
+        return;
+    }
+
+    listEl.innerHTML = labels.map((label, index) => {
+        const displayDate = escapeHtmlSafe(String(label).replace('\n', ' '));
+        const leaves = Number(leafData[index] || 0);
+        const pledges = Number(pledgeData[index] || 0);
+        return `
+            <div class="daily-leaf-item">
+                <div class="daily-leaf-date">${displayDate}</div>
+                <div class="daily-leaf-counts">
+                    <span>Leaves <strong>${leaves.toLocaleString()}</strong></span>
+                    <span>Pledges <strong>${pledges.toLocaleString()}</strong></span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Fallback for empty feedback distribution
@@ -10771,6 +10915,7 @@ function getNumberValue(id, fallback) {
 
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
+    const content = config.contentSettings || {};
     const email = config.emailContent || {};
     // Feature flags and centralized validation rules loaded into admin controls (DONE BY CAEDEN)
     const flags = config.featureFlags || {};
@@ -10788,6 +10933,13 @@ function populateParameterForm(config) {
     setInputValue('param-detailsPrompt', feedback.detailsPrompt);
     setInputValue('param-feedbackPrompt', feedback.feedbackPrompt);
     setInputValue('param-pledgePrompt', feedback.pledgePrompt);
+
+    const pledgeExamples = Array.isArray(content.pledgeExamples) ? content.pledgeExamples : [];
+    setInputValue('param-temporaryRetentionDays', content.temporaryRetentionDays || 7);
+    setInputValue('param-pledgeExample1', pledgeExamples[0] || 'Carry a reusable bottle and cutlery every day');
+    setInputValue('param-pledgeExample2', pledgeExamples[1] || 'Sort waste properly and recycle whenever possible');
+    setInputValue('param-pledgeExample3', pledgeExamples[2] || 'Reduce food waste by taking only what I can finish');
+
     setInputValue('param-thankYouSubject', email.thankYouSubject);
     setInputValue('param-thankYouIntro', email.thankYouIntro);
     setInputValue('param-thankYouClosing', email.thankYouClosing);
@@ -10846,6 +10998,14 @@ function collectParameterForm() {
             detailsPrompt: getInputValue('param-detailsPrompt'),
             feedbackPrompt: getInputValue('param-feedbackPrompt'),
             pledgePrompt: getInputValue('param-pledgePrompt')
+        },
+        contentSettings: {
+            temporaryRetentionDays: Math.min(365, Math.max(1, Number(getInputValue('param-temporaryRetentionDays')) || 7)),
+            pledgeExamples: [
+                getInputValue('param-pledgeExample1'),
+                getInputValue('param-pledgeExample2'),
+                getInputValue('param-pledgeExample3')
+            ].filter(Boolean)
         },
         emailContent: {
             thankYouSubject: getInputValue('param-thankYouSubject'),

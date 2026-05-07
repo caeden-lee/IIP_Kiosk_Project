@@ -1,4 +1,17 @@
 // ============================================================
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. ADMIN-CONFIGURABLE TEMPORARY RETENTION
+//    parametersConfigStore            - Read contentSettings from shared parameter config (DONE BY XY)
+//    getTemporaryRetentionDays        - Use admin-configured retention days instead of hardcoded 7 days (DONE BY XY)
+//    isExpired                        - Expire temporary feedback after configured number of days (DONE BY XY)
+//
+// FIND COMMAND
+//    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
+//
+// ============================================================
 // DATARETENTIONCLEANUP.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 // 
@@ -26,6 +39,13 @@
 const db = require('./db');
 const fs = require('fs');
 const path = require('path');
+const parametersConfigStore = require('./parametersConfigStore');
+
+function getTemporaryRetentionDays() {
+    const config = parametersConfigStore.readParametersConfig();
+    const days = Number(config.contentSettings?.temporaryRetentionDays);
+    return Number.isFinite(days) && days > 0 ? Math.round(days) : 7;
+}
 
 // =================== 2. CORE CLEANUP FUNCTIONS =================== 
 // Calculate if data has expired based on Singapore timezone
@@ -35,6 +55,7 @@ function isExpired(createdAt, retentionPeriod, feedbackId) {
     }
 
     if (retentionPeriod === '7days' || retentionPeriod === '7day') {
+        const retentionDays = getTemporaryRetentionDays();
         const created = new Date(createdAt);
 
         // Current time in Singapore timezone (UTC+8)
@@ -52,10 +73,10 @@ function isExpired(createdAt, retentionPeriod, feedbackId) {
 
         console.log(
             `📅 Checking: ID ${feedbackId ?? 'N/A'}, ` +
-            `Created: ${created.toLocaleDateString()}, Days old: ${daysDifference}`
+            `Created: ${created.toLocaleDateString()}, Days old: ${daysDifference}, Retention: ${retentionDays} days`
         );
 
-        return daysDifference >= 7;
+        return daysDifference >= retentionDays;
     }
 
     return false;

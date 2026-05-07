@@ -18,6 +18,11 @@
       .leaf.leaf-greenified           - Removes badge hue filters so reset badge leaves appear green (DONE BY XY)
       .leaf.leaf-cleared              - Hides fallen batches before the next pledge starts a new visible batch (DONE BY XY)
 
+   4. INTERACTIVE LEAF DETAIL CARD
+      .leaf                           - Makes leaves clickable and keyboard focusable for detail viewing (DONE BY XY)
+      .leaf-detail-card               - Styles side card for visitor display name, badge, date and pledge snippet (DONE BY XY)
+      .leaf-detail-close              - Styles close control for the detail card (DONE BY XY)
+
    FIND COMMAND
       rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
    ============================================================ */
@@ -101,7 +106,7 @@ body {
 .leaf {
     position: absolute;
     z-index: 10;
-    cursor: default;
+    cursor: pointer;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -110,6 +115,12 @@ body {
     transform: translate3d(0, 0, 0);
     transform-style: preserve-3d;
     contain: layout paint;
+}
+
+.leaf:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.95);
+    outline-offset: 4px;
+    border-radius: 50%;
 }
 
 .leaf.badge-feedback {
@@ -213,6 +224,10 @@ body {
     pointer-events: none;
 }
 
+#leavesContainer .leaf {
+    pointer-events: auto;
+}
+
 .leaf-name {
     position: absolute;
     top: 50%;
@@ -247,6 +262,84 @@ body {
     text-overflow: ellipsis;
     pointer-events: none;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.leaf-detail-card {
+    position: absolute;
+    right: 34px;
+    top: 140px;
+    z-index: 30;
+    width: min(340px, calc(100vw - 48px));
+    padding: 22px;
+    border: 1px solid rgba(187, 213, 196, 0.9);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 18px 46px rgba(15, 42, 27, 0.18);
+    color: #17412a;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.leaf-detail-card.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.leaf-detail-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: #e8f5ec;
+    color: #24583a;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.leaf-detail-kicker {
+    margin: 0 34px 8px 0;
+    color: #5c7a67;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.leaf-detail-card h2 {
+    margin: 0 0 12px;
+    color: #123520;
+    font-size: 24px;
+    line-height: 1.15;
+}
+
+.leaf-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.leaf-detail-meta span {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #e8f5ec;
+    color: #24583a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.leaf-detail-quote {
+    margin: 0;
+    color: #315842;
+    font-size: 15px;
+    line-height: 1.55;
 }
 
 /* =========================

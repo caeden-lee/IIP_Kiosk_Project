@@ -1,6 +1,23 @@
 /* admin.css - Admin Panel Styles */
 
 /* ============================================================
+XY CHANGE SUMMARY (DONE BY XY)
+============================================================
+
+1. CONSENT AND PLEDGE TEXT ADMIN UI
+   .parameter-field-heading          - Labels pledge example inputs clearly for handover users (DONE BY XY)
+
+2. DAILY LEAVES AND PLEDGES DASHBOARD
+   .daily-leaf-card                  - Styles full-width dashboard card for leaf and pledge counts (DONE BY XY)
+   .daily-leaf-summary               - Styles total leaves and total pledges summary blocks (DONE BY XY)
+   .daily-leaf-list                  - Styles day-by-day handover count cards (DONE BY XY)
+
+FIND COMMAND
+  rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+
+============================================================ */
+
+/* ============================================================
 CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 ============================================================
 
@@ -1028,6 +1045,85 @@ body {
     height: 300px;
 }
 
+.daily-leaf-card {
+    grid-column: 1 / -1;
+}
+
+.daily-leaf-chart-container {
+    height: 260px;
+}
+
+.daily-leaf-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.daily-leaf-total {
+    padding: 1rem;
+    border-radius: 12px;
+    background: var(--theme-bg-color);
+    border: 1px solid var(--theme-border-color);
+}
+
+.daily-leaf-total span {
+    display: block;
+    color: var(--color-muted);
+    font-size: 13px;
+    margin-bottom: 0.35rem;
+}
+
+.daily-leaf-total strong {
+    color: var(--theme-text-color);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.daily-leaf-list {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.daily-leaf-item {
+    padding: 0.85rem;
+    border: 1px solid var(--theme-border-color);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.daily-leaf-date {
+    color: var(--theme-text-color);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+}
+
+.daily-leaf-counts {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.daily-leaf-counts span {
+    display: flex;
+    justify-content: space-between;
+    color: var(--color-muted);
+    font-size: 12px;
+}
+
+.daily-leaf-counts strong {
+    color: var(--theme-text-color);
+}
+
+.daily-leaf-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
 /* Bottom Section */
 .dashboard-bottom-section {
     display: grid;
@@ -1299,6 +1395,10 @@ body {
     .quick-actions-grid {
         grid-template-columns: 1fr;
     }
+
+    .daily-leaf-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     
     .chart-header {
         flex-direction: column;
@@ -1319,6 +1419,11 @@ body {
     .status-card,
     .quick-actions-card {
         padding: 1rem;
+    }
+
+    .daily-leaf-summary,
+    .daily-leaf-list {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -5594,6 +5699,23 @@ input:checked + .slider:before {
 
 #parameter-adjustment-page .form-group textarea {
     resize: vertical;
+}
+
+#parameter-adjustment-page .parameter-field-heading {
+    margin: 18px 0 14px;
+}
+
+#parameter-adjustment-page .parameter-field-heading h4 {
+    margin: 0 0 6px;
+    color: #1f5136;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+#parameter-adjustment-page .parameter-field-heading p {
+    margin: 0;
+    color: #5f7466;
+    font-size: 14px;
 }
 
 .radio-group,
