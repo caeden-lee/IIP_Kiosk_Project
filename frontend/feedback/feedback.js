@@ -370,7 +370,7 @@ async function capturePhotoIfFaceDetected() {
         }
 
         updateFaceDetectionStatus('Face detected. Capturing photo...', 'success');
-        takePhoto(faceDetection); // pass face box into beauty filter done by nick
+        await takePhoto(faceDetection); // pass face box into beauty filter done by nick
         return true;
     } catch (error) {
         console.error('Face detection check failed:', error);
@@ -1108,12 +1108,13 @@ async function handlePhotoUpload(event) {
 
     const previewContainer = document.getElementById('photo-preview');
     const continueBtn = document.getElementById('upload-continue-btn');
+    const uploadFaceDetectionStatus = document.getElementById('upload-face-detection-status');
 
     // Reset preview state before validation.
     photoData = null;
     previewContainer.style.display = 'none';
     continueBtn.disabled = true;
-    updateFaceDetectionStatus('Checking uploaded photo for a face...', 'loading', 'upload-face-detection-status');
+    updateFaceDetectionStatus('Checking uploaded photo for a face...', 'loading', uploadFaceDetectionStatus);
 
     const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1122,7 +1123,7 @@ async function handlePhotoUpload(event) {
         reader.readAsDataURL(file);
     }).catch((error) => {
         alert(error.message);
-        updateFaceDetectionStatus('Could not read image. Please try again.', 'error', 'upload-face-detection-status');
+        updateFaceDetectionStatus('Could not read image. Please try again.', 'error', uploadFaceDetectionStatus);
         return null;
     });
 
@@ -1134,20 +1135,23 @@ async function handlePhotoUpload(event) {
         const faceDetection = await detectFaceInImageData(dataUrl); // reuse face box for upload beauty filter done by nick
         if (!faceDetection) {
             event.target.value = '';
-            updateFaceDetectionStatus('No face detected. Please retake and upload a clearer face photo.', 'error', 'upload-face-detection-status');
+            updateFaceDetectionStatus('No face detected. Please retake and upload a clearer face photo.', 'error', uploadFaceDetectionStatus);
             alert('No face detected. Please retake the photo and make sure your face is clearly visible.');
             return;
         }
 
-        // Apply beauty filter to uploaded mobile photos done by nick
+        /*
+        // Apply beauty filter and Xenova enhancement to uploaded mobile photos done by (nick & Yu Kang)
         const uploadedImage = await loadImageElement(dataUrl);
         photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
+        photoData = await enhancePhotoWithAI(photoData, 'upload-face-detection-status');
 
         const previewImg = document.getElementById('uploaded-photo-preview');
         previewImg.src = photoData;
         previewContainer.style.display = 'block';
         continueBtn.disabled = false;
-        updateFaceDetectionStatus('Face detected. Photo accepted.', 'success', 'upload-face-detection-status');
+        updateFaceDetectionStatus('Face detected. Photo accepted.', 'success', uploadFaceDetectionStatus);
+        */
 
         // Auto-scroll to show preview
         previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1160,7 +1164,7 @@ async function handlePhotoUpload(event) {
         photoData = null;
         previewContainer.style.display = 'none';
         continueBtn.disabled = true;
-        updateFaceDetectionStatus('Face detection failed. Please try again.', 'error', 'upload-face-detection-status');
+        updateFaceDetectionStatus('Face detection failed. Please try again.', 'error', uploadFaceDetectionStatus);
         alert(`Face detection failed: ${error.message}`);
     }
 }
@@ -1335,6 +1339,44 @@ function createBeautyFilteredPhotoDataUrl(image, faceDetection = null) {
     return canvas.toDataURL('image/png');
 }
 
+/*
+//Done by Yu Kang - Capture photo only when a face is detected, with AI enhancement
+async function enhancePhotoWithAI(photoDataUrl, statusElementId = 'face-detection-status') {
+    if (!photoDataUrl) {
+        return photoDataUrl;
+    }
+
+    updateFaceDetectionStatus('Enhancing lighting and background with Xenova AI...', 'loading', statusElementId);
+
+    try {
+        const response = await fetch('/api/feedback/enhance-photo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ photo: photoDataUrl })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.enhancedPhoto) {
+            if (data.aiUsed) {
+                updateFaceDetectionStatus('Xenova AI enhancement applied.', 'success', statusElementId);
+            } else {
+                updateFaceDetectionStatus('Lighting correction applied. AI focus enhancement was unavailable.', 'info', statusElementId);
+            }
+
+            return data.enhancedPhoto;
+        }
+
+        throw new Error(data.error || 'Enhancement service unavailable.');
+    } catch (error) {
+        console.error('AI enhancement failed:', error);
+        updateFaceDetectionStatus('AI enhancement failed. Using the captured photo as-is.', 'error', statusElementId);
+        return photoDataUrl;
+    }
+}*/
+
 // Beauty filter button state done by nick
 function updateBeautyFilterButton() {
     const video = document.getElementById('video');
@@ -1478,7 +1520,7 @@ async function capturePhoto() {
 }
 
 // Take photo from camera stream (desktop)
-function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
+async function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
     const video = document.getElementById('video');
     const canvas = document.getElementById('photo-canvas');
     
@@ -1498,6 +1540,7 @@ function takePhoto(faceDetection = null) { // face-aware beauty capture done by 
     
     // Convert canvas to data URL
     photoData = canvas.toDataURL('image/png');
+    //photoData = await enhancePhotoWithAI(photoData, 'face-detection-status');
     
     // Stop camera stream after taking photo
     if (stream) {

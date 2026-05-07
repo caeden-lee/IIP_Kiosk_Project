@@ -56,9 +56,12 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const db = require('./db'); // Import database connection
 const emailService = require('./emailService');
 const auth = require('./auth');
+const sharp = require('sharp');
+const { pipeline } = require('@xenova/transformers');
 
 // ==================== 1. DIRECTORY SETUP ====================
 // Ensure upload directories exist
@@ -72,7 +75,177 @@ if (!fs.existsSync(processedDir)) {
     fs.mkdirSync(processedDir, { recursive: true });
     console.log('Created processed directory:', processedDir);
 }
+/*
+//Done by Yu Kang
+// ==================== 2.5. AI IMAGE ENHANCEMENT ====================
+// Xenova background-aware enhancement used before overlay superimposition.
+let enhancementModelPromise = null;
 
+async function getEnhancementModel() {
+    if (!enhancementModelPromise) {
+        enhancementModelPromise = (async () => {
+            console.log('⏳ Loading Xenova object detection model for photo enhancement...');
+            const model = await pipeline('object-detection', 'Xenova/detr-resnet-50');
+            console.log('✅ Xenova enhancement model ready');
+            return model;
+        })().catch((error) => {
+            enhancementModelPromise = null;
+            throw error;
+        });
+    }
+
+    return enhancementModelPromise;
+}
+
+function pickBestPersonDetection(detections) {
+    if (!Array.isArray(detections) || detections.length === 0) {
+        return null;
+    }
+
+    const people = detections.filter((detection) => {
+        const label = String(detection.label || '').toLowerCase();
+        return label === 'person' && typeof detection.score === 'number' && detection.score >= 0.3;
+    });
+
+    if (people.length === 0) {
+        return null;
+    }
+
+    const getArea = (box) => {
+        if (!box) return 0;
+        if (typeof box.width === 'number' && typeof box.height === 'number') {
+            return box.width * box.height;
+        }
+        if (typeof box.xmin === 'number' && typeof box.xmax === 'number' && typeof box.ymin === 'number' && typeof box.ymax === 'number') {
+            return Math.max(0, box.xmax - box.xmin) * Math.max(0, box.ymax - box.ymin);
+        }
+        return 0;
+    };
+
+    return people.reduce((best, current) => {
+        return getArea(current.box) > getArea(best.box) ? current : best;
+    }, people[0]);
+}
+
+function normalizeDetectionBox(box, width, height) {
+    if (!box || !width || !height) {
+        return null;
+    }
+
+    const left = Math.max(0, Math.min(width, box.xmin ?? box.x ?? 0));
+    const top = Math.max(0, Math.min(height, box.ymin ?? box.y ?? 0));
+    const right = Math.max(left + 1, Math.min(width, box.xmax ?? (left + (box.width ?? 0))));
+    const bottom = Math.max(top + 1, Math.min(height, box.ymax ?? (top + (box.height ?? 0))));
+
+    return {
+        left,
+        top,
+        width: Math.max(1, right - left),
+        height: Math.max(1, bottom - top)
+    };
+}
+
+function buildSubjectMaskSvg(width, height, box) {
+    const padX = Math.round(box.width * 0.2);
+    const padY = Math.round(box.height * 0.22);
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const rx = Math.min(width / 2, box.width / 2 + padX);
+    const ry = Math.min(height / 2, box.height / 2 + padY);
+    const blur = Math.max(16, Math.round(Math.min(width, height) * 0.03));
+
+    return `
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="feather">
+                    <feGaussianBlur stdDeviation="${blur}" />
+                </filter>
+            </defs>
+            <rect width="100%" height="100%" fill="black" fill-opacity="0" />
+            <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="white" filter="url(#feather)" />
+        </svg>
+    `;
+}
+
+async function enhancePhotoWithXenova(sourceBuffer) {
+    const tempFilename = `enhance-${Date.now()}-${Math.random().toString(16).slice(2)}.png`;
+    const tempInputPath = path.join(os.tmpdir(), tempFilename);
+
+    const rotatedBuffer = await sharp(sourceBuffer).rotate().png().toBuffer();
+    await fs.promises.writeFile(tempInputPath, rotatedBuffer);
+
+    try {
+        const metadata = await sharp(rotatedBuffer).metadata();
+        const width = metadata.width;
+        const height = metadata.height;
+
+        const lightingEnhancedBuffer = await sharp(rotatedBuffer)
+            .normalize()
+            .modulate({ brightness: 1.12, saturation: 1.08 })
+            .sharpen({ sigma: 0.8 })
+            .png()
+            .toBuffer();
+
+        let detections = [];
+        try {
+            const detector = await getEnhancementModel();
+            detections = await detector(tempInputPath);
+        } catch (error) {
+            console.warn('⚠️ Xenova detection failed, using lighting-only enhancement:', error.message);
+        }
+
+        const personDetection = pickBestPersonDetection(detections);
+        if (!personDetection) {
+            return {
+                buffer: lightingEnhancedBuffer,
+                aiUsed: false,
+                subjectDetected: false,
+                model: 'Xenova/detr-resnet-50'
+            };
+        }
+
+        const subjectBox = normalizeDetectionBox(personDetection.box, width, height);
+        if (!subjectBox) {
+            return {
+                buffer: lightingEnhancedBuffer,
+                aiUsed: false,
+                subjectDetected: false,
+                model: 'Xenova/detr-resnet-50'
+            };
+        }
+
+        const blurredBackgroundBuffer = await sharp(lightingEnhancedBuffer)
+            .blur(18)
+            .png()
+            .toBuffer();
+
+        const maskBuffer = await sharp(Buffer.from(buildSubjectMaskSvg(width, height, subjectBox)))
+            .png()
+            .toBuffer();
+
+        const subjectOnlyBuffer = await sharp(lightingEnhancedBuffer)
+            .composite([{ input: maskBuffer, blend: 'dest-in' }])
+            .png()
+            .toBuffer();
+
+        const enhancedBuffer = await sharp(blurredBackgroundBuffer)
+            .composite([{ input: subjectOnlyBuffer, left: 0, top: 0 }])
+            .png()
+            .toBuffer();
+
+        return {
+            buffer: enhancedBuffer,
+            aiUsed: true,
+            subjectDetected: true,
+            subjectScore: personDetection.score,
+            subjectLabel: personDetection.label,
+            model: 'Xenova/detr-resnet-50'
+        };
+    } finally {
+        fs.promises.unlink(tempInputPath).catch(() => {});
+    }
+}
+*/
 // ==================== 2. QUESTION MANAGEMENT ROUTES ====================
 // Get active questions for feedback form
 router.get('/questions', (req, res) => {
@@ -219,6 +392,43 @@ router.post('/save-processed-photo', (req, res) => {
         res.status(500).json({ error: 'Failed to save processed photo' });
     }
 });
+
+/*
+//Done by Yu Kang
+// Enhance photo with Xenova AI before overlay superimposition
+router.post('/enhance-photo', async (req, res) => {
+    try {
+        const { photo } = req.body;
+
+        if (!photo || typeof photo !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: 'No photo data provided'
+            });
+        }
+
+        const base64Data = photo.replace(/^data:image\/\w+;base64,/, '');
+        const sourceBuffer = Buffer.from(base64Data, 'base64');
+
+        const result = await enhancePhotoWithXenova(sourceBuffer);
+
+        return res.json({
+            success: true,
+            enhancedPhoto: `data:image/png;base64,${result.buffer.toString('base64')}`,
+            aiUsed: result.aiUsed,
+            subjectDetected: result.subjectDetected,
+            subjectScore: result.subjectScore ?? null,
+            subjectLabel: result.subjectLabel ?? null,
+            model: result.model
+        });
+    } catch (error) {
+        console.error('❌ Error enhancing photo:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to enhance photo'
+        });
+    }
+});*/
 
 // ==================== 4. FEEDBACK SUBMISSION ROUTES ====================
 // Submit complete feedback with retention and email
