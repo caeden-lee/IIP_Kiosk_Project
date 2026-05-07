@@ -16,6 +16,11 @@
 //    Badge editor list              - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
 //    Removed inactive badges         - Eco Warrior and Commitment Champion removed from editor fallback list (DONE BY XY)
 //
+// 4. TREE LEAF FALL PARAMETER ADMIN
+//    populateParameterForm           - Load leaf fall threshold, duration and green reset time into admin controls (DONE BY XY)
+//    collectParameterForm            - Save leaf fall threshold, duration and daily green reset time to tree parameters (DONE BY XY)
+//    param-leafGreenResetTime        - Store reset as a daily time instead of a millisecond delay (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 //
@@ -10759,6 +10764,11 @@ function megabytesToBytes(value, fallbackMb) {
     return Math.max(1, Number.isFinite(number) ? number : fallbackMb) * 1024 * 1024;
 }
 
+function getNumberValue(id, fallback) {
+    const number = Number(getInputValue(id));
+    return Number.isFinite(number) ? number : fallback;
+}
+
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
     const email = config.emailContent || {};
@@ -10811,6 +10821,9 @@ function populateParameterForm(config) {
     setInputValue('param-leafRefreshInterval', tree.leafRefreshInterval);
     setInputValue('param-leafOpacity', tree.leafOpacity);
     setInputValue('param-leafAnimationDuration', tree.leafAnimationDuration);
+    setInputValue('param-leafFallThreshold', tree.leafFallThreshold);
+    setInputValue('param-leafFallDuration', tree.leafFallDuration);
+    setInputValue('param-leafGreenResetTime', tree.leafGreenResetTime || '00:00');
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
@@ -10870,10 +10883,13 @@ function collectParameterForm() {
         treeParameters: {
             ovalWidth: Number(getInputValue('param-ovalWidth')) || 850,
             ovalHeight: Number(getInputValue('param-ovalHeight')) || 300,
-            ovalTopOffset: Number(getInputValue('param-ovalTopOffset')) || -100,
-            leafRefreshInterval: Number(getInputValue('param-leafRefreshInterval')) || 30000,
-            leafOpacity: Number(getInputValue('param-leafOpacity')) || 0.9,
-            leafAnimationDuration: Number(getInputValue('param-leafAnimationDuration')) || 500
+            ovalTopOffset: getNumberValue('param-ovalTopOffset', -100),
+            leafRefreshInterval: getNumberValue('param-leafRefreshInterval', 30000),
+            leafOpacity: getNumberValue('param-leafOpacity', 0.9),
+            leafAnimationDuration: getNumberValue('param-leafAnimationDuration', 500),
+            leafFallThreshold: getNumberValue('param-leafFallThreshold', 15),
+            leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
+            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00'
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),

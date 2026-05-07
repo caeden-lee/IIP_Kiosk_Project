@@ -15,6 +15,11 @@
      badge editor UI                - Shows Feedback Contributor plus 6 pledge-topic badges only (DONE BY XY)
      removed inactive badges        - Eco Warrior and Commitment Champion hidden from admin editor (DONE BY XY)
 
+  4. TREE LEAF FALL PARAMETERS
+     param-leafFallThreshold        - Added admin setting for how many leaves trigger a falling batch (DONE BY XY)
+     param-leafFallDuration         - Added admin setting for smooth leaf falling animation duration (DONE BY XY)
+     param-leafGreenResetTime       - Added admin time picker for daily badge-leaf green reset, default midnight (DONE BY XY)
+
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 
@@ -1927,6 +1932,26 @@
                             <label for="param-leafAnimationDuration">Leaf Animation Duration (milliseconds)</label>
                             <input type="number" id="param-leafAnimationDuration" min="100" max="5000" step="100" placeholder="500">
                             <small class="text-muted">Duration of leaf appearance animation</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-leafFallThreshold">Leaf Fall Threshold</label>
+                            <input type="number" id="param-leafFallThreshold" min="1" max="500" step="1" placeholder="15">
+                            <small class="text-muted">Start the falling animation when the live tree reaches this many leaves</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafFallDuration">Leaf Fall Duration (milliseconds)</label>
+                            <input type="number" id="param-leafFallDuration" min="500" max="10000" step="100" placeholder="4200">
+                            <small class="text-muted">How long the falling animation takes</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafGreenResetTime">Turn Badge Leaves Green At</label>
+                            <input type="time" id="param-leafGreenResetTime" value="00:00">
+                            <small class="text-muted">Daily time when badge-coloured leaves become green (00:00 = midnight)</small>
                         </div>
                     </div>
 

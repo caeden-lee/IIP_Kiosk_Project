@@ -46,7 +46,10 @@
     "ovalTopOffset": -100,
     "leafRefreshInterval": 30000,
     "leafOpacity": 0.9,
-    "leafAnimationDuration": 500
+    "leafAnimationDuration": 500,
+    "leafFallThreshold": 15,
+    "leafFallDuration": 4200,
+    "leafGreenResetTime": "00:00"
   },
   "photoSettings": {
     "beautyFilterEnabled": true,

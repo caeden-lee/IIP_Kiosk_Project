@@ -2534,15 +2534,13 @@ async function applyFormUIConfig() {
     }
 
     // Apply landing page title
-    const titleElement = document.getElementById('form-landing-title');
-    if (titleElement && config.landingTitle) {
-      titleElement.textContent = config.landingTitle;
+    if (config.landingTitle) {
+      setText('form-landing-title', config.landingTitle);
     }
 
     // Apply landing page subtitle
-    const subtitleElement = document.getElementById('form-landing-subtitle');
-    if (subtitleElement && config.landingSubtitle) {
-      subtitleElement.textContent = config.landingSubtitle;
+    if (config.landingSubtitle) {
+      setText('form-landing-subtitle', config.landingSubtitle);
     }
 
     const qrEnabled = Boolean(config.showLandingPageQRCode);
@@ -3050,8 +3048,9 @@ const translations = {
 let currentLanguage = localStorage.getItem('kioskLanguage') || 'en';
 
 function setText(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
+    document.querySelectorAll(`#${id}`).forEach(el => {
+        el.textContent = value;
+    });
 }
 
 function setPlaceholder(id, value) {
