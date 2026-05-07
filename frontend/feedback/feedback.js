@@ -2257,6 +2257,32 @@ function goBackToDetails() {
     resetInactivityTimer();
 }
 
+// Home button reset from feedback form done by nick
+function goHomeFromFeedbackForm() {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    selectedRetention = null;
+    selectedTheme = 'nature';
+    userData = {};
+    photoData = null;
+
+    document.querySelectorAll('form').forEach(form => form.reset());
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+    const proceedBtn = document.getElementById('proceedBtn');
+    if (proceedBtn) proceedBtn.disabled = true;
+
+    const charCount = document.getElementById('char-count');
+    if (charCount) charCount.textContent = '0';
+
+    clearValidationMessages();
+    showLandingPages();
+    resetInactivityTimer();
+}
+
 // From Pledge to Feedback
 function goBackToFeedback() {
     showFlowPage('feedback-page');
@@ -2415,6 +2441,7 @@ const translations = {
         emailPlaceholder: "Enter your email",
         continueToFeedback: "Continue to Feedback",
         back: "Back",
+        home: "Home", // Home button translation done by nick
 
         feedbackTitle: "Share Your Feedback",
         feedbackDescription: "A few quick taps. Honest answers are perfect.",
@@ -2506,6 +2533,7 @@ const translations = {
         emailPlaceholder: "Masukkan e-mel anda",
         continueToFeedback: "Teruskan ke Maklum Balas",
         back: "Kembali",
+        home: "Home", // Home button translation done by nick
 
         feedbackTitle: "Kongsi Maklum Balas Anda",
         feedbackDescription: "Pandangan anda membantu kami menambah baik dan melayani anda dengan lebih baik",
@@ -2596,6 +2624,7 @@ const translations = {
         emailPlaceholder: "请输入您的电子邮件",
         continueToFeedback: "继续反馈",
         back: "返回",
+        home: "Home", // Home button translation done by nick
 
         feedbackTitle: "分享您的反馈",
         feedbackDescription: "您的意见帮助我们改进并更好地为您服务",
@@ -2686,6 +2715,7 @@ const translations = {
         emailPlaceholder: "உங்கள் மின்னஞ்சலை உள்ளிடவும்",
         continueToFeedback: "பின்னூட்டத்திற்கு தொடர்க",
         back: "பின்",
+        home: "Home", // Home button translation done by nick
 
         feedbackTitle: "உங்கள் பின்னூட்டத்தை பகிரவும்",
         feedbackDescription: "உங்கள் கருத்துக்கள் எங்களை மேம்படுத்தவும் உங்களுக்கு சிறப்பாக சேவை செய்யவும் உதவுகின்றன",
@@ -2810,6 +2840,7 @@ function applyTranslations() {
     setText('feedback-description', t.feedbackDescription);
     setText('continue-to-pledge-text', t.continueToPledge);
     setText('back-from-feedback-text', t.back);
+    setText('home-from-feedback-text', t.home); // Home button translation done by nick
 
     setText('pledge-title', t.pledgeTitle);
     setText('pledge-description', t.pledgeDescription);
