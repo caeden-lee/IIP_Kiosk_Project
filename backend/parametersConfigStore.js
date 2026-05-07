@@ -13,6 +13,18 @@
 // FIND COMMAND
 //   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+//
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+//
+// 1. TREE LEAF FALL PARAMETER DEFAULTS
+//    leafFallThreshold               - Default number of visible leaves before the batch falls from the tree (DONE BY XY)
+//    leafFallDuration                - Default smooth falling animation duration for tree leaves (DONE BY XY)
+//    leafGreenResetTime              - Default daily time for badge-coloured leaves to turn green, midnight by default (DONE BY XY)
+//
+// FIND COMMAND
+//   rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+// ============================================================
 
 const fs = require('fs');
 const path = require('path');
@@ -70,7 +82,10 @@ const DEFAULT_CONFIG = {
     ovalTopOffset: -100,
     leafRefreshInterval: 30000,
     leafOpacity: 0.9,
-    leafAnimationDuration: 500
+    leafAnimationDuration: 500,
+    leafFallThreshold: 15,
+    leafFallDuration: 4200,
+    leafGreenResetTime: "00:00"
   },
   photoSettings: {
     beautyFilterEnabled: true,

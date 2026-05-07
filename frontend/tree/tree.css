@@ -12,6 +12,12 @@
       @keyframes flipBack             - Animates backward yearly page turns (DONE BY XY)
       @keyframes pageShadowSweep      - Adds moving page shadow during flip (DONE BY XY)
 
+   3. LEAF FALL ANIMATION
+      .leaf.leaf-falling              - Applies smooth falling motion when a leaf batch reaches the threshold (DONE BY XY)
+      @keyframes leafFall             - Adds swaying, rotation, drifting and fade for tree-like leaf fall (DONE BY XY)
+      .leaf.leaf-greenified           - Removes badge hue filters so reset badge leaves appear green (DONE BY XY)
+      .leaf.leaf-cleared              - Hides fallen batches before the next pledge starts a new visible batch (DONE BY XY)
+
    FIND COMMAND
       rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
    ============================================================ */
@@ -100,6 +106,10 @@ body {
     background-repeat: no-repeat;
     background-position: center;
     filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    transform-style: preserve-3d;
+    contain: layout paint;
 }
 
 .leaf.badge-feedback {
@@ -132,6 +142,65 @@ body {
 
 .leaf.vip {
     filter: drop-shadow(0 8px 14px rgba(180, 132, 21, 0.42));
+}
+
+.leaf.leaf-falling {
+    animation-name: leafFall;
+    animation-duration: var(--leaf-fall-duration, 4200ms);
+    animation-delay: var(--leaf-fall-delay, 0ms);
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    transform-origin: 50% 28%;
+    will-change: transform, opacity;
+}
+
+.leaf.leaf-fallen {
+    transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) scale(0.86);
+}
+
+.leaf.leaf-cleared {
+    opacity: 0 !important;
+    visibility: hidden;
+    transition: opacity 420ms ease;
+}
+
+.leaf.leaf-greenified:not(.vip) {
+    filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+@keyframes leafFall {
+    0% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(0, 0, 0) rotate(0deg) rotateX(0deg) scale(1);
+    }
+    10% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(calc(var(--leaf-fall-sway-a, 32px) * 0.4), calc(var(--leaf-fall-distance, 420px) * 0.05), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.08)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.35)) scale(0.995);
+    }
+    22% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(var(--leaf-fall-sway-a, 32px), calc(var(--leaf-fall-distance, 420px) * 0.16), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.18)) rotateX(var(--leaf-fall-tilt, 14deg)) scale(0.985);
+    }
+    36% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(var(--leaf-fall-sway-b, -48px), calc(var(--leaf-fall-distance, 420px) * 0.30), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.34)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.8)) scale(0.965);
+    }
+    52% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.96);
+        transform: translate3d(var(--leaf-fall-sway-c, 28px), calc(var(--leaf-fall-distance, 420px) * 0.48), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.52)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.75)) scale(0.94);
+    }
+    68% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.9);
+        transform: translate3d(calc(var(--leaf-fall-drift, 0) * 0.62), calc(var(--leaf-fall-distance, 420px) * 0.67), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.72)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.5)) scale(0.91);
+    }
+    84% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.82);
+        transform: translate3d(calc(var(--leaf-fall-drift, 0) + var(--leaf-fall-sway-a, 32px) * 0.25), calc(var(--leaf-fall-distance, 420px) * 0.86), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.9)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.35)) scale(0.88);
+    }
+    100% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.72);
+        transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) rotateX(0deg) scale(0.86);
+    }
 }
 
 #leavesContainer {

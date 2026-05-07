@@ -438,6 +438,7 @@ async function buildSchoolImpactReport() {
         stats: {
             feedbackCount: rows.length,
             pledgeCount: 0,
+            feedbackOnlyCount: 0,
             approvedPledges: 0,
             pendingPledges: 0,
             rejectedPledges: 0,
@@ -459,6 +460,7 @@ async function buildSchoolImpactReport() {
     rows.forEach((row) => {
         const metadata = parseMetadata(row.metadata);
         const pledge = String(row.comment || '').trim();
+        const hasPledge = Boolean(pledge) && metadata.pledgeSkipped !== true;
         const status = metadata.pledgeStatus || 'approved';
         const createdAt = row.created_at ? new Date(row.created_at) : null;
 
@@ -466,7 +468,26 @@ async function buildSchoolImpactReport() {
             report.stats.photoSubmissions++;
         }
 
-        if (!pledge) return;
+        const groupName = getGroupFromMetadata(metadata);
+        if (!classCounts.has(groupName)) {
+            classCounts.set(groupName, {
+                group: groupName,
+                pledgeCount: 0,
+                feedbackCount: 0,
+                latestSubmission: row.created_at
+            });
+        }
+
+        const group = classCounts.get(groupName);
+        group.feedbackCount++;
+        if (!group.latestSubmission || new Date(row.created_at) > new Date(group.latestSubmission)) {
+            group.latestSubmission = row.created_at;
+        }
+
+        if (!hasPledge) {
+            report.stats.feedbackOnlyCount++;
+            return;
+        }
 
         report.stats.pledgeCount++;
         if (status === 'pending') report.stats.pendingPledges++;
@@ -481,22 +502,7 @@ async function buildSchoolImpactReport() {
         const topicLabel = topicLabels.get(topicValue) || (topicValue === 'not-selected' ? 'Not Selected' : topicValue);
         topicCounts.set(topicLabel, (topicCounts.get(topicLabel) || 0) + 1);
 
-        const groupName = getGroupFromMetadata(metadata);
-        if (!classCounts.has(groupName)) {
-            classCounts.set(groupName, {
-                group: groupName,
-                pledgeCount: 0,
-                feedbackCount: 0,
-                latestSubmission: row.created_at
-            });
-        }
-
-        const group = classCounts.get(groupName);
         group.pledgeCount++;
-        group.feedbackCount++;
-        if (!group.latestSubmission || new Date(row.created_at) > new Date(group.latestSubmission)) {
-            group.latestSubmission = row.created_at;
-        }
 
         if (status === 'approved' && report.samplePledges.length < 10) {
             report.samplePledges.push({
@@ -526,8 +532,9 @@ function generateSchoolImpactCSV(report) {
         ['Generated At', report.generatedAt],
         [],
         ['Summary Metric', 'Value'],
-        ['Feedback Count', report.stats.feedbackCount],
-        ['Pledge Count', report.stats.pledgeCount],
+        ['Feedback Submissions', report.stats.feedbackCount],
+        ['Feedback With Pledge Added', report.stats.pledgeCount],
+        ['Feedback Without Pledge', report.stats.feedbackOnlyCount],
         ['Approved Pledges', report.stats.approvedPledges],
         ['Pending Pledges', report.stats.pendingPledges],
         ['Rejected Pledges', report.stats.rejectedPledges],
@@ -569,8 +576,9 @@ function generateSchoolImpactPDF(report) {
     lines.push('');
 
     addSectionLines(lines, 'Summary', [
-        `Feedback count: ${report.stats.feedbackCount}`,
-        `Pledge count: ${report.stats.pledgeCount}`,
+        `Feedback submissions: ${report.stats.feedbackCount}`,
+        `Feedback with pledge added: ${report.stats.pledgeCount}`,
+        `Feedback without pledge: ${report.stats.feedbackOnlyCount}`,
         `Approved pledges: ${report.stats.approvedPledges}`,
         `Pending pledges: ${report.stats.pendingPledges}`,
         `Photo submissions: ${report.stats.photoSubmissions}`,
