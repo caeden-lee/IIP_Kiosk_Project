@@ -27,6 +27,11 @@
 //    temporaryRetentionDays          - Default temporary retention duration used by consent text and cleanup (DONE BY XY)
 //    pledgeExamples                  - Default visitor-facing pledge example lines (DONE BY XY)
 //
+// 3. THANK-YOU EMAIL VISIT SUMMARY DEFAULTS
+//    visitSummaryTitle               - Default title for the keepsake email visit summary card (DONE BY XY)
+//    visitSummary labels             - Default editable row labels for date, topic, badge, retention and tree message (DONE BY XY)
+//    visitSummaryTreeMessage         - Default digital tree message shown in thank-you email summary (DONE BY XY)
+//
 // FIND COMMAND
 //   rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -61,7 +66,14 @@ const DEFAULT_CONFIG = {
     thankYouIntro: "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
     thankYouClosing: "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
     senderName: "ESG Centre Team",
-    footerNote: "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message."
+    footerNote: "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.",
+    visitSummaryTitle: "Your Visit Summary",
+    visitSummaryDateLabel: "Visit date",
+    visitSummaryTopicLabel: "Pledge topic",
+    visitSummaryBadgeLabel: "Badge earned",
+    visitSummaryRetentionLabel: "Data retention",
+    visitSummaryTreeLabel: "Digital tree",
+    visitSummaryTreeMessage: "Your virtual leaf has been added to the RP ESG digital tree."
   },
   // Feature toggles configurable from the admin panel (DONE BY CAEDEN)
   featureFlags: {
