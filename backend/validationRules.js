@@ -6,8 +6,12 @@
 // - Added centralized validation helpers driven by admin-configurable validationRules. (DONE BY CAEDEN)
 // - Added server-side feature flag checks for photo, pledge and email-dependent flows. (DONE BY CAEDEN)
 //
+// XY CHANGE SUMMARY (DONE BY XY)
+// ============================================================
+// - Added server-side validation for temporary, legacy 7-day and long-term retention selections. (DONE BY XY)
+//
 // FIND COMMAND
-//   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+//   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY|DONE BY XY|XY CHANGE SUMMARY" frontend backend
 // ============================================================
 
 function getString(value) {
@@ -35,6 +39,7 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
   const pledgeTopic = getString(userData.pledgeTopic);
   const pledgeSkipped = Boolean(userData.pledgeSkipped);
   const hasPhoto = Boolean(userData.photoId || userData.processedPhotoId || userData.photo || userData.processedPhoto);
+  const retention = getString(payload?.retention).toLowerCase();
 
   if (isEnabled(validationRules.nameRequired) && !name) {
     errors.push({ field: 'name', message: 'Name is required.' });
@@ -77,6 +82,10 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
   const anyPhotoFeatureEnabled = isEnabled(featureFlags.cameraCaptureEnabled) || isEnabled(featureFlags.photoUploadEnabled);
   if (isEnabled(validationRules.photoRequired) && anyPhotoFeatureEnabled && !hasPhoto) {
     errors.push({ field: 'photo', message: 'Photo is required.' });
+  }
+
+  if (!['temporary', '7days', '7day', 'longterm', 'indefinite'].includes(retention)) {
+    errors.push({ field: 'retention', message: 'Data retention selection is required.' });
   }
 
   return {

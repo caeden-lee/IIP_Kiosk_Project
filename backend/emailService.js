@@ -7,6 +7,8 @@
 //  - Added admin-editable badge email template support.
 //  - Active badge flow now uses Feedback Contributor plus 6 pledge-topic badges only.
 //  - Visitors who skip pledge or submit no valid pledge topic receive Feedback Contributor.
+//  - Added photo thank-you email visit summary card with visit date, pledge topic, badge, retention and digital tree message.
+//  - Made visit summary card title, labels and tree message editable from admin email parameters.
 //  - Find command: rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
 
@@ -739,6 +741,66 @@ function formatTopic(topic) {
         .join(' ');
 }
 
+function formatVisitDate(value) {
+    const date = value ? new Date(value) : new Date();
+
+    if (Number.isNaN(date.getTime())) {
+        return new Date().toLocaleString('en-SG', {
+            timeZone: 'Asia/Singapore',
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    }
+
+    return date.toLocaleString('en-SG', {
+        timeZone: 'Asia/Singapore',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+}
+
+function formatRetentionSummary(retention, retentionDays) {
+    const normalized = String(retention || '').toLowerCase();
+    const days = Number(retentionDays);
+
+    if (normalized === 'temporary' || normalized === '7days' || normalized === '7day') {
+        const safeDays = Number.isFinite(days) && days > 0 ? Math.round(days) : 7;
+        return `${safeDays} ${safeDays === 1 ? 'day' : 'days'} temporary retention`;
+    }
+
+    if (normalized === 'longterm' || normalized === 'indefinite') {
+        return 'Long-term display consent';
+    }
+
+    return 'Visitor-selected retention';
+}
+
+function buildVisitSummary(options = {}) {
+    const topicLabel = formatTopic(options.pledgeTopic) || 'General ESG feedback';
+    const badgeName = options.badgeName || getBadgeSummary({
+        pledge: options.pledgeText,
+        pledgeTopic: options.pledgeTopic
+    }).badgeName;
+
+    return {
+        visitDate: formatVisitDate(options.visitDate),
+        pledgeTopic: topicLabel,
+        retention: formatRetentionSummary(options.retention, options.retentionDays),
+        badgeName,
+        treeLeafMessage: options.treeLeafMessage || 'Your virtual leaf has been added to the RP ESG digital tree.'
+    };
+}
+
+function buildSummaryRows(summary, emailContent = {}) {
+    return [
+        [emailContent.visitSummaryDateLabel || 'Visit date', summary.visitDate],
+        [emailContent.visitSummaryTopicLabel || 'Pledge topic', summary.pledgeTopic],
+        [emailContent.visitSummaryBadgeLabel || 'Badge earned', summary.badgeName],
+        [emailContent.visitSummaryRetentionLabel || 'Data retention', summary.retention],
+        [emailContent.visitSummaryTreeLabel || 'Digital tree', summary.treeLeafMessage]
+    ];
+}
+
 function applyEmailPlaceholders(text, badgeConfig, userData) {
     const replacements = {
         name: userData?.name || 'there',
@@ -940,9 +1002,11 @@ function initEmailService() {
 }
 
 // Send thank you email with photo attachment
-async function sendThankYouEmail(name, email, photoFilename, pledgeText) {
+async function sendThankYouEmail(name, email, photoFilename, pledgeText, visitOptions = {}) {
     try {
-        const emailContent = parametersConfigStore.readParametersConfig().emailContent || {};
+        const parameterConfig = parametersConfigStore.readParametersConfig();
+        const emailContent = parameterConfig.emailContent || {};
+        const retentionDays = parameterConfig.contentSettings?.temporaryRetentionDays;
         const personalize = (value, fallback = '') => String(value || fallback).replace(/\{name\}/g, name || 'Visitor');
         const emailIntro = personalize(emailContent.thankYouIntro, 'Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.');
         const emailClosing = personalize(emailContent.thankYouClosing, 'We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.');
@@ -953,6 +1017,24 @@ async function sendThankYouEmail(name, email, photoFilename, pledgeText) {
         const emailClosingHtml = escapeHtml(emailClosing);
         const senderNameHtml = escapeHtml(senderName);
         const footerNoteHtml = escapeHtml(footerNote);
+        const visitSummary = buildVisitSummary({
+            ...visitOptions,
+            pledgeText,
+            retentionDays: visitOptions.retentionDays || retentionDays,
+            treeLeafMessage: visitOptions.treeLeafMessage || emailContent.visitSummaryTreeMessage
+        });
+        const summaryTitle = emailContent.visitSummaryTitle || 'Your Visit Summary';
+        const summaryRows = buildSummaryRows(visitSummary, emailContent);
+        const textSummary = summaryRows
+            .map(([label, value]) => `${label}: ${value}`)
+            .join('\n');
+        const htmlSummaryRows = summaryRows
+            .map(([label, value]) => `
+                <tr>
+                    <td style="padding:10px 12px; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; width:34%; border-bottom:1px solid #e5e7eb;">${escapeHtml(label)}</td>
+                    <td style="padding:10px 12px; font-size:14px; color:#0f172a; font-weight:600; border-bottom:1px solid #e5e7eb;">${escapeHtml(value)}</td>
+                </tr>
+            `).join('');
         console.log(`📧 Preparing to send email to ${email}...`);
         
         if (!emailTransporter) {
@@ -1040,6 +1122,9 @@ ${emailIntro}
 Your pledge:
 "${pledgeText || '—'}"
 
+${summaryTitle}:
+${textSummary}
+
 ${emailClosing}
 
 Warm regards,
@@ -1096,6 +1181,15 @@ ${footerNote}
                     <p style="font-size:13px; color:#666; margin:0 0 12px 0; font-weight:600;">Your ESG Centre Memory</p>
                     <img src="cid:visit_photo" alt="Your RP ESG Centre memory" style="max-width:100%; height:auto; border-radius:4px; border:1px solid #ddd; max-height:400px;" />
                     ${pledgeHtml}
+                </div>
+
+                <div style="margin:24px 0; border:1px solid #dbe7df; border-radius:10px; overflow:hidden; background:#f8fafc;">
+                    <div style="background:#ecfdf5; padding:14px 16px; border-bottom:1px solid #dbe7df;">
+                        <p style="margin:0; color:#006937; font-size:13px; font-weight:700;">${escapeHtml(summaryTitle)}</p>
+                    </div>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; background:#ffffff;">
+                        ${htmlSummaryRows}
+                    </table>
                 </div>
 
                 <p style="font-size:13px; color:#555; line-height:1.5; margin:0 0 16px 0;">

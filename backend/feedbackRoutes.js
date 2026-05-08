@@ -6,6 +6,9 @@
 //  - Added badge email sending into the feedback submission path.
 //  - Sends the badge email before the API response so the frontend can show accurate badge status.
 //  - Supports the thank-you page social sharing state based on badge email success or failure.
+//  - Normalizes temporary/legacy retention selections before saving feedback.
+//  - Passes visit summary context into thank-you emails, including topic, retention, badge and tree leaf message.
+//  - Adds the same visit summary context when retrying failed thank-you emails.
 //
 // CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 // ============================================================
@@ -70,6 +73,20 @@ const emailService = require('./emailService');
 const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
 const { validateFeedbackSubmission } = require('./validationRules');
+
+function normalizeRetentionSelection(retention) {
+    const normalized = String(retention || '').toLowerCase();
+
+    if (normalized === '7days' || normalized === '7day') {
+        return 'temporary';
+    }
+
+    if (normalized === 'indefinite') {
+        return 'longterm';
+    }
+
+    return normalized;
+}
 const sharp = require('sharp');
 const { pipeline } = require('@xenova/transformers');
 
@@ -473,6 +490,7 @@ router.post('/submit-feedback', async (req, res) => {
     
     try {
         const { userData, device, theme, retention } = req.body;
+        const normalizedRetention = normalizeRetentionSelection(retention);
         // Centralized feature flag and validation rule enforcement for feedback submission (DONE BY CAEDEN)
         const parameterConfig = parametersConfigStore.readParametersConfig();
         const featureFlags = parameterConfig.featureFlags || {};
@@ -492,7 +510,7 @@ router.post('/submit-feedback', async (req, res) => {
             email: userData.email,
             device: device,
             theme: theme,
-            retention: retention
+            retention: normalizedRetention
         });
 
         const badgeSummary = emailService.getBadgeSummary(userData);
@@ -506,7 +524,7 @@ router.post('/submit-feedback', async (req, res) => {
                 email: userData.email,
                 device: device,
                 theme: theme,
-                retention: retention,
+                retention: normalizedRetention,
                 submittedAt: new Date().toISOString(),
                 emailQueued: false,
                 badgeEmailSent: false,
@@ -558,7 +576,7 @@ router.post('/submit-feedback', async (req, res) => {
             const bgStartTime = Date.now();
             
             try {
-                saveFeedbackToDatabase(userData, device, theme, retention, async (error, result) => {
+                saveFeedbackToDatabase(userData, device, theme, normalizedRetention, async (error, result) => {
                     if (error) {
                         console.error('❌ Error saving to database:', error);
                         return;
@@ -580,7 +598,14 @@ router.post('/submit-feedback', async (req, res) => {
                                     userData.name,
                                     userData.email,
                                     photoToSend,
-                                    userData.pledge || ''
+                                    userData.pledge || '',
+                                    {
+                                        visitDate: new Date().toISOString(),
+                                        pledgeTopic: userData.pledgeTopic || '',
+                                        retention: normalizedRetention,
+                                        badgeName: badgeSummary.badgeName,
+                                        treeLeafMessage: 'Your virtual leaf has been added to the RP ESG digital tree.'
+                                    }
                                 );
                                 
                                 if (emailResult.success) {
@@ -719,10 +744,30 @@ router.post('/feedback/:id/retry-email', async (req, res) => {
         }
         
         try {
+            let metadata = {};
+            try {
+                metadata = feedback.metadata ? JSON.parse(feedback.metadata) : {};
+            } catch {
+                metadata = {};
+            }
+
+            const retryBadgeSummary = emailService.getBadgeSummary({
+                pledge: feedback.comment || metadata.pledge || '',
+                pledgeTopic: metadata.pledgeTopic || ''
+            });
+
             const emailResult = await emailService.sendThankYouEmail(
                 feedback.name,
-                feedback.email,
-                photoFilename
+                email,
+                photoFilename,
+                feedback.comment || metadata.pledge || '',
+                {
+                    visitDate: feedback.created_at,
+                    pledgeTopic: metadata.pledgeTopic || '',
+                    retention: feedback.data_retention || metadata.retention || '',
+                    badgeName: retryBadgeSummary.badgeName,
+                    treeLeafMessage: 'Your virtual leaf has been added to the RP ESG digital tree.'
+                }
             );
             
             if (emailResult.success) {
