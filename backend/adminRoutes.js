@@ -19,6 +19,15 @@
 // 4. PARAMETER CONTENT ADMIN API
 //    PUT /parameters                  - Save contentSettings such as retention days and pledge examples (DONE BY XY)
 //    auth.requireAdmin                - Restrict parameter edits to system admin users only (DONE BY XY)
+//    normalizeContentSettings         - Validate temporary retention days and pledge examples before saving (DONE BY XY)
+//
+// 5. RETENTION CLEANUP ADMIN CONTROL
+//    POST /retention-cleanup/run      - Trigger manual temporary retention cleanup from admin UI (DONE BY XY)
+//    dataRetentionCleanup             - Reuse existing cleanup module for admin-triggered cleanup (DONE BY XY)
+//
+// 6. KIOSK HEALTH DETAILS
+//    resolveHealthDetails             - Report camera feature status and storage folder access in server status APIs (DONE BY XY)
+//    checkPathAccess                  - Check required upload and overlay directories for read/write access (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -203,6 +212,7 @@ const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 const parametersConfigStore = require('./parametersConfigStore');
+const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 
 //AI for sentiment analysis testing (Done by Yu Kang)
@@ -598,14 +608,14 @@ router.get('/feedback-stats', (req, res) => {
             FROM feedback 
             WHERE is_active = 1 
             AND archive_status = 'not_archived'
-            AND data_retention = 'longterm'
+            AND LOWER(data_retention) IN ('longterm', 'indefinite')
         `,
         temporary: `
             SELECT COUNT(*) as count 
             FROM feedback 
             WHERE is_active = 1 
             AND archive_status = 'not_archived'
-            AND data_retention = 'temporary'
+            AND LOWER(data_retention) IN ('temporary', '7days', '7day')
         `
     };
     
@@ -4865,6 +4875,41 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
 // ==================== 24. PARAMETER ADJUSTMENT MANAGEMENT ====================
 // System-wide parameter configuration, including feature toggles and centralized validation rules (DONE BY CAEDEN)
 
+function normalizeContentSettings(contentSettings) {
+  if (!contentSettings || typeof contentSettings !== 'object') {
+    return contentSettings;
+  }
+
+  const normalized = { ...contentSettings };
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'temporaryRetentionDays')) {
+    const days = Number(normalized.temporaryRetentionDays);
+
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      const error = new Error('Temporary retention duration must be between 1 and 365 days');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    normalized.temporaryRetentionDays = Math.round(days);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'pledgeExamples')) {
+    if (!Array.isArray(normalized.pledgeExamples)) {
+      const error = new Error('Pledge examples must be an array');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    normalized.pledgeExamples = normalized.pledgeExamples
+      .map(example => String(example || '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+
+  return normalized;
+}
+
 // GET /api/admin/parameters
 // Load all system parameters
 router.get('/parameters', auth.requireAuth, (req, res) => {
@@ -4967,12 +5012,14 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid visualAssets format' });
     }
     
+    const normalizedContentSettings = normalizeContentSettings(contentSettings);
+
     // Read current config
     const config = parametersConfigStore.readParametersConfig();
     
     // Update only provided categories
     if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
-    if (contentSettings) config.contentSettings = { ...config.contentSettings, ...contentSettings };
+    if (normalizedContentSettings) config.contentSettings = { ...config.contentSettings, ...normalizedContentSettings };
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
@@ -4995,6 +5042,9 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     
     res.json({ success: true, message: 'Parameters updated successfully', parameters: config });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, error: error.message });
+    }
     console.error('❌ Error updating parameters:', error);
     res.status(500).json({ success: false, error: 'Failed to update parameters' });
   }
@@ -5017,8 +5067,12 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       return res.status(404).json({ success: false, error: `Category '${category}' not found` });
     }
     
+    const normalizedUpdates = category === 'contentSettings'
+      ? normalizeContentSettings(updates)
+      : updates;
+
     // Update category
-    const success = parametersConfigStore.updateCategory(category, updates);
+    const success = parametersConfigStore.updateCategory(category, normalizedUpdates);
     
     if (!success) {
       return res.status(500).json({ success: false, error: 'Failed to save parameters' });
@@ -5032,6 +5086,9 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
     const updatedConfig = parametersConfigStore.readParametersConfig();
     res.json({ success: true, message: `${category} updated successfully`, parameters: updatedConfig });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, error: error.message });
+    }
     console.error('❌ Error updating parameter category:', error);
     res.status(500).json({ success: false, error: 'Failed to update parameter category' });
   }
@@ -5057,6 +5114,27 @@ router.post('/parameters/reset', auth.requireAdmin, (req, res) => {
   } catch (error) {
     console.error('❌ Error resetting parameters:', error);
     res.status(500).json({ success: false, error: 'Failed to reset parameters' });
+  }
+});
+
+// POST /api/admin/retention-cleanup/run
+// Trigger temporary retention and audit log cleanup manually from admin UI.
+router.post('/retention-cleanup/run', auth.requireAdmin, (req, res) => {
+  try {
+    dataRetentionCleanup.runManualCleanup();
+
+    if (req.session?.user?.username) {
+      logAudit('RETENTION_CLEANUP_RUN', req.session.user.username, 'system', 'retention-cleanup', req);
+    }
+
+    res.json({
+      success: true,
+      message: 'Manual retention cleanup started. Check server logs for cleanup details.',
+      startedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error running manual retention cleanup:', error);
+    res.status(500).json({ success: false, error: 'Failed to start retention cleanup' });
   }
 });
 
@@ -5801,6 +5879,84 @@ function logKioskStatusIfNeeded(result) {
     }
 }
 
+function checkPathAccess(targetPath) {
+    const result = {
+        path: targetPath,
+        exists: false,
+        readable: false,
+        writable: false,
+        status: 'missing'
+    };
+
+    try {
+        const stats = fs.statSync(targetPath);
+        result.exists = true;
+        result.isDirectory = stats.isDirectory();
+
+        if (!stats.isDirectory()) {
+            result.status = 'not-directory';
+            return result;
+        }
+
+        fs.accessSync(targetPath, fs.constants.R_OK);
+        result.readable = true;
+        fs.accessSync(targetPath, fs.constants.W_OK);
+        result.writable = true;
+        result.status = 'ok';
+    } catch (error) {
+        if (result.exists) {
+            result.status = result.readable ? 'not-writable' : 'not-readable';
+        }
+        result.error = error.message;
+    }
+
+    return result;
+}
+
+function resolveHealthDetails() {
+    const parameters = parametersConfigStore.readParametersConfig();
+    const featureFlags = parameters.featureFlags || {};
+    const cameraCaptureEnabled = featureFlags.cameraCaptureEnabled !== false;
+    const photoUploadEnabled = featureFlags.photoUploadEnabled !== false;
+
+    const storagePaths = [
+        { key: 'uploads', label: 'Uploads root', path: path.join(__dirname, '..', 'uploads') },
+        { key: 'photos', label: 'Raw photos', path: path.join(__dirname, '..', 'uploads', 'photos') },
+        { key: 'processed', label: 'Processed photos', path: path.join(__dirname, '..', 'uploads', 'processed') },
+        { key: 'desktopOverlays', label: 'Desktop overlays', path: path.join(__dirname, '..', 'assets', 'overlays', 'DesktopOverlay') },
+        { key: 'mobileOverlays', label: 'Mobile overlays', path: path.join(__dirname, '..', 'assets', 'overlays', 'MobileOverlay') }
+    ].map(item => ({
+        ...item,
+        ...checkPathAccess(item.path)
+    }));
+
+    const failingPaths = storagePaths.filter(item => item.status !== 'ok');
+
+    return {
+        camera: {
+            ok: cameraCaptureEnabled || photoUploadEnabled,
+            status: cameraCaptureEnabled ? 'enabled' : (photoUploadEnabled ? 'upload-only' : 'disabled'),
+            cameraCaptureEnabled,
+            photoUploadEnabled,
+            message: cameraCaptureEnabled
+                ? 'Desktop webcam capture is enabled. Browser permission is checked on the kiosk page.'
+                : (photoUploadEnabled
+                    ? 'Desktop webcam capture is disabled; mobile photo upload is enabled.'
+                    : 'Camera capture and photo upload are disabled in feature flags.')
+        },
+        storage: {
+            ok: failingPaths.length === 0,
+            status: failingPaths.length === 0 ? 'ok' : 'attention',
+            checked: storagePaths.length,
+            failing: failingPaths.length,
+            paths: storagePaths,
+            message: failingPaths.length === 0
+                ? 'All required upload and asset folders are available and writable.'
+                : `${failingPaths.length} storage folder${failingPaths.length === 1 ? '' : 's'} need attention.`
+        }
+    };
+}
+
 // POST /api/admin/server/start
 // Manually start the kiosk service
 router.post('/server/start', auth.requireAuth, (req, res) => {
@@ -5996,13 +6152,15 @@ router.post('/server/mode', auth.requireAuth, (req, res) => {
 router.get('/server/status', auth.requireAuth, (req, res) => {
     resolveKioskStatus((result) => {
         logKioskStatusIfNeeded(result);
+        const health = resolveHealthDetails();
 
     res.json({
       success: true,
             kiosk_running: result.running,
             status: result.status,
             source: result.source,
-            platform: process.platform
+            platform: process.platform,
+            health
     });
   });
 });
@@ -6012,11 +6170,13 @@ router.get('/server/status', auth.requireAuth, (req, res) => {
 // This is called every 3 seconds by the frontend to detect service state changes
 router.get('/kiosk-status', auth.requireAuth, (req, res) => {
     resolveKioskStatus((result) => {
+        const health = resolveHealthDetails();
     res.json({
             active: result.running,
             status: result.status,
             source: result.source,
-            platform: process.platform
+            platform: process.platform,
+            health
     });
   });
 });
