@@ -1231,19 +1231,15 @@ async function handlePhotoUpload(event) {
             return;
         }
 
-        /*
-        // Apply beauty filter and Xenova enhancement to uploaded mobile photos done by (nick & Yu Kang)
+        // Apply the local beauty filter to uploaded mobile photos.
         const uploadedImage = await loadImageElement(dataUrl);
-        // photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
-        photoData = dataUrl;
-        photoData = await enhancePhotoWithAI(photoData, 'upload-face-detection-status');
+        photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
 
         const previewImg = document.getElementById('uploaded-photo-preview');
         previewImg.src = photoData;
         previewContainer.style.display = 'block';
         continueBtn.disabled = false;
         updateFaceDetectionStatus('Face detected. Photo accepted.', 'success', uploadFaceDetectionStatus);
-        */
 
         // Auto-scroll to show preview
         previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1419,56 +1415,42 @@ function drawPhotoWithBeautyFilter(ctx, image, x, y, width, height, faceDetectio
     drawFaceBeautyPass(ctx, sourceCanvas, faceRegion);
 }
 
+// Scale face detection box coordinates based on image scaling done by nick
+function scaleFaceDetectionBox(faceDetection, scale) {
+    if (!faceDetection || !faceDetection.box) {
+        return faceDetection;
+    }
+
+    return {
+        ...faceDetection,
+        box: {
+            x: faceDetection.box.x * scale,
+            y: faceDetection.box.y * scale,
+            width: faceDetection.box.width * scale,
+            height: faceDetection.box.height * scale
+        }
+    };
+}
+
 // Beauty filter for uploaded image data done by nick
 function createBeautyFilteredPhotoDataUrl(image, faceDetection = null) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    canvas.width = image.naturalWidth || image.videoWidth || image.width;
-    canvas.height = image.naturalHeight || image.videoHeight || image.height;
+    const sourceWidth = image.naturalWidth || image.videoWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.videoHeight || image.height;
+    const maxProcessedDimension = 1600;
+    const scale = Math.min(1, maxProcessedDimension / Math.max(sourceWidth, sourceHeight));
 
-    drawPhotoWithBeautyFilter(ctx, image, 0, 0, canvas.width, canvas.height, faceDetection);
+    canvas.width = Math.round(sourceWidth * scale);
+    canvas.height = Math.round(sourceHeight * scale);
+
+    const scaledFaceDetection = scale < 1 ? scaleFaceDetectionBox(faceDetection, scale) : faceDetection;
+    drawPhotoWithBeautyFilter(ctx, image, 0, 0, canvas.width, canvas.height, scaledFaceDetection);
     return canvas.toDataURL('image/png');
 }
 
-/*
-//Done by Yu Kang - Capture photo only when a face is detected, with AI enhancement
-async function enhancePhotoWithAI(photoDataUrl, statusElementId = 'face-detection-status') {
-    if (!photoDataUrl) {
-        return photoDataUrl;
-    }
-
-    updateFaceDetectionStatus('Enhancing lighting and background with Xenova AI...', 'loading', statusElementId);
-
-    try {
-        const response = await fetch('/api/feedback/enhance-photo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ photo: photoDataUrl })
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.enhancedPhoto) {
-            if (data.aiUsed) {
-                updateFaceDetectionStatus('Xenova AI enhancement applied.', 'success', statusElementId);
-            } else {
-                updateFaceDetectionStatus('Lighting correction applied. AI focus enhancement was unavailable.', 'info', statusElementId);
-            }
-
-            return data.enhancedPhoto;
-        }
-
-        throw new Error(data.error || 'Enhancement service unavailable.');
-    } catch (error) {
-        console.error('AI enhancement failed:', error);
-        updateFaceDetectionStatus('AI enhancement failed. Using the captured photo as-is.', 'error', statusElementId);
-        return photoDataUrl;
-    }
-}*/
-
+//Done by Yu Kang - Capture photo only when a face is detected
 // Beauty filter button state done by nick
 function updateBeautyFilterButton() {
     const video = document.getElementById('video');
@@ -1486,7 +1468,7 @@ function updateBeautyFilterButton() {
 }
 
 // Beauty filter toggle done by nick
-function toggleBeautyFilter() {
+async function toggleBeautyFilter() {
     beautyFilterEnabled = !beautyFilterEnabled;
     updateBeautyFilterButton();
     resetInactivityTimer();
@@ -1644,13 +1626,11 @@ async function takePhoto(faceDetection = null) { // face-aware beauty capture do
 
     // Apply beauty filter to captured camera photo done by nick
     drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
-    // Beauty filter is disabled here because it does not use Xenova. Done by nick
-    // drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
+    drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Convert canvas to data URL
     photoData = canvas.toDataURL('image/png');
-    //photoData = await enhancePhotoWithAI(photoData, 'face-detection-status');
     
     // Stop camera stream after taking photo
     if (stream) {
