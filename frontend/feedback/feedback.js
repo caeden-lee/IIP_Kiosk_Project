@@ -1234,7 +1234,8 @@ async function handlePhotoUpload(event) {
         /*
         // Apply beauty filter and Xenova enhancement to uploaded mobile photos done by (nick & Yu Kang)
         const uploadedImage = await loadImageElement(dataUrl);
-        photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
+        // photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
+        photoData = dataUrl;
         photoData = await enhancePhotoWithAI(photoData, 'upload-face-detection-status');
 
         const previewImg = document.getElementById('uploaded-photo-preview');
@@ -1643,6 +1644,9 @@ async function takePhoto(faceDetection = null) { // face-aware beauty capture do
 
     // Apply beauty filter to captured camera photo done by nick
     drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
+    // Beauty filter is disabled here because it does not use Xenova. Done by nick
+    // drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Convert canvas to data URL
     photoData = canvas.toDataURL('image/png');

@@ -85,7 +85,7 @@ if (!fs.existsSync(processedDir)) {
     fs.mkdirSync(processedDir, { recursive: true });
     console.log('Created processed directory:', processedDir);
 }
-/*
+
 //Done by Yu Kang
 // ==================== 2.5. AI IMAGE ENHANCEMENT ====================
 // Xenova background-aware enhancement used before overlay superimposition.
@@ -255,7 +255,7 @@ async function enhancePhotoWithXenova(sourceBuffer) {
         fs.promises.unlink(tempInputPath).catch(() => {});
     }
 }
-*/
+
 // ==================== 2. QUESTION MANAGEMENT ROUTES ====================
 // Get active questions for feedback form
 router.get('/questions', (req, res) => {
@@ -429,7 +429,6 @@ router.post('/save-processed-photo', (req, res) => {
     }
 });
 
-/*
 //Done by Yu Kang
 // Enhance photo with Xenova AI before overlay superimposition
 router.post('/enhance-photo', async (req, res) => {
@@ -464,7 +463,7 @@ router.post('/enhance-photo', async (req, res) => {
             error: error.message || 'Failed to enhance photo'
         });
     }
-});*/
+});
 
 // ==================== 4. FEEDBACK SUBMISSION ROUTES ====================
 // Submit complete feedback with retention and email
