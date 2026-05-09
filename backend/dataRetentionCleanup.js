@@ -6,6 +6,9 @@
 //    parametersConfigStore            - Read contentSettings from shared parameter config (DONE BY XY)
 //    getTemporaryRetentionDays        - Use admin-configured retention days instead of hardcoded 7 days (DONE BY XY)
 //    isExpired                        - Expire temporary feedback after configured number of days (DONE BY XY)
+//    TEMPORARY_RETENTION_VALUES       - Support temporary, 7days and 7day legacy cleanup values (DONE BY XY)
+//    LONGTERM_RETENTION_VALUES        - Preserve emails for longterm and indefinite consent records (DONE BY XY)
+//    cleanupExpiredData logs          - Show configured temporary retention duration in cleanup logs (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -41,20 +44,34 @@ const fs = require('fs');
 const path = require('path');
 const parametersConfigStore = require('./parametersConfigStore');
 
+const TEMPORARY_RETENTION_VALUES = new Set(['temporary', '7days', '7day']);
+const LONGTERM_RETENTION_VALUES = new Set(['longterm', 'indefinite']);
+
 function getTemporaryRetentionDays() {
     const config = parametersConfigStore.readParametersConfig();
     const days = Number(config.contentSettings?.temporaryRetentionDays);
     return Number.isFinite(days) && days > 0 ? Math.round(days) : 7;
 }
 
+function isTemporaryRetention(retentionPeriod) {
+    return TEMPORARY_RETENTION_VALUES.has(String(retentionPeriod || '').toLowerCase());
+}
+
+function getTemporaryRetentionLabel() {
+    const days = getTemporaryRetentionDays();
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
 // =================== 2. CORE CLEANUP FUNCTIONS =================== 
 // Calculate if data has expired based on Singapore timezone
 function isExpired(createdAt, retentionPeriod, feedbackId) {
-    if (retentionPeriod === 'longterm') {
+    const normalizedRetention = String(retentionPeriod || '').toLowerCase();
+
+    if (LONGTERM_RETENTION_VALUES.has(normalizedRetention)) {
         return false;
     }
 
-    if (retentionPeriod === '7days' || retentionPeriod === '7day') {
+    if (isTemporaryRetention(normalizedRetention)) {
         const retentionDays = getTemporaryRetentionDays();
         const created = new Date(createdAt);
 
@@ -107,7 +124,9 @@ function cleanupExpiredData() {
     console.log('   Time:', new Date().toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }));
     console.log('============================================');
 
-    // Query feedback entries with 7-day retention
+    const retentionLabel = getTemporaryRetentionLabel();
+
+    // Query feedback entries with temporary retention. Legacy rows may still use 7days/7day.
     const query = `
         SELECT
             f.id,
@@ -120,7 +139,7 @@ function cleanupExpiredData() {
             u.name
         FROM feedback f
         JOIN users u ON f.user_id = u.id
-        WHERE f.data_retention IN ('7days', '7day')
+        WHERE LOWER(f.data_retention) IN ('temporary', '7days', '7day')
           AND f.is_active = 1
     `;
 
@@ -131,12 +150,12 @@ function cleanupExpiredData() {
         }
 
         if (rows.length === 0) {
-            console.log('📋 No feedback entries with 7-day retention found');
+            console.log(`📋 No feedback entries with temporary retention (${retentionLabel}) found`);
             console.log('============================================\n');
             return;
         }
 
-        console.log(`\n📋 Found ${rows.length} feedback entries with 7-day retention\n`);
+        console.log(`\n📋 Found ${rows.length} feedback entries with temporary retention (${retentionLabel})\n`);
 
         let expiredCount = 0;
         let processedCount = 0;
@@ -160,7 +179,7 @@ function cleanupExpiredData() {
                     SELECT COUNT(*) AS count
                     FROM feedback
                     WHERE user_id = ?
-                      AND data_retention = 'longterm'
+                      AND LOWER(data_retention) IN ('longterm', 'indefinite')
                       AND is_active = 1
                 `;
 
@@ -283,7 +302,7 @@ function initializeCleanup() {
     console.log('   DATA RETENTION CLEANUP SYSTEM');
     console.log('============================================');
     console.log('⏰ Cleanup Schedule:');
-    console.log('   FEEDBACK (7-day retention):');
+    console.log(`   FEEDBACK (temporary retention: ${getTemporaryRetentionLabel()}):`);
     console.log('     1. On server startup (in 5 seconds)');
     console.log('     2. Every 6 hours while running');
     console.log('   AUDIT LOGS (1-year retention):');
