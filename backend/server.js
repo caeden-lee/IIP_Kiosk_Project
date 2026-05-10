@@ -1,6 +1,25 @@
+//
+//=============================================================
+// Yu Kang Change Summary:
+//=============================================================
+//
+// 1. BLUETOOTH CLOSE PROXIMITY DETECTION
+//    bluetooth scanner                - Detects nearby devices for proximity-based access control (Done by Yu Kang)
+//    /secure-data route               - Grants access only when a device is detected nearby (Done by Yu Kang)
+//    /nearby-devices route            - Exposes the current nearby device list for monitoring (Done by Yu Kang)
+//
+// 2. QR CODE PHONE PAIRING
+// - Short-lived single-use JWT QR tokens for phone pairing (QR lifetime default: 30s)
+// - `/api/kiosk/generate-qr?kiosk_id=...` endpoint to issue per-kiosk QR SVGs (single-use)
+// - `/connect?token=...` endpoint to redeem token and create pairing session
+// - `/api/kiosk/heartbeat` HTTP endpoint and Socket.IO `heartbeat` event for kiosk liveness
+// - Socket.IO support: kiosks register with `register-kiosk` and receive `paired` events
+// - DB tables `kiosks`, `qr_sessions`, `device_pairings` defined in `database/schema.sql`
+//
 // ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
+//
 //
 // 1. LIVE PULSE ROUTING
 //    const pulseRoutes                - Live Pulse API routes for dashboard data (DONE BY XY)
@@ -14,6 +33,7 @@
 //    parametersConfigStore            - Reads shared kiosk parameter settings for public pages (DONE BY XY)
 //    GET /api/parameters              - Exposes retention text, pledge examples, tree settings and assets to frontend (DONE BY XY)
 //
+//=============================================================
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
@@ -94,6 +114,7 @@
 require('dotenv').config();
 const express = require('express');
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
@@ -107,6 +128,23 @@ const os = require('os');
 const emailService = require('./emailService');
 const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
+const { startBluetoothScanner, nearbyDevices, logNearbyDevices } = require('./bluetooth');
+
+function isMobileUserAgent(userAgent) {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent || '');
+}
+
+function requireMobileTokenForPledgeboard(req, res, next) {
+    if (!isMobileUserAgent(req.get('user-agent'))) {
+        return next();
+    }
+
+    if (req.session && req.session.mobileAccessGranted) {
+        return next();
+    }
+
+    return res.redirect('/feedback');
+}
 
 // Import tree routes and wire them to the shared DB
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
@@ -116,9 +154,101 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 // Import QR code generation
 const QRCode = require('qrcode');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+const { Server: SocketIOServer } = require('socket.io');
+
+// Configuration for QR/session tokens
+const QR_LIFETIME_SECONDS = parseInt(process.env.QR_LIFETIME_SECONDS || '30', 10); // 30s default
+const SESSION_TIMEOUT_MINUTES = parseInt(process.env.SESSION_TIMEOUT_MINUTES || '10', 10); // 10 minutes default
+const JWT_SECRET = process.env.JWT_SECRET || 'change_this_in_production';
+
+// In-memory mapping of kiosk_id -> socket.id for real-time pairing notifications
+const kioskSockets = new Map();
 
 const app = express();
 const PORT = 3000;
+
+
+// Start Bluetooth scanner for proximity-based access control
+app.use(express.json());
+
+startBluetoothScanner();
+
+// Log detected Bluetooth devices every 30 seconds
+setInterval(() => {
+    logNearbyDevices();
+}, 30000);
+
+// Protected route
+app.get('/secure-data', auth.bluetoothAccessControl, (req, res) => {
+    res.json({
+        success: true,
+        message: 'Access granted because device is nearby'
+    });
+});
+
+// Monitoring route
+app.get('/nearby-devices', (req, res) => {
+    res.json({
+        devices: Array.from(nearbyDevices.entries())
+    });
+});
+
+// Accept device reports from browser clients using Web Bluetooth
+// POST { id?, mac?, name?, rssi? }
+app.post('/api/bluetooth/report', (req, res) => {
+    try {
+        const { reportDevice } = require('./bluetooth');
+        const payload = req.body || {};
+        const ok = reportDevice(payload);
+        if (!ok) {
+            console.warn('⚠️ Invalid bluetooth report (missing id or mac):', payload);
+            return res.status(400).json({ success: false, error: 'Missing id or mac in payload' });
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error handling bluetooth report:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+// TEST ENDPOINT: Manually add a test device (for debugging)
+// GET /api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestDevice&rssi=-50
+app.get('/api/bluetooth/test-device', (req, res) => {
+    try {
+        const { reportDevice, getNearbyDevicesList } = require('./bluetooth');
+        const { mac, name, rssi } = req.query;
+        
+        if (!mac) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing mac parameter. Usage: /api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestDevice&rssi=-50',
+                example: 'http://localhost:3000/api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestPhone&rssi=-65'
+            });
+        }
+        
+        const rssiNum = rssi ? parseInt(rssi) : -65;
+        reportDevice({ 
+            mac: mac.toUpperCase(), 
+            name: name || 'Test Device',
+            rssi: rssiNum,
+            source: 'test'
+        });
+        
+        res.json({ 
+            success: true,
+            message: `Test device added: ${mac}`,
+            nearbyDevices: getNearbyDevicesList()
+        });
+    } catch (error) {
+        console.error('Error in test-device endpoint:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+
+
 
 // Bind host controls what network interfaces the server listens on. (Done By Yu Kang)
 // Default to 0.0.0.0 so phones on the same LAN can connect reliably. (Done By Yu Kang)
@@ -424,6 +554,138 @@ app.get('/api/generate-qr', async (req, res) => {
     }
 });
 
+// Kiosk-specific QR generation (single-use, short lifetime) (Done By Yu Kang)
+app.get('/api/kiosk/generate-qr', async (req, res) => {
+    try {
+        const kiosk_id = req.query.kiosk_id;
+        if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
+
+        const protocol = sslOptions ? 'https' : 'http';
+        const urlBase = `${protocol}://${localIP}:${PORT}`;
+
+        // Create a JWT token with short expiry and unique id
+        const jti = uuidv4();
+        const token = jwt.sign({ kiosk_id, jti }, JWT_SECRET, { expiresIn: `${QR_LIFETIME_SECONDS}s` });
+
+        // Compute expires_at for DB
+        const expiresAt = new Date(Date.now() + QR_LIFETIME_SECONDS * 1000);
+
+        // Insert session record
+        db.query(
+            `INSERT INTO qr_sessions (token, kiosk_id, expires_at, used_token, connected) VALUES (?, ?, ?, 0, 0)`,
+            [token, kiosk_id, expiresAt],
+            (err) => {
+                if (err) {
+                    console.error('Error inserting qr_session', err.message);
+                    return res.status(500).json({ success: false, error: 'DB error' });
+                }
+            }
+        );
+
+        const feedbackQueryUrl = `${urlBase}/feedback?token=${encodeURIComponent(token)}`;
+        const feedbackPathUrl = `${urlBase}/feedback/${encodeURIComponent(token)}`;
+
+        const qrSvg = await QRCode.toString(feedbackQueryUrl, {
+            type: 'svg',
+            errorCorrectionLevel: 'H',
+            margin: 1,
+            width: 300
+        });
+
+        res.json({ success: true, qrSvg, url: feedbackQueryUrl, urlPath: feedbackPathUrl, expiresAt: expiresAt.toISOString(), token });
+    } catch (error) {
+        console.error('Error generating kiosk QR:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate QR' });
+    }
+});
+
+// Kiosk heartbeat via HTTP (alternative to socket heartbeat)
+app.post('/api/kiosk/heartbeat', (req, res) => {
+    const { kiosk_id } = req.body || {};
+    if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
+
+    db.query(`INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE last_seen=NOW(), status='online'`, [kiosk_id, 'online'], (err) => {
+        if (err) {
+            console.error('heartbeat error', err.message);
+            return res.status(500).json({ success: false, error: 'DB error' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// Phone connect token redemption helper
+function redeemToken(req, res, token) {
+    if (!token) return res.status(400).json({ success: false, error: 'Missing token' });
+
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        const kiosk_id = payload.kiosk_id;
+
+        // Look up session in DB
+        db.query(`SELECT * FROM qr_sessions WHERE token = ? ORDER BY id DESC LIMIT 1`, [token], (err, results) => {
+            if (err) {
+                console.error('DB select qr_sessions error', err.message);
+                return res.status(500).json({ success: false, error: 'DB error' });
+            }
+
+            const session = results && results[0];
+            if (!session) return res.status(400).json({ success: false, error: 'Invalid session' });
+
+            if (session.used_token) return res.status(400).json({ success: false, error: 'Token already used' });
+            const now = new Date();
+            if (session.expires_at && new Date(session.expires_at) < now) return res.status(400).json({ success: false, error: 'Token expired' });
+
+            // Mark as used and connected
+            const phoneSessionId = uuidv4();
+            db.query(`UPDATE qr_sessions SET used_token = 1, connected = 1, phone_session = ? WHERE id = ?`, [phoneSessionId, session.id], (err2) => {
+                if (err2) console.error('Error updating qr_sessions', err2.message);
+
+                // Record pairing
+                db.query(`INSERT INTO device_pairings (kiosk_id, phone_session) VALUES (?, ?)`, [kiosk_id, phoneSessionId], (err3) => {
+                    if (err3) console.error('Error inserting device_pairings', err3.message);
+                });
+
+                // Notify kiosk via Socket.IO if connected
+                const sid = kioskSockets.get(kiosk_id);
+                if (sid && ioServer) {
+                    ioServer.to(sid).emit('paired', { phoneSessionId, kiosk_id });
+                }
+
+                if (req.session) {
+                    req.session.mobileAccessGranted = true;
+                    req.session.mobileAccessToken = token;
+                    req.session.mobileAccessKioskId = kiosk_id;
+                    req.session.mobileAccessExpiresAt = session.expires_at || null;
+
+                    return req.session.save((sessionErr) => {
+                        if (sessionErr) {
+                            console.error('Error saving mobile access session:', sessionErr.message);
+                        }
+
+                        res.json({
+                            success: true,
+                            kiosk_id,
+                            phoneSessionId,
+                            redirectUrl: '/pledgeboard'
+                        });
+                    });
+                }
+
+                // Respond to phone (could redirect to a mobile UI)
+                res.json({ success: true, kiosk_id, phoneSessionId, redirectUrl: '/pledgeboard' });
+            });
+        });
+    } catch (error) {
+        console.error('Token verify error', error.message);
+        return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+}
+
+app.post('/api/connect/redeem', express.json(), (req, res) => {
+    const token = (req.body && req.body.token) || req.query.token;
+    return redeemToken(req, res, token);
+});
+
 // Test route
 app.get('/api/test-db', (req, res) => {
     db.query(
@@ -461,7 +723,19 @@ app.get('/feedback', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/feedback/feedback.html'));
 });
 
-app.get('/pledgeboard', (req, res) => {
+app.get('/bluetooth-test', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/bluetooth-test.html'));
+});
+
+app.get('/connect', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
+});
+
+app.get('/connect/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
+});
+
+app.get('/pledgeboard', requireMobileTokenForPledgeboard, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/Pledgeboard/Pledgeboard.html'));
 });
 
@@ -520,18 +794,21 @@ function generateSelfSignedCertificate() {
 
 // Start server
 function startServer() {
+    // DB schema is provided in database/schema.sql; run manually or via migration (Done By Yu Kang)
+
+    let server;
     if (sslOptions) {
-        // Start HTTPS server
-        const server = https.createServer(sslOptions, app);
-        server.listen(PORT, bindHost, () => {
-            printServerInfo(true);
-        });
+        server = https.createServer(sslOptions, app);
     } else {
-        // Start HTTP server (fallback)
-        app.listen(PORT, bindHost, () => {
-            printServerInfo(false);
-        });
+        server = http.createServer(app);
     }
+
+    // Initialize Socket.IO
+    initSocketServer(server);
+
+    server.listen(PORT, bindHost, () => {
+        printServerInfo(!!sslOptions);
+    });
 }
 
 function printServerInfo(isHttps) {
@@ -596,6 +873,53 @@ function printServerInfo(isHttps) {
 
     // Initialize data retention cleanup system
     dataRetentionCleanup.initializeCleanup();
+}
+
+// Note: DB schema creation moved to `database/schema.sql`.
+
+// Socket.IO server instance (set when starting)
+let ioServer = null;
+
+function initSocketServer(httpServer) {
+    ioServer = new SocketIOServer(httpServer, {
+        cors: {
+            origin: '*'
+        }
+    });
+
+    ioServer.on('connection', (socket) => {
+        // Kiosk or admin clients should call 'register-kiosk' with their kiosk_id
+        socket.on('register-kiosk', (data) => {
+            try {
+                const kiosk_id = data && data.kiosk_id;
+                if (!kiosk_id) return;
+                kioskSockets.set(kiosk_id, socket.id);
+                // Upsert kiosk record
+                db.query(
+                    `INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE status=VALUES(status), last_seen=NOW()`,
+                    [kiosk_id, 'online'],
+                    (err) => { if (err) console.error('kiosk upsert error', err); }
+                );
+            } catch (e) {
+                console.error('register-kiosk error', e);
+            }
+        });
+
+        socket.on('heartbeat', (data) => {
+            const kiosk_id = data && data.kiosk_id;
+            if (!kiosk_id) return;
+            db.query(`UPDATE kiosks SET last_seen = NOW(), status='online' WHERE kiosk_id = ?`, [kiosk_id], (err) => {
+                if (err) console.error('heartbeat db update error', err.message);
+            });
+        });
+
+        socket.on('disconnect', () => {
+            // remove socket id from kioskSockets if present
+            for (const [kiosk_id, sid] of kioskSockets.entries()) {
+                if (sid === socket.id) kioskSockets.delete(kiosk_id);
+            }
+        });
+    });
 }
 
 // Try to enable HTTPS if selfsigned package is available

@@ -226,6 +226,34 @@ CREATE TABLE vip_management (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- KIOSKS, QR SESSIONS, DEVICE PAIRINGS (ADDED FOR QR AUTH) (Done By Yu Kang)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS kiosks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kiosk_id VARCHAR(255) UNIQUE,
+    status VARCHAR(50),
+    last_seen TIMESTAMP NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS qr_sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    token TEXT,
+    kiosk_id VARCHAR(255),
+    expires_at DATETIME,
+    used_token BOOLEAN DEFAULT FALSE,
+    connected BOOLEAN DEFAULT FALSE,
+    phone_session VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS device_pairings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kiosk_id VARCHAR(255),
+    phone_session VARCHAR(255),
+    paired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- INSERT INITIAL DATA (DONE BY PRETI)
 -- ============================================================
 

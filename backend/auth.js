@@ -29,12 +29,17 @@
 //    async function updateAdminUser() - Update admin user (DONE BY PRETI)
 //    function deleteAdminUser()       - Delete admin user permanently (DONE BY PRETI)
 // 
-// 7. EXPORTS
+// 7. BLUETOOTH PROXIMITY CHECK
+//    bluetoothAccessControl          - Blocks access unless an allowed device is physically nearby (Done by Yu Kang)
+//    isDeviceNearby                  - Checks the live nearby-device list maintained by bluetooth scanning (Done by Yu Kang)
+// 
+// 8. EXPORTS
 //    module.exports                   - Export all functions (DONE BY PRETI)
 //
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const db = require('./db');
+const { isDeviceNearby } = require('./bluetooth');
 
 // ==================== 1. CONFIGURATION ====================
 const SALT_ROUNDS = 12; // bcrypt salt rounds (higher = more secure but slower)
@@ -364,7 +369,34 @@ function deleteAdminUser(id, callback) {
     });
 }
 
-// ==================== 7. EXPORTS ====================
+// ==================== 7. BLUETOOTH PROXIMITY CHECK ====================
+
+function bluetoothAccessControl(req, res, next) {
+    // Accept either x-device-mac (legacy) or x-device-id (Web Bluetooth client)
+    const deviceMac = req.headers['x-device-mac'];
+    const deviceId = req.headers['x-device-id'];
+
+    if (!deviceMac && !deviceId) {
+        return res.status(401).json({
+            success: false,
+            message: 'Missing device identifier (x-device-mac or x-device-id)'
+        });
+    }
+
+    const identifier = deviceMac || deviceId;
+    const nearby = isDeviceNearby(identifier);
+
+    if(!nearby) {
+        return res.status(403).json({
+            success: false,
+            message: 'Device not nearby'
+        });
+    }
+
+    next();
+}
+
+// ==================== 8. EXPORTS ====================
 
 module.exports = {
     // Password functions
@@ -385,5 +417,8 @@ module.exports = {
     getAdminUsers,
     addAdminUser,
     updateAdminUser,
-    deleteAdminUser
+    deleteAdminUser, 
+
+    // Bluetooth proximity check
+    bluetoothAccessControl
 };
