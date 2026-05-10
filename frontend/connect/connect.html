@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Connect Device</title>
+    <link rel="stylesheet" href="/connect/connect.css" />
+</head>
+<body>
+    <main class="page-shell">
+        <section class="hero-card">
+            <div class="brand-row">
+                <div class="brand-mark">✓</div>
+                <div>
+                    <p class="eyebrow">Secure QR Connection</p>
+                    <h1>Verifying your token</h1>
+                </div>
+            </div>
+
+            <div class="status-panel" id="statusPanel" data-state="loading">
+                <div class="spinner" aria-hidden="true"></div>
+                <div>
+                    <p class="status-title" id="statusTitle">Checking token...</p>
+                    <p class="status-copy" id="statusCopy">Your QR token is being validated with the backend.</p>
+                </div>
+            </div>
+
+            <div class="token-card">
+                <div class="token-label">Token</div>
+                <code id="tokenValue">Loading...</code>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-key">Lifetime</span>
+                    <span class="info-value">30 seconds</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-key">Use</span>
+                    <span class="info-value">Single use</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-key">Session</span>
+                    <span class="info-value">5-15 mins</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="primary-btn" id="retryBtn" type="button">Try again</button>
+                <button class="secondary-btn" id="copyBtn" type="button">Copy URL</button>
+            </div>
+
+            <p class="footer-note" id="footerNote">If this page stays open, the token may expire and the QR on the kiosk will refresh automatically.</p>
+        </section>
+    </main>
+
+    <script src="/connect/connect.js"></script>
+</body>
+</html>

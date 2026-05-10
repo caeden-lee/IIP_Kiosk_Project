@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Detection Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        button.secondary:hover {
+            background: #d0d0d0;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-box {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #666;
+        }
+        
+        .status-box.active {
+            border-color: #10b981;
+            background: #ecfdf5;
+            color: #059669;
+        }
+        
+        .status-box.error {
+            border-color: #ef4444;
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .console {
+            font-size: 11px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            color: #1e40af;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .input-group input {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 Bluetooth Detection Test</h1>
+        <p class="subtitle">Test the Bluetooth proximity detection system</p>
+        
+        <!-- Option 1: Web Bluetooth -->
+        <div class="section">
+            <h2>1️⃣ Browser Web Bluetooth (Recommended)</h2>
+            <p class="info-box">
+                <strong>Requirements:</strong>
+                Chrome/Edge on Windows/Mac/Linux with Bluetooth hardware. HTTPS or localhost required.
+            </p>
+            <button onclick="testWebBluetooth()">
+                🔍 Open Bluetooth Device Picker
+            </button>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                ✓ Select your Bluetooth device from the browser dialog<br>
+                ✓ The device will be reported to the server<br>
+                ✓ Check terminal for "Device reported" message
+            </p>
+        </div>
+        
+        <!-- Option 2: Manual Test Device -->
+        <div class="section">
+            <h2>2️⃣ Add Test Device Manually</h2>
+            <p class="info-box">
+                <strong>For debugging:</strong>
+                Manually add a fake device to test if the server is receiving reports correctly.
+            </p>
+            <div class="input-group">
+                <input type="text" id="testMac" placeholder="MAC Address" value="AA:BB:CC:DD:EE:FF">
+                <input type="text" id="testName" placeholder="Device Name" value="Test Device">
+            </div>
+            <div class="input-group">
+                <input type="number" id="testRssi" placeholder="RSSI (dBm)" value="-65" step="1">
+                <button class="secondary" onclick="clearTestInputs()">Clear</button>
+            </div>
+            <button onclick="addTestDevice()">➕ Add Test Device</button>
+        </div>
+        
+        <!-- Option 3: View Nearby Devices -->
+        <div class="section">
+            <h2>3️⃣ View Detected Devices</h2>
+            <button onclick="refreshDevices()">🔄 Refresh Device List</button>
+            <button class="secondary" onclick="clearLog()">Clear Log</button>
+            <div id="deviceList" class="status-box">
+                <div class="console">No devices detected yet. Add one using the options above.</div>
+            </div>
+        </div>
+        
+        <!-- Browser Console Log -->
+        <div class="section">
+            <h2>🖥️ Console Output</h2>
+            <button class="secondary" onclick="clearConsoleLog()">Clear Console</button>
+            <div id="consoleLog" class="status-box">
+                <div class="console">Console output will appear here...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        let consoleBuffer = [];
+        const MAX_CONSOLE_LINES = 100;
+        
+        function addConsoleLog(type, args) {
+            const message = Array.from(args)
+                .map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg))
+                .join(' ');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type}: ${message}`;
+            
+            consoleBuffer.push(logEntry);
+            if (consoleBuffer.length > MAX_CONSOLE_LINES) {
+                consoleBuffer.shift();
+            }
+            
+            updateConsoleDisplay();
+        }
+        
+        console.log = function(...args) {
+            originalLog(...args);
+            addConsoleLog('LOG', args);
+        };
+        
+        console.warn = function(...args) {
+            originalWarn(...args);
+            addConsoleLog('WARN', args);
+        };
+        
+        console.error = function(...args) {
+            originalError(...args);
+            addConsoleLog('ERROR', args);
+        };
+        
+        function updateConsoleDisplay() {
+            document.getElementById('consoleLog').innerHTML = 
+                `<div class="console">${consoleBuffer.join('\n')}</div>`;
+            document.getElementById('consoleLog').scrollTop = 
+                document.getElementById('consoleLog').scrollHeight;
+        }
+        
+        function clearConsoleLog() {
+            consoleBuffer = [];
+            updateConsoleDisplay();
+        }
+        
+        // Web Bluetooth
+        async function testWebBluetooth() {
+            console.log('🔍 Starting Web Bluetooth scan...');
+            
+            if (!navigator.bluetooth) {
+                console.error('❌ Web Bluetooth not available');
+                alert('Web Bluetooth API not supported. Use Chrome/Edge with Bluetooth hardware.');
+                return;
+            }
+            
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: []
+                });
+                
+                console.log(`✅ Selected device: ${device.name} (${device.id})`);
+                await sendReportToServer({ id: device.id, name: device.name || 'Unknown' });
+                
+            } catch (error) {
+                console.error('❌ Bluetooth error:', error.message);
+            }
+        }
+        
+        // Manual test device
+        function addTestDevice() {
+            const mac = document.getElementById('testMac').value.trim();
+            const name = document.getElementById('testName').value.trim();
+            const rssi = parseInt(document.getElementById('testRssi').value) || -65;
+            
+            if (!mac) {
+                alert('Please enter a MAC address');
+                return;
+            }
+            
+            console.log(`➕ Adding test device: ${mac} (${name}, RSSI: ${rssi})`);
+            
+            fetch(`/api/bluetooth/test-device?mac=${encodeURIComponent(mac)}&name=${encodeURIComponent(name)}&rssi=${rssi}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✅ Test device added:', data.message);
+                        refreshDevices();
+                    } else {
+                        console.error('❌ Failed to add test device:', data.error);
+                    }
+                })
+                .catch(error => console.error('❌ Request failed:', error));
+        }
+        
+        function clearTestInputs() {
+            document.getElementById('testMac').value = 'AA:BB:CC:DD:EE:FF';
+            document.getElementById('testName').value = 'Test Device';
+            document.getElementById('testRssi').value = '-65';
+        }
+        
+        // Send report to server
+        async function sendReportToServer(payload) {
+            try {
+                const response = await fetch('/api/bluetooth/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log('📤 Report sent successfully');
+                    setTimeout(refreshDevices, 500);
+                } else {
+                    console.error('❌ Server rejected report:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ Failed to send report:', error);
+            }
+        }
+        
+        // Refresh device list
+        function refreshDevices() {
+            console.log('🔄 Fetching nearby devices...');
+            
+            fetch('/nearby-devices')
+                .then(r => r.json())
+                .then(data => {
+                    const devices = data.devices || [];
+                    let html = '';
+                    
+                    if (devices.length === 0) {
+                        html = 'No devices detected nearby.\n\nTry:\n1. Using the Web Bluetooth picker above\n2. Adding a test device\n3. Checking the server terminal for debug output';
+                    } else {
+                        html = `Found ${devices.length} device(s):\n\n`;
+                        devices.forEach(([key, device], idx) => {
+                            html += `[${idx + 1}] Key: ${key}\n`;
+                            html += `    MAC: ${device.mac || 'N/A'}\n`;
+                            html += `    ID: ${device.id || 'N/A'}\n`;
+                            html += `    Name: ${device.name || '(unnamed)'}\n`;
+                            html += `    RSSI: ${device.rssi !== null ? device.rssi + ' dBm' : 'N/A'}\n`;
+                            html += `    Age: ${Math.round((Date.now() - device.lastSeen) / 1000)}s\n`;
+                            html += `    Source: ${device.source || 'unknown'}\n\n`;
+                        });
+                    }
+                    
+                    const deviceBox = document.getElementById('deviceList');
+                    deviceBox.innerHTML = `<div class="console">${html}</div>`;
+                    deviceBox.classList.toggle('active', devices.length > 0);
+                    
+                    console.log(`✅ ${devices.length} device(s) displayed`);
+                })
+                .catch(error => {
+                    console.error('❌ Failed to fetch devices:', error);
+                    document.getElementById('deviceList').innerHTML = 
+                        `<div class="console error">Error: ${error.message}</div>`;
+                });
+        }
+        
+        function clearLog() {
+            document.getElementById('deviceList').innerHTML = 
+                `<div class="console">Cleared.</div>`;
+        }
+        
+        // Initial setup
+        console.log('📡 Bluetooth test page loaded');
+        console.log('Available options:');
+        console.log('1. Use Web Bluetooth picker (Chrome/Edge with Bluetooth)');
+        console.log('2. Add a test device manually for debugging');
+        console.log('3. Refresh to see detected devices');
+        
+        // Auto-refresh every 5 seconds
+        setInterval(refreshDevices, 5000);
+        refreshDevices();
+    </script>
+</body>
+</html>

@@ -36,6 +36,16 @@
 //    updateConfirmationDetails        - Show configured retention label on confirmation screen (DONE BY XY)
 //
 
+// ============================================================
+// YU KANG CHANGE SUMMARY (Done by Yu Kang)
+// ============================================================
+//
+// 1. TOKEN-BASED QR FEEDBACK FLOW
+//    loadDynamicQRCode()             - Fetches a short-lived kiosk token QR from /api/kiosk/generate-qr (Done by Yu Kang)
+//    startQrRefreshLoop()            - Refreshes the kiosk QR every 25 seconds to reduce screenshot reuse (Done by Yu Kang)
+//    qr-description text             - Shows the live /feedback?token=... URL and expiry note on the kiosk screen (Done by Yu Kang)
+//
+
 // CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 // ============================================================
 //
@@ -172,6 +182,7 @@ let kioskParameters = {};
 let kioskParametersLoadPromise = null;
 let isMirrored = false; // to invert camera done by nick
 let beautyFilterEnabled = true; // beauty filter toggle done by nick
+let qrRefreshTimer = null;
 const BEAUTY_FILTER_CSS = 'brightness(1.2) contrast(0.82) saturate(1.28)'; // stronger beauty filter effect done by nick
 const BEAUTY_SMOOTH_FILTER_CSS = 'blur(7px) brightness(1.18) contrast(0.78) saturate(1.2)'; // stronger smoothing done by nick
 const BEAUTY_DETAIL_FILTER_CSS = 'contrast(1.02) saturate(1.08)'; // detail recovery done by nick
@@ -407,7 +418,8 @@ async function capturePhotoIfFaceDetected() {
 // Load dynamic QR code from server
 async function loadDynamicQRCode() {
     try {
-        const response = await fetch('/api/generate-qr');
+        const kioskId = window.location.hostname || 'default-kiosk';
+        const response = await fetch(`/api/kiosk/generate-qr?kiosk_id=${encodeURIComponent(kioskId)}`);
         const data = await response.json();
         
         if (data.success && data.qrSvg) {
@@ -420,11 +432,11 @@ async function loadDynamicQRCode() {
                 const qrDescription = document.querySelector('.qr-description');
                 if (qrDescription) {
                     qrDescription.innerHTML = `
-                        Scan to open: <strong>${data.url}</strong><br>
-                        Point your mobile camera here to open on your phone
-                    `;
+                        Scan to open<br>
+                        This QR refreshes automatically and expires in about 30 seconds.
+                    `; //: <strong>${data.url}</strong> (Put under qrcode)
                 }
-                
+
                 console.log('Dynamic QR code loaded:', data.url);
             }
         }
@@ -432,6 +444,31 @@ async function loadDynamicQRCode() {
         console.log('Using static QR code (fallback):', error.message);
         // Keep the existing dummy QR code if dynamic loading fails
     }
+}
+
+function getTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('token') || '';
+}
+
+function openConnectPage() {
+    const token = getTokenFromUrl();
+    if (!token) {
+        alert('No token found in this session. Please scan the latest QR code again.');
+        return;
+    }
+
+    window.location.href = `/connect?token=${encodeURIComponent(token)}`;
+}
+
+function startQrRefreshLoop() {
+    if (qrRefreshTimer) {
+        clearInterval(qrRefreshTimer);
+    }
+
+    qrRefreshTimer = setInterval(() => {
+        loadDynamicQRCode();
+    }, 25000);
 }
 
 // Detect if user is on mobile or desktop
@@ -484,6 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     // Load dynamic QR code
     loadDynamicQRCode();
+    startQrRefreshLoop();
     initializeProgressIndicators();
     
     // Detect device type
