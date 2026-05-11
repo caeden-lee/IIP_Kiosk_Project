@@ -41,6 +41,8 @@
 //    PUT /parameters                  - Save feature flags, validation rules, text, email, tree, photo and visual asset settings (DONE BY CAEDEN)
 //    POST /parameters/reset           - Restore parameter defaults for system admins (DONE BY CAEDEN)
 //    POST /parameters/background      - Upload and activate feedback background image files (DONE BY CAEDEN)
+//    POST /translate                  - Translate visitor feedback text to English from admin popups (Done by Caeden)
+//    archiveSettings                  - Configure auto-archive timing without changing the stored procedure (Done by Caeden)
 //
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -87,7 +89,7 @@
 //    router.get('/feedback/:id/questions' - Get all feedback questions and answers (DONE BY PRETI)
 // 
 // 7. ARCHIVE MANAGEMENT ROUTES
-//    router.get('/archive'            - Get archived feedback (older than 3 months) (DONE BY PRETI)
+//    router.get('/archive'            - Get feedback already moved into Archive (DONE BY PRETI)
 //    router.post('/archive/update-status' - Manually trigger archive status update (DONE BY PRETI)
 //    router.get('/archive/stats'      - Archive Statistics (DONE BY PRETI)
 //    router.post('/bulk-decrypt-archive' - Bulk decrypt archived emails with admin verification (DONE BY PRETI)
@@ -207,6 +209,7 @@ const db = require('./db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const archiver = require('archiver');
 const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
@@ -1314,7 +1317,7 @@ router.get('/feedback-sentiment-analysis', async (req, res) => {
 
 // ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
 
-// Get archived feedback (older than 3 months)
+// Get archived feedback already moved by archive rules
 router.get('/archive', (req, res) => {
     console.log('📂 Fetching archived feedback data...');
     
@@ -1394,47 +1397,26 @@ router.get('/archive', (req, res) => {
     });
 });
 
-// Manually trigger archive status update
+// Manually trigger archive status update using configurable archive timing (Done by Caeden)
 router.post('/archive/update-status', (req, res) => {
-    console.log('⚡ Manually updating archive status...');
-    
-    // Call the MySQL stored procedure
-    db.query('CALL update_archive_status()', [], (err) => {
+    console.log('Manually updating archive status with configured archive timing...');
+
+    runConfiguredArchive((err, result) => {
         if (err) {
-            console.error('❌ Error calling archive update procedure:', err);
-            return res.status(500).json({ 
+            console.error('Error updating archive status:', err);
+            return res.status(500).json({
                 success: false,
                 error: 'Failed to update archive status: ' + err.message
             });
         }
-        
-        // Get counts after update
-        const archivedCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "archived" AND is_active = 1';
-        const activeCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "not_archived" AND is_active = 1';
-        
-        db.get(archivedCountQuery, [], (err, archivedResult) => {
-            if (err) {
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Failed to get archived count' 
-                });
-            }
-            
-            db.get(activeCountQuery, [], (err, activeResult) => {
-                if (err) {
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Failed to get active count' 
-                    });
-                }
-                
-                console.log(`✅ Archive update complete - Archived: ${archivedResult.count}, Active: ${activeResult.count}`);
-                res.json({
-                    success: true,
-                    archived: archivedResult.count,
-                    active: activeResult.count
-                });
-            });
+
+        console.log(`Archive update complete - Archived now: ${result.archivedNow}, Archived total: ${result.archived}, Active: ${result.active}`);
+        res.json({
+            success: true,
+            archived: result.archived,
+            active: result.active,
+            archivedNow: result.archivedNow,
+            archiveAfterDays: result.archiveAfterDays
         });
     });
 });
@@ -4874,6 +4856,7 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
 
 // ==================== 24. PARAMETER ADJUSTMENT MANAGEMENT ====================
 // System-wide parameter configuration, including feature toggles and centralized validation rules (DONE BY CAEDEN)
+// Translation, archive timing, and auto-archive helpers added for admin controls. (Done by Caeden)
 
 function normalizeContentSettings(contentSettings) {
   if (!contentSettings || typeof contentSettings !== 'object') {
@@ -4910,6 +4893,138 @@ function normalizeContentSettings(contentSettings) {
   return normalized;
 }
 
+function normalizeArchiveSettings(archiveSettings) {
+  if (!archiveSettings || typeof archiveSettings !== 'object') {
+    return archiveSettings;
+  }
+
+  const normalized = { ...archiveSettings };
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'autoArchiveEnabled')) {
+    normalized.autoArchiveEnabled = normalized.autoArchiveEnabled === true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'archiveAfterDays')) {
+    const days = Number(normalized.archiveAfterDays);
+    const allowedDays = [15, 30, 60, 90, 180, 365];
+
+    if (!Number.isFinite(days) || !allowedDays.includes(days)) {
+      const error = new Error('Archive timing must be 15, 30, 60, 90, 180, or 365 days');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    normalized.archiveAfterDays = days;
+  }
+
+  return normalized;
+}
+
+function translateToEnglish(text, callback) {
+  const cleanText = String(text || '').trim();
+  if (!cleanText) {
+    callback(null, '');
+    return;
+  }
+
+  const limitedText = cleanText.slice(0, 5000);
+  const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(limitedText)}`;
+
+  https.get(translateUrl, (translationRes) => {
+    let body = '';
+
+    translationRes.on('data', chunk => {
+      body += chunk;
+    });
+
+    translationRes.on('end', () => {
+      try {
+        if (translationRes.statusCode < 200 || translationRes.statusCode >= 300) {
+          throw new Error(`Translation service returned HTTP ${translationRes.statusCode}`);
+        }
+
+        const parsed = JSON.parse(body);
+        const translatedText = Array.isArray(parsed?.[0])
+          ? parsed[0].map(part => part?.[0] || '').join('')
+          : '';
+
+        callback(null, translatedText || limitedText);
+      } catch (error) {
+        callback(error);
+      }
+    });
+  }).on('error', callback);
+}
+
+function runConfiguredArchive(callback) {
+  const config = parametersConfigStore.readParametersConfig();
+  const archiveSettings = normalizeArchiveSettings(config.archiveSettings || {}) || {};
+  const archiveAfterDays = archiveSettings.archiveAfterDays || 90;
+
+  const updateQuery = `
+    UPDATE feedback
+    SET archive_status = 'archived'
+    WHERE is_active = 1
+      AND archive_status = 'not_archived'
+      AND created_at < DATE_SUB(NOW(), INTERVAL ${archiveAfterDays} DAY)
+  `;
+
+  db.run(updateQuery, [], function(updateErr) {
+    if (updateErr) {
+      callback(updateErr);
+      return;
+    }
+
+    const archivedNow = this.changes || 0;
+    const archivedCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "archived" AND is_active = 1';
+    const activeCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "not_archived" AND is_active = 1';
+
+    db.get(archivedCountQuery, [], (archivedErr, archivedResult) => {
+      if (archivedErr) {
+        callback(archivedErr);
+        return;
+      }
+
+      db.get(activeCountQuery, [], (activeErr, activeResult) => {
+        if (activeErr) {
+          callback(activeErr);
+          return;
+        }
+
+        callback(null, {
+          archiveAfterDays,
+          archivedNow,
+          archived: archivedResult.count,
+          active: activeResult.count
+        });
+      });
+    });
+  });
+}
+
+function runAutoArchiveIfEnabled() {
+  const config = parametersConfigStore.readParametersConfig();
+  const archiveSettings = config.archiveSettings || {};
+
+  if (archiveSettings.autoArchiveEnabled !== true) {
+    return;
+  }
+
+  runConfiguredArchive((error, result) => {
+    if (error) {
+      console.error('Auto archive failed:', error.message);
+      return;
+    }
+
+    console.log(`Auto archive complete: ${result.archivedNow} moved after ${result.archiveAfterDays} days`);
+  });
+}
+
+const autoArchiveTimer = setInterval(runAutoArchiveIfEnabled, 24 * 60 * 60 * 1000);
+if (autoArchiveTimer.unref) {
+  autoArchiveTimer.unref();
+}
+
 // GET /api/admin/parameters
 // Load all system parameters
 router.get('/parameters', auth.requireAuth, (req, res) => {
@@ -4920,6 +5035,32 @@ router.get('/parameters', auth.requireAuth, (req, res) => {
     console.error('❌ Error reading parameters:', error);
     res.status(500).json({ success: false, error: 'Failed to load parameters' });
   }
+});
+
+// POST /api/admin/translate
+// Translate visitor-entered feedback text to English from the admin page (Done by Caeden)
+router.post('/translate', auth.requireAuth, (req, res) => {
+  const { text } = req.body || {};
+
+  if (!text || !String(text).trim()) {
+    return res.status(400).json({ success: false, error: 'Text is required for translation' });
+  }
+
+  translateToEnglish(text, (error, translatedText) => {
+    if (error) {
+      console.error('Translation failed:', error.message);
+      return res.status(502).json({
+        success: false,
+        error: 'Translation service unavailable. Please check the server internet connection.'
+      });
+    }
+
+    res.json({
+      success: true,
+      originalText: String(text),
+      translatedText
+    });
+  });
 });
 
 router.post('/parameters/background', auth.requireAdmin, uploadParameterBackground.single('background'), (req, res) => {
@@ -4981,7 +5122,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets } = req.body;
+    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -5011,8 +5152,12 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (visualAssets && typeof visualAssets !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid visualAssets format' });
     }
+    if (archiveSettings && typeof archiveSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid archiveSettings format' });
+    }
     
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
+    const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
 
     // Read current config
     const config = parametersConfigStore.readParametersConfig();
@@ -5027,6 +5172,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
     if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
+    if (normalizedArchiveSettings) config.archiveSettings = { ...config.archiveSettings, ...normalizedArchiveSettings };
     
     // Save updated config
     const success = parametersConfigStore.writeParametersConfig(config);
@@ -5067,9 +5213,12 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       return res.status(404).json({ success: false, error: `Category '${category}' not found` });
     }
     
-    const normalizedUpdates = category === 'contentSettings'
-      ? normalizeContentSettings(updates)
-      : updates;
+    let normalizedUpdates = updates;
+    if (category === 'contentSettings') {
+      normalizedUpdates = normalizeContentSettings(updates);
+    } else if (category === 'archiveSettings') {
+      normalizedUpdates = normalizeArchiveSettings(updates);
+    }
 
     // Update category
     const success = parametersConfigStore.updateCategory(category, normalizedUpdates);

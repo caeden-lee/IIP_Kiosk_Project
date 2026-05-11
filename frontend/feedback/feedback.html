@@ -94,12 +94,53 @@
             color: white;
             border-color: #6366F1;
         }
+
+        /* Always-visible language switcher and keyboard shortcut hint (Done by Caeden) */
+        .floating-language-selector {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 10000;
+            margin: 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
+        }
+
+        .floating-language-selector button {
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .floating-language-selector {
+                top: 10px;
+                right: 10px;
+                gap: 6px;
+                padding: 6px;
+            }
+
+            .floating-language-selector button {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+        }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="feedback.css">
 </head>
 <body>
+    <!-- Global language switcher: click/tap or use Alt+1 English, Alt+2 Chinese, Alt+3 Malay, Alt+4 Tamil (Done by Caeden) -->
+    <div class="language-selector floating-language-selector" aria-label="Choose feedback form language">
+        <button type="button" onclick="setLanguage('en')" data-lang="en" class="active" title="Alt+1">English</button>
+        <button type="button" onclick="setLanguage('zh')" data-lang="zh" title="Alt+2">&#20013;&#25991;</button>
+        <button type="button" onclick="setLanguage('ms')" data-lang="ms" title="Alt+3">Bahasa Melayu</button>
+        <button type="button" onclick="setLanguage('ta')" data-lang="ta" title="Alt+4">&#2980;&#2990;&#3007;&#2996;&#3021;</button>
+    </div>
+
     <!-- Landing Page -->
     <div id="land-page-no-qrcode">
         <div id="landing-page" class="container">

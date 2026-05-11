@@ -42,6 +42,9 @@
 //    function saveParameters          - Persist feature flags, validation rules, text, email, tree, photo and visual asset parameters (DONE BY CAEDEN)
 //    function uploadParameterBackground - Upload and activate a feedback background image (DONE BY CAEDEN)
 //    function resetParametersToDefaults - Restore parameter defaults from admin UI (DONE BY CAEDEN)
+//    function translateAdminTextToEnglish - Translate visitor pledge and answer text to English in admin popups (Done by Caeden)
+//    function runConfiguredArchiveNow - Run configurable feedback auto-archive update from admin UI (Done by Caeden)
+//    function toggleDailyOperation    - One-button End Day / Start Day kiosk control (Done by Caeden)
 //
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -1610,6 +1613,7 @@ async function updateKioskStatus() {
             if (statusSubtitleEl) {
                 statusSubtitleEl.textContent = 'Service is active';
             }
+            updateDailyOperationButton(data.kiosk_running);
         } else {
             // Kiosk is stopped - show red
             statusValueEl.innerHTML = '<span class="status-stopped">🔴 Stopped</span>';
@@ -2477,6 +2481,28 @@ function updateFeedbackCounts(total, filtered, activeFilters) {
     }
 }
 
+// Show the user's typed feedback directly in the admin feedback table. (DONE BY CAEDEN)
+function getFeedbackAnswerPreview(feedback) {
+    const answers = Array.isArray(feedback.question_answers) ? feedback.question_answers : [];
+    const textAnswers = answers
+        .filter(answer => answer && String(answer.answer_value || '').trim() !== '')
+        .filter(answer => String(answer.question_type || '').toLowerCase() === 'text')
+        .map(answer => String(answer.answer_value).trim());
+
+    const values = textAnswers.length > 0
+        ? textAnswers
+        : answers
+            .filter(answer => answer && String(answer.answer_value || answer.option_label || '').trim() !== '')
+            .map(answer => String(answer.option_label || answer.answer_value).trim());
+
+    if (values.length === 0) {
+        return null;
+    }
+
+    const preview = values.join(' | ');
+    return preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
+}
+
 // Render current page of feedback (25 records)
 function renderFeedbackPage() {
     const tbody = document.getElementById('feedback-table-body');
@@ -2507,7 +2533,7 @@ function renderFeedbackPage() {
     if (filteredFeedbackData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
+                <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
                     ${allFeedbackData.length === 0 
                         ? 'No feedback data available.'
                         : 'No results match your filters. Try adjusting your search criteria.'}
@@ -2551,13 +2577,22 @@ function renderFeedbackPage() {
         // Pledge
         const pledgeCell = row.insertCell(3);
         if (feedback.pledge && feedback.pledge.trim() !== '') {
-            pledgeCell.innerHTML = `<button class="btn-view" onclick="viewPledge(${feedback.id}, '${escapeHtml(feedback.pledge)}')">View</button>`;
+            pledgeCell.innerHTML = `<button class="btn-view" onclick="viewPledge(${feedback.id}, decodeURIComponent('${encodeURIComponent(feedback.pledge)}'))">View</button>`;
         } else {
             pledgeCell.innerHTML = '<span class="text-muted font-size-12">No pledge</span>';
         }
+
+        // User Feedback preview
+        const feedbackPreviewCell = row.insertCell(4);
+        const feedbackPreview = getFeedbackAnswerPreview(feedback);
+        if (feedbackPreview) {
+            feedbackPreviewCell.innerHTML = `<span title="${escapeHtml(feedbackPreview)}" style="display: block; max-width: 260px; white-space: normal; line-height: 1.35;">${escapeHtml(feedbackPreview)}</span>`;
+        } else {
+            feedbackPreviewCell.innerHTML = '<span class="text-muted font-size-12">No typed feedback</span>';
+        }
         
         // Questions & Answers
-        const qaCell = row.insertCell(4);
+        const qaCell = row.insertCell(5);
         if (feedback.question_answers && feedback.question_answers.length > 0) {
             qaCell.innerHTML = `<button class="btn-view" onclick="viewQuestionAnswers(${feedback.id})">View</button>`;
         } else {
@@ -2565,7 +2600,7 @@ function renderFeedbackPage() {
         }
         
         // Data Retention WITH BADGES
-        const retentionCell = row.insertCell(5);
+        const retentionCell = row.insertCell(6);
         const retention = feedback.data_retention || 'longterm';
         if (retention === '7days' || retention === '7day') {
             retentionCell.innerHTML = '<span class="badge badge-warning">7 DAYS</span>';
@@ -2574,7 +2609,7 @@ function renderFeedbackPage() {
         }
         
         // Raw Photo
-        const rawPhotoCell = row.insertCell(6);
+        const rawPhotoCell = row.insertCell(7);
         if (feedback.photo_path) {
             rawPhotoCell.innerHTML = `<button class="btn-view" onclick="viewRawPhoto(${feedback.id})">View</button>`;
         } else {
@@ -2582,7 +2617,7 @@ function renderFeedbackPage() {
         }
         
         // Processed Photo
-        const processedPhotoCell = row.insertCell(7);
+        const processedPhotoCell = row.insertCell(8);
         if (feedback.processed_photo_path) {
             processedPhotoCell.innerHTML = `<button class="btn-view" onclick="viewProcessedPhoto(${feedback.id})">View</button>`;
         } else {
@@ -2590,7 +2625,7 @@ function renderFeedbackPage() {
         }
         
         // Date
-        row.insertCell(8).textContent = new Date(feedback.date).toLocaleString('en-SG', {
+        row.insertCell(9).textContent = new Date(feedback.date).toLocaleString('en-SG', {
             timeZone: 'Asia/Singapore',
             year: 'numeric',
             month: 'short',
@@ -2600,7 +2635,7 @@ function renderFeedbackPage() {
         });
         
         // Actions
-        const actionsCell = row.insertCell(9);
+        const actionsCell = row.insertCell(10);
         
         // IT_staff: View only, cannot delete
         if (userRole === 'IT_staff') {
@@ -2942,7 +2977,7 @@ function renderArchivePage() {
             <tr>
                 <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
                     ${allArchiveData.length === 0 
-                        ? 'No archived feedback found. Feedback older than 3 months will appear here.'
+                        ? 'No archived feedback found. Feedback moved by the archive rules will appear here.'
                         : 'No results match your filters. Try adjusting your search criteria.'}
                 </td>
             </tr>
@@ -2990,7 +3025,7 @@ function renderArchivePage() {
         // Pledge
         const pledgeCell = row.insertCell(4);
         if (feedback.pledge && feedback.pledge.trim() !== '') {
-            pledgeCell.innerHTML = `<button class="btn-view" onclick="viewPledge(${feedback.id}, '${escapeHtml(feedback.pledge)}')">View</button>`;
+            pledgeCell.innerHTML = `<button class="btn-view" onclick="viewPledge(${feedback.id}, decodeURIComponent('${encodeURIComponent(feedback.pledge)}'))">View</button>`;
         } else {
             pledgeCell.innerHTML = '<span class="text-muted font-size-12">No pledge</span>';
         }
@@ -3443,9 +3478,58 @@ function reEncryptAllArchiveEmails() {
 
 // ==================== 9. PLEDGE & CONTENT VIEWING ====================
 
+// Translate visitor-entered pledge or feedback answers to English for admin review (Done by Caeden)
+async function translateAdminTextToEnglish(sourceId, outputId, button) {
+    const source = document.getElementById(sourceId);
+    const output = document.getElementById(outputId);
+    const text = source?.textContent?.trim() || '';
+
+    if (!text) {
+        if (output) output.textContent = 'No text to translate.';
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Translating...';
+    }
+
+    try {
+        const response = await fetch('/api/admin/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Translation failed');
+        }
+
+        if (output) {
+            output.textContent = data.translatedText || text;
+            output.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Translation error:', error);
+        if (output) {
+            output.textContent = error.message || 'Translation unavailable.';
+            output.style.display = 'block';
+        }
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'Translate to English';
+        }
+    }
+}
+
 // View pledge
 function viewPledge(feedbackId, pledgeText) {
     const popup = document.createElement('div');
+    const pledgeSourceId = `pledge-source-${feedbackId}`;
+    const pledgeTranslationId = `pledge-translation-${feedbackId}`;
     popup.className = 'pledge-popup';
     popup.style.cssText = `
         position: fixed;
@@ -3486,7 +3570,7 @@ function viewPledge(feedbackId, pledgeText) {
                 ">×</button>
             </div>
             
-            <div style="
+            <div id="${pledgeSourceId}" style="
                 background: #f8fafc;
                 padding: 20px;
                 border-radius: 8px;
@@ -3497,8 +3581,26 @@ function viewPledge(feedbackId, pledgeText) {
                 white-space: pre-wrap;
                 line-height: 1.6;
             ">
-                ${pledgeText || '<em>No pledge text available</em>'}
+                ${pledgeText ? escapeHtmlSafe(pledgeText) : 'No pledge text available'}
             </div>
+
+            <button onclick="translateAdminTextToEnglish('${pledgeSourceId}', '${pledgeTranslationId}', this)" style="
+                padding: 9px 14px;
+                background: #475569;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 600;
+                align-self: flex-start;
+                flex-shrink: 0;
+                margin-bottom: 12px;
+            ">
+                Translate to English
+            </button>
+
+            <div id="${pledgeTranslationId}" class="admin-translation-result" style="display: none;"></div>
             
             <div style="font-size: 12px; color: #64748b; margin-bottom: 15px; flex-shrink: 0;">
                 Viewed by: ${sessionStorage.getItem('loggedUser')} at ${new Date().toLocaleTimeString()}
@@ -3567,14 +3669,30 @@ function createQuestionAnswersPopup(feedbackId, answers) {
     `;
 
     const answersHtml = answers && answers.length > 0 
-        ? answers.map(answer => `
+        ? answers.map((answer, index) => {
+            const answerSourceId = `qa-answer-${feedbackId}-${index}`;
+            const answerTranslationId = `qa-translation-${feedbackId}-${index}`;
+            return `
             <div class="qa-item" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
-                <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">${answer.question_text}</div>
-                <div style="color: #475569; padding-left: 10px; border-left: 3px solid #e2e8f0;">
+                <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">${escapeHtmlSafe(answer.question_text)}</div>
+                <div id="${answerSourceId}" style="color: #475569; padding-left: 10px; border-left: 3px solid #e2e8f0;">
                     ${formatAnswer(answer.answer_value, answer.question_type)}
                 </div>
+                <button onclick="translateAdminTextToEnglish('${answerSourceId}', '${answerTranslationId}', this)" style="
+                    margin-top: 10px;
+                    padding: 7px 12px;
+                    background: #475569;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                ">Translate to English</button>
+                <div id="${answerTranslationId}" class="admin-translation-result" style="display: none;"></div>
             </div>
-        `).join('')
+        `;
+        }).join('')
         : '<div style="color: #64748b; text-align: center; padding: 40px;">No question answers available</div>';
 
     popup.innerHTML = `
@@ -3639,6 +3757,7 @@ function createQuestionAnswersPopup(feedbackId, answers) {
 // Format answer based on question type
 function formatAnswer(answer, questionType) {
     if (!answer) return '<em>No answer provided</em>';
+    const safeAnswer = escapeHtmlSafe(answer);
     
     switch(questionType) {
         case 'rating':
@@ -3652,9 +3771,9 @@ function formatAnswer(answer, questionType) {
         case 'yesno':
             return answer === '1' ? 'Yes' : 'No';
         case 'choice':
-            return answer;
+            return safeAnswer;
         default:
-            return answer;
+            return safeAnswer;
     }
 }
 
@@ -7187,6 +7306,7 @@ function showPage(pageName) {
         loadTimerCountdownSetting();
     } else if (pageName === 'server-schedule') {
         loadSchedules();
+        checkServerStatus();
     } else if (pageName === 'form-management') {
     loadFormUISettings();
     } else if (pageName === 'Land-page-QR') {
@@ -10924,6 +11044,7 @@ function populateParameterForm(config) {
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
     const assets = config.visualAssets || {};
+    const archive = config.archiveSettings || {}; // Auto-archive settings loaded into admin controls (Done by Caeden)
 
     setInputValue('param-thankYouTitle', feedback.thankYouTitle);
     setInputValue('param-thankYouSubtitle', feedback.thankYouSubtitle);
@@ -10985,6 +11106,8 @@ function populateParameterForm(config) {
     setInputValue('param-feedbackBackground', assets.feedbackBackground);
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
+    setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
+    setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
 }
 
 function collectParameterForm() {
@@ -11066,6 +11189,10 @@ function collectParameterForm() {
             feedbackBackground: getInputValue('param-feedbackBackground'),
             treeBackground: getInputValue('param-treeBackground'),
             defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
+        },
+        archiveSettings: {
+            autoArchiveEnabled: getCheckedValue('archive-autoArchiveEnabled'),
+            archiveAfterDays: Number(getInputValue('archive-archiveAfterDays')) || 90
         }
     };
 }
@@ -11168,6 +11295,29 @@ async function resetParametersToDefaults() {
     } catch (error) {
         console.error('Error resetting parameters:', error);
         setParameterStatus(error.message || 'Failed to reset parameters.', 'error');
+    }
+}
+
+// Run configured archive update from the admin panel (Done by Caeden)
+async function runConfiguredArchiveNow() {
+    if (!confirm('Run archive update now using the selected archive timing? Save changes first if you changed the timing.')) return;
+
+    try {
+        setParameterStatus('Running archive update...', 'info');
+        const response = await fetch('/api/admin/archive/update-status', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to run archive update');
+        }
+
+        setParameterStatus(`Archive update complete. ${data.archivedNow || 0} feedback record(s) moved after ${data.archiveAfterDays || 90} days.`, 'success');
+    } catch (error) {
+        console.error('Error running archive update:', error);
+        setParameterStatus(error.message || 'Failed to run archive update.', 'error');
     }
 }
 
@@ -11868,6 +12018,7 @@ async function checkServerStatus() {
         const statusIndicator = document.getElementById('server-status-indicator');
         
         if (!statusIndicator) return;
+        if (data.success) updateDailyOperationButton(data.kiosk_running === true);
         
         if (data.success) {
             if (data.kiosk_running) {
@@ -11885,6 +12036,78 @@ async function checkServerStatus() {
         if (statusIndicator) {
             statusIndicator.innerHTML = '<span class="status-error">⚠️ Cannot check status</span>';
         }
+    }
+}
+
+// One-button End Day / Start Day kiosk control for admins (Done by Caeden)
+function updateDailyOperationButton(isRunning) {
+    const button = document.getElementById('daily-operation-toggle-btn');
+    const hint = document.getElementById('daily-operation-hint');
+
+    if (!button) return;
+
+    button.disabled = false;
+    button.dataset.running = isRunning ? 'true' : 'false';
+    button.textContent = isRunning ? 'End Day: Turn Kiosk Off' : 'Start Day: Turn Kiosk On';
+    button.className = isRunning ? 'btn-danger' : 'btn-primary';
+
+    if (hint) {
+        hint.textContent = isRunning
+            ? 'Kiosk is running. End Day switches to manual mode and stops the kiosk server.'
+            : 'Kiosk is stopped. Start Day switches to manual mode and starts the kiosk server.';
+    }
+}
+
+async function setServerModeForDailyOperation() {
+    const response = await fetch('/api/admin/server/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'manual' })
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to switch to manual mode');
+    }
+
+    const toggle = document.getElementById('auto-mode-toggle');
+    if (toggle) toggle.checked = false;
+    updateModeUI(false);
+}
+
+async function toggleDailyOperation() {
+    const button = document.getElementById('daily-operation-toggle-btn');
+    const statusResponse = await fetch('/api/admin/server/status');
+    const statusData = await statusResponse.json();
+    const isRunning = statusData.success ? statusData.kiosk_running === true : button?.dataset?.running === 'true';
+    const action = isRunning ? 'end the day and stop the kiosk' : 'start the day and turn the kiosk on';
+
+    if (!confirm(`Are you sure you want to ${action}?`)) return;
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = isRunning ? 'Turning Off...' : 'Turning On...';
+    }
+
+    try {
+        await setServerModeForDailyOperation();
+
+        const response = await fetch(isRunning ? '/api/admin/server/stop' : '/api/admin/server/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Daily operation failed');
+        }
+
+        showNotification(isRunning ? 'End Day complete. Kiosk is off.' : 'Start Day complete. Kiosk is on.', 'success');
+        setTimeout(() => checkServerStatus(), 2000);
+    } catch (error) {
+        console.error('Daily operation error:', error);
+        showNotification(error.message || 'Daily operation failed', 'error');
+        checkServerStatus();
     }
 }
 
@@ -12077,6 +12300,7 @@ window.serverScheduleManager = {
     disableAllSchedules,
     startServer,
     stopServer,
+    toggleDailyOperation,
     loadServerMode,
     toggleServerMode,
     checkServerStatus

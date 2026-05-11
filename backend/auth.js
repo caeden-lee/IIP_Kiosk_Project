@@ -171,6 +171,33 @@ function decryptEmail(encryptedEmail) {
     }
 }
 
+// Quiet decrypt helper for duplicate-email lookup so old bad records do not spam crash-like errors. (DONE BY CAEDEN)
+function tryDecryptEmail(encryptedEmail) {
+    if (!encryptedEmail || encryptedEmail.trim() === '') {
+        return null;
+    }
+
+    try {
+        const parts = encryptedEmail.split(':');
+        if (parts.length !== 3) {
+            return null;
+        }
+
+        const iv = Buffer.from(parts[0], 'hex');
+        const authTag = Buffer.from(parts[1], 'hex');
+        const encrypted = parts[2];
+        const key = Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex');
+        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+        decipher.setAuthTag(authTag);
+
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch {
+        return null;
+    }
+}
+
 // ==================== 4. AUTHENTICATION MIDDLEWARE ====================
 
 
@@ -407,6 +434,7 @@ module.exports = {
     // Email encryption functions
     encryptEmail,
     decryptEmail,
+    tryDecryptEmail,
     
     // Middleware
     requireAuth,

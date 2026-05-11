@@ -278,15 +278,19 @@ router.post('/save-processed-photo', (req, res) => {
 // Submit complete feedback with retention and email
 router.post('/submit-feedback', async (req, res) => {
     const startTime = Date.now();
+    const requestBody = req.body || {};
+    const userData = requestBody.userData || {};
+    const device = requestBody.device || 'unknown';
+    const theme = requestBody.theme || 'unknown';
+    const retention = requestBody.retention || '';
     
     try {
-        const { userData, device, theme, retention } = req.body;
         const normalizedRetention = normalizeRetentionSelection(retention);
         // Centralized feature flag and validation rule enforcement for feedback submission (DONE BY CAEDEN)
         const parameterConfig = parametersConfigStore.readParametersConfig();
         const featureFlags = parameterConfig.featureFlags || {};
         const validationRules = parameterConfig.validationRules || {};
-        const validation = validateFeedbackSubmission(req.body, validationRules, featureFlags);
+        const validation = validateFeedbackSubmission(requestBody, validationRules, featureFlags);
 
         if (!validation.valid) {
             return res.status(400).json({
@@ -335,28 +339,15 @@ router.post('/submit-feedback', async (req, res) => {
             responseData.data.emailQueuedMessage = 'Thank you email will be sent shortly';
         }
         
-        // If user provided a valid email, attempt badge email before returning response.
-        // This ensures the user sees the share options only after badge email has been processed.
-        // Added by XY: badge email send is performed before response so share UI can depend on success/failure.
-        if (featureFlags.badgeEmailEnabled !== false && userData.email && userData.email.includes('@')) {
-            try {
-                const badgeResult = await emailService.sendBadgeEmail(userData.email, userData);
-                responseData.data.badgeEmailSent = badgeResult.success;
-                responseData.data.badgeEmailBadges = badgeResult.badges || [];
-                responseData.data.badgeEmailBadgeKeys = badgeResult.badgeKeys || [];
-                responseData.data.badgeEmailError = badgeResult.success ? null : badgeResult.error;
-                responseData.data.badgeEmailMessage = badgeResult.success
-                    ? 'Your badge email has been sent.'
-                    : 'Badge email could not be sent at this time.';
-            } catch (emailError) {
-                console.error('❌ sendBadgeEmail failed before response:', emailError);
-                responseData.data.badgeEmailSent = false;
-                responseData.data.badgeEmailError = emailError.message;
-                responseData.data.badgeEmailMessage = 'Badge email could not be sent at this time.';
-            }
+        // Badge email is queued after the response so slow SMTP cannot freeze the kiosk form. (DONE BY CAEDEN)
+        const shouldSendBadgeEmail = featureFlags.badgeEmailEnabled !== false && userData.email && userData.email.includes('@');
+        if (shouldSendBadgeEmail) {
+            responseData.data.emailQueued = true;
+            responseData.data.badgeEmailQueued = true;
+            responseData.data.badgeEmailMessage = 'Your badge email will be sent shortly.';
         }
         
-        // Send response after badge email attempt so the frontend can update share UI appropriately
+        // Send the visitor response before background database and email work. (DONE BY CAEDEN)
         res.json(responseData);
         const responseTime = Date.now() - startTime;
         console.log(`✅ Response sent in ${responseTime}ms`);
@@ -375,6 +366,21 @@ router.post('/submit-feedback', async (req, res) => {
                     
                     console.log('✅ Feedback saved to database:', result);
                     const bgTime = Date.now() - bgStartTime;
+                    // Send badge email in the background so SMTP delays do not block the kiosk. (DONE BY CAEDEN)
+                    if (shouldSendBadgeEmail) {
+                        setImmediate(async () => {
+                            try {
+                                const badgeResult = await emailService.sendBadgeEmail(userData.email, userData);
+                                if (badgeResult.success) {
+                                    console.log(`Badge email sent to ${userData.email}`);
+                                } else {
+                                    console.error(`Badge email failed: ${badgeResult.error}`);
+                                }
+                            } catch (emailError) {
+                                console.error('Badge email exception:', emailError.message);
+                            }
+                        });
+                    }
                     console.log(`🔄 Database completed in ${bgTime}ms`);
                     
                     // Send thank-you email AFTER database is committed (only if photo exists)
@@ -435,18 +441,10 @@ router.post('/submit-feedback', async (req, res) => {
         const errorResponseTime = Date.now() - startTime;
         console.log(`⚠️ Error response sent in ${errorResponseTime}ms`);
         
-        res.json({ 
-            success: true, 
-            message: 'Feedback submitted successfully',
-            data: {
-                userName: userData?.name || 'unknown',
-                email: userData?.email || 'unknown',
-                device: device || 'unknown',
-                theme: theme || 'unknown',
-                retention: retention || 'unknown',
-                submittedAt: new Date().toISOString(),
-                note: 'System processing completed'
-            }
+        res.status(500).json({ 
+            success: false, 
+            message: 'Feedback could not be submitted. Please try again.',
+            error: error.message
         });
     }
 });
@@ -663,7 +661,10 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
         if (userData.email) {
             for (const u of allUsers) {
                 try {
-                    const decryptedEmail = auth.decryptEmail(u.email_encrypted);
+                    // Quietly skip old undecryptable emails during duplicate lookup. (Done by Caeden)
+                    const decryptedEmail = auth.tryDecryptEmail
+                        ? auth.tryDecryptEmail(u.email_encrypted)
+                        : auth.decryptEmail(u.email_encrypted);
                     if (decryptedEmail && decryptedEmail.toLowerCase() === userData.email.toLowerCase()) {
                         user = u;
                         break;

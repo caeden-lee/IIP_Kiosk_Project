@@ -287,10 +287,11 @@ function initializeProgressIndicators() {
             const progress = document.createElement('nav');
             progress.className = 'step-progress';
             progress.setAttribute('aria-label', 'Feedback progress');
+            const progressLabels = getDynamicLanguageText().flowSteps;
             progress.innerHTML = FLOW_STEPS.map(item => `
                 <div class="progress-step" data-step="${item.key}">
                     <span class="progress-dot"></span>
-                    <span class="progress-label">${item.label}</span>
+                    <span class="progress-label">${progressLabels[item.key] || item.label}</span>
                 </div>
             `).join('');
             card.prepend(progress);
@@ -780,9 +781,11 @@ function createQuestionElement(question, questionNumber) {
     questionGroup.setAttribute('data-question-id', question.id);
     
     const requiredIndicator = question.is_required ? ' *' : '';
+    const translatedQuestionText = translateKnownDynamicText(question.question_text);
+    const answerPlaceholder = getDynamicLanguageText().answerPlaceholder;
     
     let questionHTML = `
-        <label class="question-label">${questionNumber}. ${question.question_text}${requiredIndicator}</label>
+        <label class="question-label" data-question-number="${questionNumber}" data-original-text="${question.question_text}" data-required="${question.is_required ? 'true' : 'false'}">${questionNumber}. ${translatedQuestionText}${requiredIndicator}</label>
     `;
     
     // Generate appropriate input based on question type
@@ -793,7 +796,7 @@ function createQuestionElement(question, questionNumber) {
                     id="q${question.id}" 
                     name="q${question.id}" 
                     rows="4" 
-                    placeholder="Type your answer here..." 
+                    placeholder="${answerPlaceholder}" 
                     ${question.is_required ? 'required' : ''}
                     oninput="resetInactivityTimer()"
                 ></textarea>
@@ -811,7 +814,7 @@ function createQuestionElement(question, questionNumber) {
                             ${question.is_required ? 'required' : ''}
                             onclick="resetInactivityTimer()"
                         >
-                        <span>Yes</span>
+                        <span data-dynamic-option data-original-text="Yes">${getDynamicLanguageText().yes}</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input 
@@ -820,7 +823,7 @@ function createQuestionElement(question, questionNumber) {
                             value="no"
                             onclick="resetInactivityTimer()"
                         >
-                        <span>No</span>
+                        <span data-dynamic-option data-original-text="No">${getDynamicLanguageText().no}</span>
                     </label>
                 </div>
             `;
@@ -864,7 +867,7 @@ function createQuestionElement(question, questionNumber) {
                                     ${question.is_required ? 'required' : ''}
                                     onclick="resetInactivityTimer()"
                                 >
-                                <span>${option.option_label}</span>
+                                <span data-dynamic-option data-original-text="${option.option_label}">${translateKnownDynamicText(option.option_label)}</span>
                             </label>
                         `).join('')}
                     </div>
@@ -878,7 +881,7 @@ function createQuestionElement(question, questionNumber) {
                     id="q${question.id}" 
                     name="q${question.id}" 
                     rows="4" 
-                    placeholder="Type your answer here..." 
+                    placeholder="${answerPlaceholder}" 
                     ${question.is_required ? 'required' : ''}
                     oninput="resetInactivityTimer()"
                 ></textarea>
@@ -917,6 +920,7 @@ function initializeQuestionEventListeners() {
 function showNoQuestionsMessage() {
     const container = document.getElementById('questions-container');
     if (!container) return;
+    const dynamicText = getDynamicLanguageText();
     
     container.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #64748b;">
@@ -924,8 +928,8 @@ function showNoQuestionsMessage() {
                 <circle cx="12" cy="12" r="10" stroke="#94a3b8" stroke-width="1.5"/>
                 <path d="M12 8V12M12 16H12.01" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
-            <h3 style="color: #475569; margin-bottom: 8px;">No Questions Available</h3>
-            <p>Please contact the administrator to set up feedback questions.</p>
+            <h3 style="color: #475569; margin-bottom: 8px;">${dynamicText.noQuestionsTitle}</h3>
+            <p>${dynamicText.noQuestionsDescription}</p>
         </div>
     `;
     
@@ -933,7 +937,7 @@ function showNoQuestionsMessage() {
     const submitBtn = document.querySelector('#feedback-page .consent-button');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = 'No Questions Available';
+        submitBtn.innerHTML = dynamicText.noQuestionsButton;
     }
 }
 
@@ -1061,7 +1065,7 @@ function submitFeedback(event) {
     
     // Validate required questions
     if (!validateRequiredQuestions()) {
-        showFormAlert('feedback-form-alert', 'Please answer the highlighted question before moving on.');
+        showFormAlert('feedback-form-alert', getDynamicLanguageText().requiredQuestion);
         return;
     }
     
@@ -2197,7 +2201,7 @@ function updateConfirmationDetails() {
     
     // Show how many questions were answered
     const answeredCount = Object.keys(userData.answers || {}).length;
-    document.getElementById('confirm-questions').textContent = `${answeredCount} questions answered`;
+    document.getElementById('confirm-questions').textContent = getDynamicLanguageText().questionsAnswered(answeredCount);
 }
 
 // Go back from confirmation to style page
@@ -2273,7 +2277,7 @@ function finalSubmit() {
     })
     .catch(error => {
         console.error('Error submitting feedback:', error);
-        alert('Error submitting feedback. Please try again.');
+        alert(error.message || 'Error submitting feedback. Please try again.');
         
         // Reset button on error
         submitBtn.innerHTML = originalText;
@@ -3097,6 +3101,116 @@ const translations = {
 
 let currentLanguage = localStorage.getItem('kioskLanguage') || 'en';
 
+// Extra translations for dynamic database questions, progress labels and controls. (Done by Caeden)
+const dynamicLanguageText = {
+    en: {
+        flowSteps: { consent: 'Consent', details: 'Details', feedback: 'Feedback', pledge: 'Pledge', photo: 'Photo', confirm: 'Confirm' },
+        answerPlaceholder: 'Type your answer here...',
+        yes: 'Yes',
+        no: 'No',
+        home: 'Home',
+        noQuestionsTitle: 'No Questions Available',
+        noQuestionsDescription: 'Please contact the administrator to set up feedback questions.',
+        noQuestionsButton: 'No Questions Available',
+        requiredQuestion: 'Please answer the highlighted question before moving on.',
+        questionsAnswered: count => `${count} questions answered`,
+        selectFocusArea: 'Select a focus area',
+        knownText: {
+            'how would you rate your experience?': 'How would you rate your experience?',
+            'what did you learn today?': 'What did you learn today?',
+            'which topic interested you most?': 'Which topic interested you most?',
+            'climate change': 'Climate Change',
+            'renewable energy': 'Renewable Energy',
+            'sustainable living': 'Sustainable Living',
+            'ocean conservation': 'Ocean Conservation',
+            'ethical governance': 'Ethical Governance',
+            'community impact': 'Community Impact'
+        }
+    },
+    zh: {
+        flowSteps: { consent: '同意', details: '资料', feedback: '反馈', pledge: '承诺', photo: '照片', confirm: '确认' },
+        answerPlaceholder: '请在这里输入您的回答...',
+        yes: '是',
+        no: '否',
+        home: '主页',
+        noQuestionsTitle: '暂无问题',
+        noQuestionsDescription: '请联系管理员设置反馈问题。',
+        noQuestionsButton: '暂无问题',
+        requiredQuestion: '请回答高亮显示的问题后再继续。',
+        questionsAnswered: count => `已回答 ${count} 个问题`,
+        selectFocusArea: '请选择关注领域',
+        knownText: {
+            'how would you rate your experience?': '您会如何评价您的体验？',
+            'what did you learn today?': '您今天学到了什么？',
+            'which topic interested you most?': '您最感兴趣的主题是什么？',
+            'climate change': '气候变化',
+            'renewable energy': '可再生能源',
+            'sustainable living': '可持续生活',
+            'ocean conservation': '海洋保护',
+            'ethical governance': '道德治理',
+            'community impact': '社区影响'
+        }
+    },
+    ms: {
+        flowSteps: { consent: 'Persetujuan', details: 'Butiran', feedback: 'Maklum Balas', pledge: 'Ikrar', photo: 'Foto', confirm: 'Sahkan' },
+        answerPlaceholder: 'Taip jawapan anda di sini...',
+        yes: 'Ya',
+        no: 'Tidak',
+        home: 'Laman Utama',
+        noQuestionsTitle: 'Tiada Soalan',
+        noQuestionsDescription: 'Sila hubungi pentadbir untuk menetapkan soalan maklum balas.',
+        noQuestionsButton: 'Tiada Soalan',
+        requiredQuestion: 'Sila jawab soalan yang ditandakan sebelum meneruskan.',
+        questionsAnswered: count => `${count} soalan dijawab`,
+        selectFocusArea: 'Pilih bidang fokus',
+        knownText: {
+            'how would you rate your experience?': 'Bagaimanakah anda menilai pengalaman anda?',
+            'what did you learn today?': 'Apakah yang anda pelajari hari ini?',
+            'which topic interested you most?': 'Topik manakah yang paling menarik minat anda?',
+            'climate change': 'Perubahan Iklim',
+            'renewable energy': 'Tenaga Boleh Baharu',
+            'sustainable living': 'Kehidupan Lestari',
+            'ocean conservation': 'Pemuliharaan Lautan',
+            'ethical governance': 'Tadbir Urus Beretika',
+            'community impact': 'Impak Komuniti'
+        }
+    },
+    ta: {
+        flowSteps: { consent: 'ஒப்புதல்', details: 'விவரங்கள்', feedback: 'பின்னூட்டம்', pledge: 'உறுதிமொழி', photo: 'புகைப்படம்', confirm: 'உறுதி' },
+        answerPlaceholder: 'உங்கள் பதிலை இங்கே தட்டச்சு செய்யவும்...',
+        yes: 'ஆம்',
+        no: 'இல்லை',
+        home: 'முகப்பு',
+        noQuestionsTitle: 'கேள்விகள் இல்லை',
+        noQuestionsDescription: 'பின்னூட்டக் கேள்விகளை அமைக்க நிர்வாகியைத் தொடர்பு கொள்ளவும்.',
+        noQuestionsButton: 'கேள்விகள் இல்லை',
+        requiredQuestion: 'தொடருவதற்கு முன் குறிக்கப்பட்ட கேள்விக்கு பதிலளிக்கவும்.',
+        questionsAnswered: count => `${count} கேள்விகள் பதிலளிக்கப்பட்டன`,
+        selectFocusArea: 'கவனப் பகுதியைத் தேர்ந்தெடுக்கவும்',
+        knownText: {
+            'how would you rate your experience?': 'உங்கள் அனுபவத்தை எவ்வாறு மதிப்பிடுவீர்கள்?',
+            'what did you learn today?': 'இன்று நீங்கள் என்ன கற்றுக்கொண்டீர்கள்?',
+            'which topic interested you most?': 'எந்த தலைப்பு உங்களுக்கு மிகவும் ஆர்வமளித்தது?',
+            'climate change': 'காலநிலை மாற்றம்',
+            'renewable energy': 'புதுப்பிக்கத்தக்க ஆற்றல்',
+            'sustainable living': 'நிலையான வாழ்க்கை',
+            'ocean conservation': 'கடல் பாதுகாப்பு',
+            'ethical governance': 'நெறிமுறை ஆட்சி',
+            'community impact': 'சமூக தாக்கம்'
+        }
+    }
+};
+
+function getDynamicLanguageText() {
+    return dynamicLanguageText[currentLanguage] || dynamicLanguageText.en;
+}
+
+function translateKnownDynamicText(text) {
+    const source = String(text || '').trim();
+    const key = source.toLowerCase();
+    return getDynamicLanguageText().knownText[key] || source;
+}
+
 function setText(id, value) {
     document.querySelectorAll(`#${id}`).forEach(el => {
         el.textContent = value;
@@ -3108,11 +3222,54 @@ function setPlaceholder(id, value) {
     if (el) el.placeholder = value;
 }
 
+function setSelectOptionText(selectId, value, text) {
+    const option = document.querySelector(`#${selectId} option[value="${value}"]`);
+    if (option) option.textContent = text;
+}
+
 function updateLanguageButtons() {
     document.querySelectorAll('.language-selector button').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.lang === currentLanguage) {
             btn.classList.add('active');
+        }
+    });
+}
+
+function updateProgressLanguage() {
+    const labels = getDynamicLanguageText().flowSteps;
+    document.querySelectorAll('.progress-step').forEach(stepEl => {
+        const key = stepEl.dataset.step;
+        const labelEl = stepEl.querySelector('.progress-label');
+        if (labelEl && labels[key]) {
+            labelEl.textContent = labels[key];
+        }
+    });
+}
+
+function translateRenderedQuestions() {
+    const dynamicText = getDynamicLanguageText();
+
+    document.querySelectorAll('#questions-container .question-label').forEach(label => {
+        const original = label.dataset.originalText;
+        const number = label.dataset.questionNumber;
+        const required = label.dataset.required === 'true' ? ' *' : '';
+        if (original && number) {
+            label.textContent = `${number}. ${translateKnownDynamicText(original)}${required}`;
+        }
+    });
+
+    document.querySelectorAll('#questions-container textarea').forEach(textarea => {
+        textarea.placeholder = dynamicText.answerPlaceholder;
+    });
+
+    document.querySelectorAll('#questions-container [data-dynamic-option]').forEach(option => {
+        const original = option.dataset.originalText;
+        if (original) {
+            const lower = original.toLowerCase();
+            option.textContent = lower === 'yes'
+                ? dynamicText.yes
+                : (lower === 'no' ? dynamicText.no : translateKnownDynamicText(original));
         }
     });
 }
@@ -3155,7 +3312,7 @@ function applyTranslations() {
     setText('feedback-description', t.feedbackDescription);
     setText('continue-to-pledge-text', t.continueToPledge);
     setText('back-from-feedback-text', t.back);
-    setText('home-from-feedback-text', t.home); // Home button translation done by nick
+    setText('home-from-feedback-text', getDynamicLanguageText().home); // Home button translation done by nick
 
     setText('pledge-title', t.pledgeTitle);
     setText('pledge-description', t.pledgeDescription);
@@ -3165,6 +3322,13 @@ function applyTranslations() {
     setText('pledge-example-3', t.pledgeExample3);
     setText('pledge-label', t.pledgeLabel);
     setText('pledge-topic-label', t.pledgeTopicLabel || 'Choose your sustainability focus');
+    setSelectOptionText('pledge-topic', '', getDynamicLanguageText().selectFocusArea);
+    setSelectOptionText('pledge-topic', 'climate-change', translateKnownDynamicText('Climate Change'));
+    setSelectOptionText('pledge-topic', 'renewable-energy', translateKnownDynamicText('Renewable Energy'));
+    setSelectOptionText('pledge-topic', 'sustainable-living', translateKnownDynamicText('Sustainable Living'));
+    setSelectOptionText('pledge-topic', 'ocean-conservation', translateKnownDynamicText('Ocean Conservation'));
+    setSelectOptionText('pledge-topic', 'ethical-governance', translateKnownDynamicText('Ethical Governance'));
+    setSelectOptionText('pledge-topic', 'community-impact', translateKnownDynamicText('Community Impact'));
     setPlaceholder('pledge-text', t.pledgePlaceholder);
     setText('characters-text', t.charactersText);
     setText('pledge-privacy-text', t.pledgePrivacy);
@@ -3222,6 +3386,8 @@ function applyTranslations() {
     setText('thankyou-pledgeboards-btn', t.pledgeboardButton);
 
     updateLanguageButtons();
+    updateProgressLanguage();
+    translateRenderedQuestions();
     applyParameterOverrides();
 }
 
@@ -3229,11 +3395,31 @@ function setLanguage(lang) {
     if (!translations[lang]) return;
     currentLanguage = lang;
     localStorage.setItem('kioskLanguage', lang);
+    document.documentElement.lang = lang;
     applyTranslations();
+}
+
+// Physical keyboard shortcuts for changing language: Alt+1 English, Alt+2 Chinese, Alt+3 Malay, Alt+4 Tamil. (Done by Caeden)
+function handleLanguageShortcut(event) {
+    if (!event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const shortcuts = {
+        '1': 'en',
+        '2': 'zh',
+        '3': 'ms',
+        '4': 'ta'
+    };
+
+    const lang = shortcuts[event.key];
+    if (!lang) return;
+
+    event.preventDefault();
+    setLanguage(lang);
 }
 
 // apply once page is ready
 document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('keydown', handleLanguageShortcut);
     setTimeout(() => {
         applyTranslations();
     }, 100);
