@@ -1,10 +1,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Start the split gateway, kiosk and admin services; db.js is imported by these servers. (Done by Caeden)
-const scripts = ['backend/gatewayServer.js', 'backend/kioskServer.js', 'backend/adminServer.js'];
+const scripts = ['backend/server.js', 'backend/db.js', 'backend/kioskServer.js'];
 const children = [];
-let shuttingDown = false;
 
 function startScript(scriptName) {
 	const child = spawn(process.execPath, [path.join(__dirname, scriptName)], {
@@ -16,13 +14,14 @@ function startScript(scriptName) {
 	child.on('exit', (code, signal) => {
 		console.log(`Process ended: ${scriptName} ${signal ? `(${signal})` : `(code ${code})`}`);
 
-		if (shuttingDown) {
-			return;
+		for (const otherChild of children) {
+			if (otherChild !== child && !otherChild.killed) {
+				otherChild.kill();
+			}
 		}
 
-		const allExited = children.every((otherChild) => otherChild.killed || otherChild.exitCode !== null);
-		if (allExited && !process.exitCode) {
-			process.exitCode = code && code !== 0 ? code : 0;
+		if (!process.exitCode) {
+			process.exitCode = code ?? 1;
 		}
 	});
 
@@ -39,7 +38,6 @@ for (const scriptName of scripts) {
 }
 
 function shutdown() {
-	shuttingDown = true;
 	for (const child of children) {
 		if (!child.killed) {
 			child.kill();
