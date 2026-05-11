@@ -15,10 +15,9 @@ const SCRIPT_DIR = __dirname;
 const CONFIG_PATH = path.join(SCRIPT_DIR, 'kiosk-schedules.json');
 const MODE_FILE = path.join(SCRIPT_DIR, 'server-control-mode.json');
 
-// Log inside the backend folder so Windows sandboxed runs can write it. (DONE BY CAEDEN)
+// Log file in user's home directory
 const HOME_DIR = os.homedir();
-const LOG_DIR = path.join(SCRIPT_DIR, 'logs');
-const LOG_PATH = path.join(LOG_DIR, 'schedule-runner.log');
+const LOG_PATH = path.join(HOME_DIR, 'schedule-runner.log');
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -31,12 +30,6 @@ console.log('Log file:', LOG_PATH);
 console.log('Home directory:', HOME_DIR);
 console.log('Current user:', os.userInfo().username);
 console.log('===========================\n');
-
-try {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-} catch (err) {
-  console.error('Failed to create schedule log directory:', err.message);
-}
 
 // ==================== FUNCTIONS ====================
 

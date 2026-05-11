@@ -157,25 +157,9 @@ function readModeConfig() {
   return { mode: 'auto' };
 }
 
-// Check if kiosk service is actually running, including Windows local startAll.js runs. (Done by Caeden)
+// Check if kiosk service is actually running
 function isKioskActuallyRunning() {
   return new Promise((resolve) => {
-    if (process.platform === 'win32') {
-      const probe = http.get('http://localhost:3003/api/status', (probeRes) => {
-        const reachable = probeRes.statusCode >= 200 && probeRes.statusCode < 500;
-        probeRes.resume();
-        resolve(reachable);
-      });
-
-      probe.setTimeout(1500, () => {
-        probe.destroy();
-        resolve(false);
-      });
-
-      probe.on('error', () => resolve(false));
-      return;
-    }
-
     exec('systemctl is-active kiosk.service', (err, stdout, stderr) => {
       const status = stdout.trim();
       resolve(status === 'active');

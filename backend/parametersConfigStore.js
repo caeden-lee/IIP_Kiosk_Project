@@ -9,7 +9,6 @@
 // - Added shared JSON-backed storage for editable feedback messages, thank-you email text,
 //   feature flags, validation rules, digital tree parameters, photo settings, overlay settings and visual assets. (DONE BY CAEDEN)
 // - Added default merging so older config files receive newly introduced parameter categories. (DONE BY CAEDEN)
-// - Added configurable feedback auto-archive timing for the admin archive controls. (Done by Caeden)
 //
 // FIND COMMAND
 //   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -128,11 +127,6 @@ const DEFAULT_CONFIG = {
     feedbackBackground: "",
     treeBackground: "/assets/Tree/BackGround.png",
     defaultOverlayTheme: ""
-  },
-  // Auto-archive settings controlled from the admin panel (Done by Caeden)
-  archiveSettings: {
-    autoArchiveEnabled: false,
-    archiveAfterDays: 90
   }
 };
 
@@ -148,8 +142,7 @@ function mergeWithDefaults(config) {
     treeParameters: { ...DEFAULT_CONFIG.treeParameters, ...(config.treeParameters || {}) },
     photoSettings: { ...DEFAULT_CONFIG.photoSettings, ...(config.photoSettings || {}) },
     overlaySettings: { ...DEFAULT_CONFIG.overlaySettings, ...(config.overlaySettings || {}) },
-    visualAssets: { ...DEFAULT_CONFIG.visualAssets, ...(config.visualAssets || {}) },
-    archiveSettings: { ...DEFAULT_CONFIG.archiveSettings, ...(config.archiveSettings || {}) }
+    visualAssets: { ...DEFAULT_CONFIG.visualAssets, ...(config.visualAssets || {}) }
   };
 }
 

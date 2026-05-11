@@ -796,7 +796,7 @@ function createQuestionElement(question, questionNumber) {
                     id="q${question.id}" 
                     name="q${question.id}" 
                     rows="4" 
-                    placeholder="${answerPlaceholder}" 
+                    placeholder="${answerPlaceholder}"  
                     ${question.is_required ? 'required' : ''}
                     oninput="resetInactivityTimer()"
                 ></textarea>
@@ -3312,7 +3312,7 @@ function applyTranslations() {
     setText('feedback-description', t.feedbackDescription);
     setText('continue-to-pledge-text', t.continueToPledge);
     setText('back-from-feedback-text', t.back);
-    setText('home-from-feedback-text', getDynamicLanguageText().home); // Home button translation done by nick
+     setText('home-from-feedback-text', getDynamicLanguageText().home); // Home button translation done by nick
 
     setText('pledge-title', t.pledgeTitle);
     setText('pledge-description', t.pledgeDescription);

@@ -89,7 +89,7 @@
 //    router.get('/feedback/:id/questions' - Get all feedback questions and answers (DONE BY PRETI)
 // 
 // 7. ARCHIVE MANAGEMENT ROUTES
-//    router.get('/archive'            - Get feedback already moved into Archive (DONE BY PRETI)
+//    router.get('/archive'            - Get archived feedback (older than 3 months) (DONE BY PRETI)
 //    router.post('/archive/update-status' - Manually trigger archive status update (DONE BY PRETI)
 //    router.get('/archive/stats'      - Archive Statistics (DONE BY PRETI)
 //    router.post('/bulk-decrypt-archive' - Bulk decrypt archived emails with admin verification (DONE BY PRETI)
@@ -1317,7 +1317,7 @@ router.get('/feedback-sentiment-analysis', async (req, res) => {
 
 // ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
 
-// Get archived feedback already moved by archive rules
+// Get archived feedback (older than 3 months)
 router.get('/archive', (req, res) => {
     console.log('📂 Fetching archived feedback data...');
     
@@ -1409,7 +1409,7 @@ router.post('/archive/update-status', (req, res) => {
                 error: 'Failed to update archive status: ' + err.message
             });
         }
-
+        
         console.log(`Archive update complete - Archived now: ${result.archivedNow}, Archived total: ${result.archived}, Active: ${result.active}`);
         res.json({
             success: true,
@@ -5155,7 +5155,6 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (archiveSettings && typeof archiveSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid archiveSettings format' });
     }
-    
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
     const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
 
@@ -5173,7 +5172,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
     if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
     if (normalizedArchiveSettings) config.archiveSettings = { ...config.archiveSettings, ...normalizedArchiveSettings };
-    
+
     // Save updated config
     const success = parametersConfigStore.writeParametersConfig(config);
     

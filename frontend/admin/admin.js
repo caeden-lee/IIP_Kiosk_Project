@@ -3581,9 +3581,9 @@ function viewPledge(feedbackId, pledgeText) {
                 white-space: pre-wrap;
                 line-height: 1.6;
             ">
-                ${pledgeText ? escapeHtmlSafe(pledgeText) : 'No pledge text available'}
+                 ${pledgeText ? escapeHtmlSafe(pledgeText) : 'No pledge text available'}
             </div>
-
+            
             <button onclick="translateAdminTextToEnglish('${pledgeSourceId}', '${pledgeTranslationId}', this)" style="
                 padding: 9px 14px;
                 background: #475569;
@@ -3601,7 +3601,7 @@ function viewPledge(feedbackId, pledgeText) {
             </button>
 
             <div id="${pledgeTranslationId}" class="admin-translation-result" style="display: none;"></div>
-            
+
             <div style="font-size: 12px; color: #64748b; margin-bottom: 15px; flex-shrink: 0;">
                 Viewed by: ${sessionStorage.getItem('loggedUser')} at ${new Date().toLocaleTimeString()}
             </div>
