@@ -74,5 +74,9 @@
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/BackGround.png",
     "defaultOverlayTheme": ""
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": false,
+    "archiveAfterDays": 90
   }
 }

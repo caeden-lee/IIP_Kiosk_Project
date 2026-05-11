@@ -39,6 +39,8 @@
      nav item                         - Added Parameter Adjustment entry in admin sidebar (DONE BY CAEDEN)
      div#parameter-adjustment-page    - Added editable tabs for feature toggles, validation rules, messages, email content, tree, photo and visual assets (DONE BY CAEDEN)
      upload/background controls       - Added UI for selecting overlay default and uploading feedback backgrounds (DONE BY CAEDEN)
+     archive-tab                      - Added Auto Archive timing controls for feedback records (Done by Caeden)
+     server-schedule-page             - Added daily End Day / Start Day kiosk operation button (Done by Caeden)
 
   FIND COMMAND
      rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -520,6 +522,8 @@
                                             Visits <span class="sort-indicator" id="feedback-sort-total_visits"></span>
                                         </th>
                                         <th>Pledge</th>
+                                        <!-- User feedback preview column added so admins can see typed answers immediately. (Done by Caeden) -->
+                                        <th>User Feedback</th>
                                         <th>Questions & Answers</th>
                                         <th onclick="sortFeedbackData('data_retention_days')" class="sortable">
                                             Data Retention <span class="sort-indicator" id="feedback-sort-data_retention_days"></span>
@@ -535,7 +539,7 @@
                                 <tbody id="feedback-table-body">
                                     <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
                                     <tr>
-                                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
+                                        <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
                                             Loading feedback data...
                                         </td>
                                     </tr>
@@ -874,7 +878,7 @@
                 <div id="archive-page" class="page">
                     <div class="page-header">
                         <h2>Archive</h2>
-                        <p>View and manage archived feedback (older than 3 months)</p>
+                        <p>View and manage feedback that has already been moved into Archive</p>
                     </div>
 
                     <div class="feedback-section">
@@ -1053,7 +1057,7 @@
                                 <tbody id="archive-table-body">
                                     <tr>
                                         <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
-                                            No archived feedback found. Feedback older than 3 months will appear here.
+                                            No archived feedback found. Feedback moved by the archive rules will appear here.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1754,6 +1758,9 @@
                         <button class="param-tab" onclick="switchParameterTab('assets-tab')">
                             <span class="tab-icon">Image</span> Backgrounds & Overlays
                         </button>
+                        <button class="param-tab" onclick="switchParameterTab('archive-tab')">
+                            <span class="tab-icon">Rules</span> Auto Archive
+                        </button>
                     </div>
 
                     <!-- Feedback Messages Tab -->
@@ -2149,6 +2156,38 @@
                         </div>
                     </div>
 
+                    <!-- Auto Archive Tab (Done by Caeden) -->
+                    <div id="archive-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Auto Archive Rules</h3>
+                            <p class="section-description">Choose when submitted feedback should move from Feedback Data into Archive, counted from each feedback submission date</p>
+                        </div>
+
+                        <div class="parameter-toggle-grid compact">
+                            <label class="parameter-toggle-card">
+                                <input type="checkbox" id="archive-autoArchiveEnabled">
+                                <span><strong>Turn On Auto Archive</strong><small>Automatically move feedback into Archive after the selected age</small></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="archive-archiveAfterDays">Move feedback to Archive after</label>
+                            <select id="archive-archiveAfterDays">
+                                <option value="15">1/2 month</option>
+                                <option value="30">1 month</option>
+                                <option value="60">2 months</option>
+                                <option value="90">3 months</option>
+                                <option value="180">6 months</option>
+                                <option value="365">1 year</option>
+                            </select>
+                            <small class="text-muted">Example: 1 month means feedback is archived 1 month after its submission date</small>
+                        </div>
+
+                        <button type="button" class="btn-secondary" onclick="runConfiguredArchiveNow()">
+                            Run Archive Update Now
+                        </button>
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="parameter-actions">
                         <button class="btn-primary" onclick="saveParameters()">
@@ -2302,6 +2341,18 @@
                                 </div>
                                 <p class="mode-hint" id="mode-hint">
                                     ⚠️ Switch to MANUAL MODE to use Start/Stop buttons
+                                </p>
+                            </div>
+                            <!-- Daily operation button (Done by Caeden) -->
+                            <div class="action-section">
+                                <p class="section-label">Daily Operation:</p>
+                                <div class="action-buttons">
+                                    <button class="btn-primary" onclick="toggleDailyOperation()" id="daily-operation-toggle-btn">
+                                        Checking...
+                                    </button>
+                                </div>
+                                <p class="mode-hint" id="daily-operation-hint">
+                                    Use this at the end of the day to stop the kiosk, then again next day to start it.
                                 </p>
                             </div>
                         </div>

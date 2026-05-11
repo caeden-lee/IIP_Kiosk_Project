@@ -23,6 +23,7 @@ CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 
 PARAMETER ADJUSTMENT ADMIN UI
   - Added tab, form, status, upload note and action styles for the Parameter Adjustment section (DONE BY CAEDEN)
+  - Added translation result and archive setting styles for admin feedback controls (Done by Caeden)
 
 FIND COMMAND
   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
@@ -5842,6 +5843,17 @@ input:checked + .slider:before {
     margin-top: 4px;
     color: #64748b;
     line-height: 1.4;
+}
+
+.admin-translation-result { /* Translation result styling (Done by Caeden) */
+    margin: 4px 0 14px;
+    padding: 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    line-height: 1.55;
+    white-space: pre-wrap;
 }
 
 #pulse-page .page-header {
