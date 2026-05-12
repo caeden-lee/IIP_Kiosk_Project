@@ -571,16 +571,18 @@ app.get('/api/kiosk/generate-qr', async (req, res) => {
         const expiresAt = new Date(Date.now() + QR_LIFETIME_SECONDS * 1000);
 
         // Insert session record
-        db.query(
-            `INSERT INTO qr_sessions (token, kiosk_id, expires_at, used_token, connected) VALUES (?, ?, ?, 0, 0)`,
-            [token, kiosk_id, expiresAt],
-            (err) => {
-                if (err) {
-                    console.error('Error inserting qr_session', err.message);
-                    return res.status(500).json({ success: false, error: 'DB error' });
+        await new Promise((resolve, reject) => {
+            db.query(
+                `INSERT INTO qr_sessions (token, kiosk_id, expires_at, used_token, connected) VALUES (?, ?, ?, 0, 0)`,
+                [token, kiosk_id, expiresAt],
+                (err) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve();
                 }
-            }
-        );
+            );
+        });
 
         const feedbackQueryUrl = `${urlBase}/feedback?token=${encodeURIComponent(token)}`;
         const feedbackPathUrl = `${urlBase}/feedback/${encodeURIComponent(token)}`;
@@ -595,7 +597,9 @@ app.get('/api/kiosk/generate-qr', async (req, res) => {
         res.json({ success: true, qrSvg, url: feedbackQueryUrl, urlPath: feedbackPathUrl, expiresAt: expiresAt.toISOString(), token });
     } catch (error) {
         console.error('Error generating kiosk QR:', error);
-        res.status(500).json({ success: false, error: 'Failed to generate QR' });
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: 'Failed to generate QR' });
+        }
     }
 });
 
