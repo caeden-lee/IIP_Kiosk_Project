@@ -27,6 +27,11 @@
 //    openLeafDetail()                 - Show visitor display name, badge, date and pledge snippet on leaf click (DONE BY XY)
 //    createLeaf()                     - Add click and keyboard handlers to each visible leaf (DONE BY XY)
 //
+// 6. LEAF FALL DEMO MODE
+//    demoFallEnabled                  - Supports ?demoFall=1 live tree demo without database records (DONE BY XY)
+//    createDemoFallVisitors()         - Builds browser-only demo leaves for lecturer animation demos (DONE BY XY)
+//    parseDemoLeafCount()             - Supports ?leaves= and ?duration= controls for demo fall playback (DONE BY XY)
+//
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 //
@@ -117,7 +122,10 @@ class TreeManager {
         this.reviewIndex = 0;
         this.isReviewMode = false;
         this.isBookOpen = false;
-        this.demoYearsEnabled = new URLSearchParams(window.location.search).get('demoYears') === '1';
+        this.urlParams = new URLSearchParams(window.location.search);
+        this.demoYearsEnabled = this.urlParams.get('demoYears') === '1';
+        this.demoFallEnabled = this.urlParams.get('demoFall') === '1';
+        this.demoFallLeafCount = this.parseDemoLeafCount(this.urlParams.get('leaves'));
         this.isBookFlipping = false;
 
         // VIP Names (for golden leaves)
@@ -247,6 +255,11 @@ class TreeManager {
             this.leafFallDuration = Number(tree.leafFallDuration) || this.leafFallDuration;
             this.leafGreenResetTime = this.normalizeResetTime(tree.leafGreenResetTime) || this.leafGreenResetTime;
 
+            if (this.demoFallEnabled) {
+                this.leafFallThreshold = this.demoFallLeafCount || this.leafFallThreshold;
+                this.leafFallDuration = Math.min(Number(this.urlParams.get('duration')) || this.leafFallDuration, 10000);
+            }
+
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
@@ -372,9 +385,23 @@ class TreeManager {
         };
     }
 
+    parseDemoLeafCount(value) {
+        const count = Number(value);
+        if (!Number.isInteger(count) || count < 1 || count > 80) return null;
+        return count;
+    }
+
     // ==================== DATA ====================
 
     async fetchVisitorData(year = this.selectedYear) {
+        if (this.demoFallEnabled && !this.isReviewMode) {
+            const count = this.demoFallLeafCount || Math.max(1, Number(this.leafFallThreshold) || 15);
+            this.leafFallThreshold = count;
+            this.visitors = this.createDemoFallVisitors(count);
+            console.log(`Loaded ${this.visitors.length} demo fall visitors`);
+            return;
+        }
+
         try {
             const query = year ? `?year=${encodeURIComponent(year)}` : '';
             const response = await fetch(`/api/tree${query}`);
@@ -623,6 +650,16 @@ class TreeManager {
     }
 
     updateTreeHeading() {
+        if (this.demoFallEnabled && !this.isReviewMode) {
+            if (this.treeTitle) {
+                this.treeTitle.textContent = 'ESG Digital Tree - Leaf Fall Demo';
+            }
+            if (this.treeSubtitle) {
+                this.treeSubtitle.textContent = `${this.visitors.length} demo leaves will fall. No live feedback data is changed.`;
+            }
+            return;
+        }
+
         if (this.treeTitle) {
             this.treeTitle.textContent = this.isReviewMode
                 ? `${this.selectedYear} ESG Tree Review`
@@ -698,6 +735,31 @@ class TreeManager {
         });
     }
 
+    createDemoFallVisitors(count) {
+        const badgeKeys = Object.keys(this.badgeLeafProfiles);
+        const now = Date.now();
+
+        return Array.from({ length: count }, (_, index) => {
+            const badgeKey = badgeKeys[index % badgeKeys.length];
+            const badgeProfile = this.badgeLeafProfiles[badgeKey];
+
+            return {
+                id: `demo-fall-${index + 1}`,
+                name: `Demo Visitor ${index + 1}`,
+                visit_count: 1 + (index % 3),
+                created_at: new Date(now - ((count - index) * 1800)).toISOString(),
+                isVip: false,
+                badgeKey,
+                badgeName: badgeProfile.label,
+                badgeColor: '',
+                pledgeTopic: badgeKey,
+                pledgeSnippet: 'Demo leaf for showing the kiosk leaf falling animation.',
+                hasPublicName: false,
+                privacyLabel: 'Demo mode - no database record'
+            };
+        });
+    }
+
     // ==================== VISUALIZATION ====================
 
     createLeaves() {
@@ -729,6 +791,15 @@ class TreeManager {
     getLeafCycleState() {
         const threshold = Math.max(1, Number(this.leafFallThreshold) || 15);
         const visitors = Array.isArray(this.visitors) ? this.visitors : [];
+
+        if (this.demoFallEnabled && !this.isReviewMode) {
+            return {
+                visibleVisitors: visitors.slice(0, threshold),
+                shouldFallAway: visitors.length > 0,
+                cycleNumber: Date.now(),
+                threshold
+            };
+        }
 
         if (this.isReviewMode || visitors.length < threshold) {
             return {
