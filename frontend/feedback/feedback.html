@@ -21,6 +21,11 @@
   5. KIOSK IDLE RESET
      div#idle-timeout-modal         - Added 1-minute idle reset warning modal with Keep Going and Reset Now actions (DONE BY XY)
 
+  6. KIOSK CELEBRATION MOMENT
+     section#celebration-moment     - Added badge reveal, mini tree, impact counters and keepsake preview (DONE BY XY)
+     div#celebration-tree-leaves    - Browser-rendered leaves for the post-submission tree animation (DONE BY XY)
+     img#celebration-photo          - Shows the visitor processed photo in the final kiosk moment (DONE BY XY)
+
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 -->
@@ -740,6 +745,47 @@
             <p id="thankyou-message" style="font-size: 16px; color: #059669; margin: 30px 0; line-height: 1.8;">
                 Your feedback has been recorded and a new leaf has been added to our digital tree!
             </p>
+
+            <section id="celebration-moment" class="celebration-moment" aria-label="Your ESG contribution celebration">
+                <div class="celebration-burst" aria-hidden="true"></div>
+
+                <div class="celebration-stage">
+                    <div class="celebration-badge-reveal">
+                        <span class="celebration-badge-ring"></span>
+                        <span id="celebration-badge-name" class="celebration-badge-name">Feedback Contributor</span>
+                        <span id="celebration-badge-caption" class="celebration-badge-caption">Badge unlocked</span>
+                    </div>
+
+                    <div class="celebration-tree-wrap">
+                        <div id="celebration-flying-leaf" class="celebration-flying-leaf"></div>
+                        <img class="celebration-tree" src="/assets/Tree/stage4.png" alt="Digital tree preview">
+                        <div id="celebration-tree-leaves" class="celebration-tree-leaves" aria-hidden="true"></div>
+                    </div>
+                </div>
+
+                <div class="celebration-impact-grid">
+                    <div class="celebration-impact-item">
+                        <span id="celebration-month-pledges">--</span>
+                        <small>pledges this month</small>
+                    </div>
+                    <div class="celebration-impact-item">
+                        <span id="celebration-total-pledges">--</span>
+                        <small>total pledges</small>
+                    </div>
+                    <div class="celebration-impact-item">
+                        <span id="celebration-tree-count">--</span>
+                        <small>tree leaves</small>
+                    </div>
+                </div>
+
+                <div class="celebration-keepsake">
+                    <img id="celebration-photo" alt="Your processed keepsake photo">
+                    <div>
+                        <strong id="celebration-keepsake-title">Your keepsake is ready</strong>
+                        <p id="celebration-keepsake-copy">Your photo and ESG contribution are now part of the kiosk story.</p>
+                    </div>
+                </div>
+            </section>
             
             <div class="success-notice">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">

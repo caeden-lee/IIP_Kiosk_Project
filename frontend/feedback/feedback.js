@@ -35,6 +35,11 @@
 //    applyParameterOverrides          - Apply editable retention wording and pledge examples on visitor pages (DONE BY XY)
 //    updateConfirmationDetails        - Show configured retention label on confirmation screen (DONE BY XY)
 //
+// 8. KIOSK CELEBRATION MOMENT
+//    setupCelebrationMoment()         - Shows badge reveal, flying leaf, mini tree and keepsake preview after submission (DONE BY XY)
+//    loadCelebrationImpactCounters()  - Loads pledge and tree counters for the thank-you celebration panel (DONE BY XY)
+//    renderCelebrationLeaves()        - Creates browser-only mini leaves for the celebration tree preview (DONE BY XY)
+//
 
 // ============================================================
 // YU KANG CHANGE SUMMARY (Done by Yu Kang)
@@ -2266,6 +2271,7 @@ function finalSubmit() {
         
         // Show the visitor which badge/leaf reward they unlocked.
         setupBadgeReward(submissionData);
+        setupCelebrationMoment(submissionData);
 
         // Set up social share content for the thank-you page based on badge email status - done by XY
         setupSocialShare(submissionData);
@@ -2340,6 +2346,170 @@ function setupBadgeReward(data) {
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
 
     message.textContent = `Your feedback has been recorded. You earned the ${reward.badgeName} badge, and your name will appear on the digital tree as a ${reward.leaf}.`;
+}
+
+function getCelebrationBadgeKey(data) {
+    return data?.badgeKey || data?.badgeEmailBadgeKeys?.[0] || 'feedback-completer';
+}
+
+function getCelebrationBadgeColor(badgeKey, data) {
+    const colorMap = {
+        'climate-champion': '#0f766e',
+        'renewable-innovator': '#f59e0b',
+        'sustainable-living-advocate': '#4a7c59',
+        'ocean-guardian': '#0284c7',
+        'governance-guardian': '#7c3aed',
+        'social-champion': '#d97706',
+        'feedback-completer': '#2f6f45'
+    };
+
+    return data?.badgeColor || colorMap[badgeKey] || colorMap['feedback-completer'];
+}
+
+function renderCelebrationLeaves(color) {
+    const leaves = document.getElementById('celebration-tree-leaves');
+    if (!leaves) return;
+
+    const positions = [
+        [44, 28], [54, 22], [61, 34], [36, 38], [48, 44],
+        [58, 48], [69, 43], [31, 50], [43, 56], [55, 58],
+        [65, 56], [49, 33]
+    ];
+
+    leaves.innerHTML = positions.map(([left, top], index) => `
+        <span
+            class="celebration-tree-dot"
+            style="left:${left}%; top:${top}%; background:${color}; animation-delay:${200 + (index * 70)}ms;"
+        ></span>
+    `).join('');
+}
+
+function setCelebrationCounter(id, value) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.textContent = Number.isFinite(Number(value))
+        ? new Intl.NumberFormat('en-SG').format(Number(value))
+        : '--';
+}
+
+function getCelebrationCounterValue(id) {
+    const text = document.getElementById(id)?.textContent || '';
+    const value = Number(text.replace(/,/g, ''));
+    return Number.isFinite(value) ? value : 0;
+}
+
+async function fetchCelebrationImpactSnapshot() {
+    const [pledgeResult, treeResult] = await Promise.allSettled([
+        fetch('/api/pledgeboard/pledges', { headers: { 'Cache-Control': 'no-cache' } }).then(response => response.json()),
+        fetch('/api/tree', { headers: { 'Cache-Control': 'no-cache' } }).then(response => response.json())
+    ]);
+
+    const pledges = pledgeResult.status === 'fulfilled' && Array.isArray(pledgeResult.value?.pledges)
+        ? pledgeResult.value.pledges
+        : [];
+    const treeLeaves = treeResult.status === 'fulfilled' && Array.isArray(treeResult.value)
+        ? treeResult.value.length
+        : null;
+
+    const now = new Date();
+    const monthPledges = pledges.filter((pledge) => {
+        const created = new Date(pledge.created_at);
+        return !Number.isNaN(created.getTime()) &&
+            created.getFullYear() === now.getFullYear() &&
+            created.getMonth() === now.getMonth();
+    }).length;
+
+    return {
+        monthPledges,
+        totalPledges: pledges.length,
+        treeLeaves
+    };
+}
+
+function renderCelebrationImpactCounters(snapshot = {}, optimistic = true) {
+    const pledgeIncrement = optimistic && !userData.pledgeSkipped ? 1 : 0;
+    const leafIncrement = optimistic ? 1 : 0;
+
+    let monthPledges = Math.max(0, Number(snapshot.monthPledges || 0) + pledgeIncrement);
+    let totalPledges = Math.max(0, Number(snapshot.totalPledges || 0) + pledgeIncrement);
+    let treeLeaves = Math.max(1, Number(snapshot.treeLeaves || 0) + leafIncrement);
+
+    if (!optimistic) {
+        monthPledges = Math.max(monthPledges, getCelebrationCounterValue('celebration-month-pledges'));
+        totalPledges = Math.max(totalPledges, getCelebrationCounterValue('celebration-total-pledges'));
+        treeLeaves = Math.max(treeLeaves, getCelebrationCounterValue('celebration-tree-count'));
+    }
+
+    setCelebrationCounter('celebration-month-pledges', monthPledges);
+    setCelebrationCounter('celebration-total-pledges', totalPledges);
+    setCelebrationCounter('celebration-tree-count', treeLeaves);
+}
+
+async function loadCelebrationImpactCounters() {
+    renderCelebrationImpactCounters({}, true);
+
+    const firstSnapshot = await fetchCelebrationImpactSnapshot();
+    renderCelebrationImpactCounters(firstSnapshot, true);
+
+    window.setTimeout(async () => {
+        try {
+            const refreshedSnapshot = await fetchCelebrationImpactSnapshot();
+            renderCelebrationImpactCounters(refreshedSnapshot, false);
+        } catch (error) {
+            console.warn('Celebration counter refresh unavailable:', error);
+        }
+    }, 1800);
+}
+
+function setupCelebrationMoment(data) {
+    const celebration = document.getElementById('celebration-moment');
+    if (!celebration) return;
+
+    const badgeKey = getCelebrationBadgeKey(data);
+    const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+    const color = getCelebrationBadgeColor(badgeKey, data);
+
+    celebration.style.setProperty('--celebration-badge-color', color);
+    celebration.classList.remove('is-ready');
+
+    const badgeName = document.getElementById('celebration-badge-name');
+    const badgeCaption = document.getElementById('celebration-badge-caption');
+    const photo = document.getElementById('celebration-photo');
+    const title = document.getElementById('celebration-keepsake-title');
+    const copy = document.getElementById('celebration-keepsake-copy');
+
+    if (badgeName) badgeName.textContent = reward.badgeName;
+    if (badgeCaption) badgeCaption.textContent = userData.pledgeSkipped ? 'Feedback recorded' : 'Badge unlocked';
+
+    if (photo) {
+        const keepsakePhoto = userData.processedPhoto || photoData || '';
+        if (keepsakePhoto) {
+            photo.src = keepsakePhoto;
+            photo.style.display = 'block';
+        } else {
+            photo.removeAttribute('src');
+            photo.style.display = 'none';
+        }
+    }
+
+    if (title) title.textContent = userData.pledgeSkipped ? 'Your feedback joined the tree' : 'Your pledge joined the tree';
+    if (copy) {
+        copy.textContent = userData.pledgeSkipped
+            ? 'Your visit still grows the ESG digital tree as a feedback contribution.'
+            : `Your ${reward.leaf} is now part of the ESG digital tree.`;
+    }
+
+    renderCelebrationLeaves(color);
+    loadCelebrationImpactCounters().catch((error) => {
+        console.warn('Celebration counters unavailable:', error);
+        setCelebrationCounter('celebration-month-pledges', userData.pledgeSkipped ? 0 : 1);
+        setCelebrationCounter('celebration-total-pledges', userData.pledgeSkipped ? 0 : 1);
+        setCelebrationCounter('celebration-tree-count', 1);
+    });
+
+    window.setTimeout(() => {
+        celebration.classList.add('is-ready');
+    }, 80);
 }
 
 function sharePledge(platform) {

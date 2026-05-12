@@ -1,6 +1,20 @@
 /* feedback.css - Feedback Form and User Experience Styles */
 
 /* ============================================================
+   XY CHANGE SUMMARY (DONE BY XY)
+   ============================================================
+
+   1. KIOSK CELEBRATION MOMENT
+      .celebration-moment             - Styles the post-submission badge, tree and impact panel (DONE BY XY)
+      .celebration-flying-leaf        - Animates a leaf flying into the mini digital tree preview (DONE BY XY)
+      .celebration-impact-grid        - Shows pledge and tree counters in the thank-you screen (DONE BY XY)
+      .celebration-keepsake           - Displays the visitor processed photo as a keepsake card (DONE BY XY)
+
+   FIND COMMAND
+      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
+   ============================================================ */
+
+/* ============================================================
 TABLE OF CONTENTS
 ============================================================
 
@@ -1945,6 +1959,298 @@ h1 {
 .success-notice {
     background: rgba(220, 252, 231, 0.7) !important;
     border-color: #7fb069 !important;
+}
+
+/* ==================== KIOSK CELEBRATION MOMENT ==================== */
+
+.celebration-moment {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    gap: 18px;
+    margin: 8px 0 24px;
+    padding: 22px;
+    border: 1px solid rgba(74, 124, 89, 0.22);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 248, 0.92), rgba(220, 252, 231, 0.78));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 16px 36px rgba(24, 57, 43, 0.12);
+}
+
+.celebration-moment.is-ready .celebration-badge-reveal {
+    animation: celebrationPop 700ms cubic-bezier(0.2, 0.9, 0.2, 1.18) both;
+}
+
+.celebration-burst {
+    position: absolute;
+    inset: -30%;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        radial-gradient(circle at 28% 32%, rgba(127, 176, 105, 0.28) 0 2px, transparent 3px),
+        radial-gradient(circle at 74% 24%, rgba(250, 204, 21, 0.24) 0 2px, transparent 3px),
+        radial-gradient(circle at 64% 78%, rgba(74, 124, 89, 0.22) 0 2px, transparent 3px);
+    background-size: 76px 76px;
+}
+
+.celebration-moment.is-ready .celebration-burst {
+    animation: celebrationSpark 1100ms ease-out both;
+}
+
+.celebration-stage {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 18px;
+    align-items: center;
+}
+
+.celebration-badge-reveal {
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 18px;
+    border-radius: 8px;
+    color: #18392b;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(74, 124, 89, 0.18);
+    transform: scale(0.92);
+    opacity: 0;
+}
+
+.celebration-badge-ring {
+    width: 62px;
+    height: 62px;
+    display: block;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center, var(--celebration-badge-color, #4a7c59) 0 46%, transparent 48%),
+        conic-gradient(from 180deg, #facc15, var(--celebration-badge-color, #4a7c59), #b7d99a, #facc15);
+    box-shadow: 0 12px 26px rgba(74, 124, 89, 0.2);
+}
+
+.celebration-badge-name {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #18392b;
+}
+
+.celebration-badge-caption {
+    font-size: 13px;
+    font-weight: 800;
+    color: #2f6f45;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.celebration-tree-wrap {
+    position: relative;
+    min-height: 170px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.celebration-tree {
+    width: 190px;
+    max-width: 100%;
+    filter: drop-shadow(0 14px 22px rgba(24, 57, 43, 0.2));
+}
+
+.celebration-tree-leaves {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.celebration-tree-dot {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    border-radius: 999px 0 999px 0;
+    background: #7fb069;
+    opacity: 0;
+    transform: rotate(-28deg) scale(0.6);
+}
+
+.celebration-moment.is-ready .celebration-tree-dot {
+    animation: celebrationLeafAppear 520ms ease-out forwards;
+}
+
+.celebration-flying-leaf {
+    position: absolute;
+    left: 4%;
+    bottom: 14%;
+    width: 38px;
+    height: 38px;
+    z-index: 3;
+    opacity: 0;
+    border-radius: 999px 0 999px 0;
+    background: var(--celebration-badge-color, #4a7c59);
+    box-shadow: 0 8px 18px rgba(74, 124, 89, 0.28);
+    transform: rotate(-28deg);
+}
+
+.celebration-moment.is-ready .celebration-flying-leaf {
+    animation: celebrationFlyLeaf 1400ms cubic-bezier(0.24, 0.84, 0.22, 1) 360ms both;
+}
+
+.celebration-impact-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.celebration-impact-item {
+    min-height: 78px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.66);
+    border: 1px solid rgba(74, 124, 89, 0.16);
+}
+
+.celebration-impact-item span {
+    font-size: 28px;
+    font-weight: 900;
+    color: #2f6f45;
+    line-height: 1;
+}
+
+.celebration-impact-item small {
+    color: #496656;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.celebration-keepsake {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+    padding: 12px;
+    text-align: left;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.66);
+    border: 1px solid rgba(74, 124, 89, 0.16);
+}
+
+.celebration-keepsake img {
+    width: 92px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: rgba(74, 124, 89, 0.1);
+    border: 1px solid rgba(74, 124, 89, 0.18);
+}
+
+.celebration-keepsake img:not([src]),
+.celebration-keepsake img[src=""] {
+    display: none;
+}
+
+.celebration-keepsake strong {
+    display: block;
+    color: #18392b;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.celebration-keepsake p {
+    margin: 0;
+    color: #496656;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+@keyframes celebrationPop {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.88);
+    }
+    68% {
+        opacity: 1;
+        transform: translateY(-3px) scale(1.04);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes celebrationSpark {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) rotate(0deg);
+    }
+    35% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.08) rotate(8deg);
+    }
+}
+
+@keyframes celebrationFlyLeaf {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) rotate(-36deg) scale(0.65);
+    }
+    12% {
+        opacity: 1;
+    }
+    70% {
+        opacity: 1;
+        transform: translate(124px, -82px) rotate(18deg) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(154px, -110px) rotate(42deg) scale(0.72);
+    }
+}
+
+@keyframes celebrationLeafAppear {
+    from {
+        opacity: 0;
+        transform: rotate(-28deg) scale(0.35);
+    }
+    to {
+        opacity: 0.9;
+        transform: rotate(-28deg) scale(1);
+    }
+}
+
+@media (max-width: 768px) {
+    .celebration-stage {
+        grid-template-columns: 1fr;
+    }
+
+    .celebration-impact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .celebration-keepsake {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .celebration-keepsake img {
+        margin: 0 auto;
+    }
 }
 
 .option-icon {

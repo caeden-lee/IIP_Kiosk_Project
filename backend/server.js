@@ -33,6 +33,14 @@
 //    parametersConfigStore            - Reads shared kiosk parameter settings for public pages (DONE BY XY)
 //    GET /api/parameters              - Exposes retention text, pledge examples, tree settings and assets to frontend (DONE BY XY)
 //
+// 4. KIOSK PHOTO UPLOAD BODY LIMIT
+//    const JSON_BODY_LIMIT            - Raises standalone server upload payload limit for base64 kiosk photos (DONE BY XY)
+//    upload error middleware          - Returns JSON for oversized uploads instead of an HTML error page (DONE BY XY)
+//
+// 5. QR PAIRING TABLE SELF-HEALING
+//    ensureQrPairingTables()          - Creates missing kiosk QR pairing tables without a full database rebuild (DONE BY XY)
+//    QR/heartbeat routes              - Verify kiosk, qr_sessions and device_pairings tables before use (DONE BY XY)
+//
 //=============================================================
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -166,12 +174,68 @@ const JWT_SECRET = process.env.JWT_SECRET || 'change_this_in_production';
 // In-memory mapping of kiosk_id -> socket.id for real-time pairing notifications
 const kioskSockets = new Map();
 
+let qrPairingSchemaReady = null;
+
+function runSchemaQuery(sql) {
+    return new Promise((resolve, reject) => {
+        db.query(sql, [], (err) => {
+            if (err) return reject(err);
+            resolve();
+        });
+    });
+}
+
+function ensureQrPairingTables() {
+    if (qrPairingSchemaReady) return qrPairingSchemaReady;
+
+    qrPairingSchemaReady = (async () => {
+        await runSchemaQuery(`
+            CREATE TABLE IF NOT EXISTS kiosks (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                kiosk_id VARCHAR(255) UNIQUE,
+                status VARCHAR(50),
+                last_seen TIMESTAMP NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        await runSchemaQuery(`
+            CREATE TABLE IF NOT EXISTS qr_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                token TEXT,
+                kiosk_id VARCHAR(255),
+                expires_at DATETIME,
+                used_token BOOLEAN DEFAULT FALSE,
+                connected BOOLEAN DEFAULT FALSE,
+                phone_session VARCHAR(255) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        await runSchemaQuery(`
+            CREATE TABLE IF NOT EXISTS device_pairings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                kiosk_id VARCHAR(255),
+                phone_session VARCHAR(255),
+                paired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        console.log('QR pairing tables ready');
+    })().catch((error) => {
+        qrPairingSchemaReady = null;
+        throw error;
+    });
+
+    return qrPairingSchemaReady;
+}
+
 const app = express();
 const PORT = 3000;
+const JSON_BODY_LIMIT = '50mb';
 
 
 // Start Bluetooth scanner for proximity-based access control
-app.use(express.json());
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 startBluetoothScanner();
 
@@ -429,8 +493,19 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
 
 // ==================== 4. MIDDLEWARE CONFIGURATION ====================
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
+
+app.use((err, req, res, next) => {
+    if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+        return res.status(413).json({
+            success: false,
+            error: `Upload is too large. Please retake the photo or use a smaller image. Limit: ${JSON_BODY_LIMIT}.`
+        });
+    }
+
+    return next(err);
+});
 
 // Session middleware - set secure based on HTTPS availability
 // app.use(session({
@@ -557,6 +632,8 @@ app.get('/api/generate-qr', async (req, res) => {
 // Kiosk-specific QR generation (single-use, short lifetime) (Done By Yu Kang)
 app.get('/api/kiosk/generate-qr', async (req, res) => {
     try {
+        await ensureQrPairingTables();
+
         const kiosk_id = req.query.kiosk_id;
         if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
 
@@ -608,22 +685,30 @@ app.post('/api/kiosk/heartbeat', (req, res) => {
     const { kiosk_id } = req.body || {};
     if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
 
-    db.query(`INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE last_seen=NOW(), status='online'`, [kiosk_id, 'online'], (err) => {
-        if (err) {
-            console.error('heartbeat error', err.message);
-            return res.status(500).json({ success: false, error: 'DB error' });
-        }
-        res.json({ success: true });
-    });
+    ensureQrPairingTables()
+        .then(() => {
+            db.query(`INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE last_seen=NOW(), status='online'`, [kiosk_id, 'online'], (err) => {
+                if (err) {
+                    console.error('heartbeat error', err.message);
+                    return res.status(500).json({ success: false, error: 'DB error' });
+                }
+                res.json({ success: true });
+            });
+        })
+        .catch((schemaError) => {
+            console.error('heartbeat schema setup error', schemaError.message);
+            res.status(500).json({ success: false, error: 'QR setup failed' });
+        });
 });
 
 // Phone connect token redemption helper
-function redeemToken(req, res, token) {
+async function redeemToken(req, res, token) {
     if (!token) return res.status(400).json({ success: false, error: 'Missing token' });
 
     try {
         const payload = jwt.verify(token, JWT_SECRET);
         const kiosk_id = payload.kiosk_id;
+        await ensureQrPairingTables();
 
         // Look up session in DB
         db.query(`SELECT * FROM qr_sessions WHERE token = ? ORDER BY id DESC LIMIT 1`, [token], (err, results) => {
@@ -681,7 +766,11 @@ function redeemToken(req, res, token) {
         });
     } catch (error) {
         console.error('Token verify error', error.message);
-        return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+        const isTokenError = error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError';
+        return res.status(isTokenError ? 400 : 500).json({
+            success: false,
+            error: isTokenError ? 'Invalid or expired token' : 'QR setup failed'
+        });
     }
 }
 
@@ -898,12 +987,17 @@ function initSocketServer(httpServer) {
                 const kiosk_id = data && data.kiosk_id;
                 if (!kiosk_id) return;
                 kioskSockets.set(kiosk_id, socket.id);
-                // Upsert kiosk record
-                db.query(
-                    `INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE status=VALUES(status), last_seen=NOW()`,
-                    [kiosk_id, 'online'],
-                    (err) => { if (err) console.error('kiosk upsert error', err); }
-                );
+                ensureQrPairingTables()
+                    .then(() => {
+                        db.query(
+                            `INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE status=VALUES(status), last_seen=NOW()`,
+                            [kiosk_id, 'online'],
+                            (err) => { if (err) console.error('kiosk upsert error', err); }
+                        );
+                    })
+                    .catch((schemaError) => {
+                        console.error('kiosk schema setup error', schemaError.message);
+                    });
             } catch (e) {
                 console.error('register-kiosk error', e);
             }
@@ -912,9 +1006,15 @@ function initSocketServer(httpServer) {
         socket.on('heartbeat', (data) => {
             const kiosk_id = data && data.kiosk_id;
             if (!kiosk_id) return;
-            db.query(`UPDATE kiosks SET last_seen = NOW(), status='online' WHERE kiosk_id = ?`, [kiosk_id], (err) => {
-                if (err) console.error('heartbeat db update error', err.message);
-            });
+            ensureQrPairingTables()
+                .then(() => {
+                    db.query(`UPDATE kiosks SET last_seen = NOW(), status='online' WHERE kiosk_id = ?`, [kiosk_id], (err) => {
+                        if (err) console.error('heartbeat db update error', err.message);
+                    });
+                })
+                .catch((schemaError) => {
+                    console.error('socket heartbeat schema setup error', schemaError.message);
+                });
         });
 
         socket.on('disconnect', () => {
