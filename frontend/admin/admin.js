@@ -8892,18 +8892,168 @@ function createColorGroup(title, options, sectionId, isDisabled) {
     return group;
 }
 
+const THEME_COLOR_PRESETS = {
+    lightBackgrounds: [
+        { label: 'White', value: '#FFFFFF' },
+        { label: 'Mist', value: '#F8FAFC' },
+        { label: 'Soft Green', value: '#F0FDF4' },
+        { label: 'Soft Blue', value: '#EFF6FF' }
+    ],
+    darkBackgrounds: [
+        { label: 'Forest', value: '#052E1B' },
+        { label: 'Deep Teal', value: '#083B3A' },
+        { label: 'Navy', value: '#0F172A' },
+        { label: 'Charcoal', value: '#1F2937' }
+    ],
+    textOnLight: [
+        { label: 'Black', value: '#000000' },
+        { label: 'Slate', value: '#1E293B' },
+        { label: 'Gray', value: '#64748B' },
+        { label: 'Green', value: '#166534' }
+    ],
+    textOnDark: [
+        { label: 'White', value: '#FFFFFF' },
+        { label: 'Mint', value: '#D1FAE5' },
+        { label: 'Light Gray', value: '#CBD5E1' },
+        { label: 'Soft Yellow', value: '#FEF3C7' }
+    ],
+    accents: [
+        { label: 'RP Green', value: '#047857' },
+        { label: 'Leaf', value: '#16A34A' },
+        { label: 'Teal', value: '#0F766E' },
+        { label: 'Blue', value: '#2563EB' },
+        { label: 'Amber', value: '#D97706' },
+        { label: 'Red', value: '#B91C1C' }
+    ],
+    borders: [
+        { label: 'Pale', value: '#E2E8F0' },
+        { label: 'Soft Gray', value: '#CBD5E1' },
+        { label: 'Mint Line', value: '#A7F3D0' },
+        { label: 'Dark Line', value: '#334155' }
+    ]
+};
+
+function normalizeThemeColor(value) {
+    const color = String(value || '').trim().toUpperCase();
+    return /^#[0-9A-F]{8}$/.test(color) && color.endsWith('FF') ? color.substring(0, 7) : color;
+}
+
+function getThemeColorPresets(option) {
+    const id = option.id || '';
+
+    if (id.includes('border')) {
+        return THEME_COLOR_PRESETS.borders;
+    }
+
+    if (id.includes('text') || id.includes('primary') || id.includes('secondary') || id.includes('third')) {
+        if (id.includes('button-text') || id.includes('badge') || id.includes('login-card')) {
+            return THEME_COLOR_PRESETS.textOnDark;
+        }
+        return THEME_COLOR_PRESETS.textOnLight;
+    }
+
+    if (id.includes('navbar') || id.includes('header') || id.includes('login') || id.includes('button') || id.includes('badge')) {
+        return THEME_COLOR_PRESETS.darkBackgrounds.concat(THEME_COLOR_PRESETS.accents);
+    }
+
+    if (id.includes('card') || id === 'page-background') {
+        return THEME_COLOR_PRESETS.lightBackgrounds.concat(THEME_COLOR_PRESETS.darkBackgrounds);
+    }
+
+    return THEME_COLOR_PRESETS.lightBackgrounds.concat(THEME_COLOR_PRESETS.accents);
+}
+
+function getPresetOptionsForColor(option, currentColor) {
+    const normalizedCurrent = normalizeThemeColor(currentColor);
+    const presets = getThemeColorPresets(option).map(preset => ({
+        ...preset,
+        value: normalizeThemeColor(preset.value)
+    }));
+
+    if (normalizedCurrent && !presets.some(preset => preset.value === normalizedCurrent)) {
+        presets.unshift({ label: 'Current', value: normalizedCurrent });
+    }
+
+    return presets;
+}
+
+function hexToRgb(color) {
+    const normalized = normalizeThemeColor(color);
+    const match = normalized.match(/^#([0-9A-F]{6})$/);
+    if (!match) return null;
+
+    const value = match[1];
+    return {
+        r: parseInt(value.substring(0, 2), 16),
+        g: parseInt(value.substring(2, 4), 16),
+        b: parseInt(value.substring(4, 6), 16)
+    };
+}
+
+function isDarkThemeColor(color) {
+    const rgb = hexToRgb(color);
+    if (!rgb) return false;
+    const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+    return luminance < 0.45;
+}
+
+function applyBackgroundCompanionColors(sectionId, backgroundColor) {
+    if (!themeSettings[sectionId]?.colors) return;
+
+    const colors = themeSettings[sectionId].colors;
+    const companion = isDarkThemeColor(backgroundColor) ? {
+        'primary-text': '#FFFFFF',
+        'secondary-text': '#D1FAE5',
+        'card-background': '#083B3A',
+        'card-header-background': '#052E1B',
+        'card-border-color': '#0F766E',
+        'card-primary-text': '#FFFFFF',
+        'card-secondary-text': '#D1FAE5',
+        'card-third-text': '#A7F3D0',
+        'button-color': '#FFFFFF',
+        'button-text-color': '#052E1B'
+    } : {
+        'primary-text': '#000000',
+        'secondary-text': '#64748B',
+        'card-background': '#FFFFFF',
+        'card-header-background': '#F8FAFC',
+        'card-border-color': '#E2E8F0',
+        'card-primary-text': '#000000',
+        'card-secondary-text': '#334155',
+        'card-third-text': '#64748B',
+        'button-color': '#0F766E',
+        'button-text-color': '#FFFFFF'
+    };
+
+    Object.assign(colors, companion);
+}
+
 // Create a color control
 function createColorControl(option, sectionId, isDisabled) {
     const control = document.createElement('div');
     control.className = 'theme-control' + (isDisabled ? ' disabled' : '');
     
-    const currentColor = themeSettings[sectionId]?.colors[option.id] || option.default;
+    const currentColor = normalizeThemeColor(themeSettings[sectionId]?.colors[option.id] || option.default);
     
     const selectors = getSelectorsForOption(sectionId, option.id);
     const selectorCount = selectors.length;
     
-    const colorPickerValue = currentColor.length === 9 ? currentColor.substring(0, 7) : currentColor;
-
+    const presets = getPresetOptionsForColor(option, currentColor);
+    const swatches = presets.map(preset => {
+        const isSelected = normalizeThemeColor(preset.value) === currentColor;
+        return `
+            <button
+                type="button"
+                class="theme-swatch-button ${isSelected ? 'selected' : ''}"
+                style="--swatch-color: ${preset.value};"
+                title="${preset.label}: ${preset.value}"
+                aria-label="${preset.label} ${preset.value}"
+                onclick="updateColor('${sectionId}', '${option.id}', '${preset.value}')"
+                ${isDisabled ? 'disabled' : ''}>
+                <span></span>
+            </button>
+        `;
+    }).join('');
 
     control.innerHTML = `
         <div class="theme-control-label">
@@ -8912,21 +9062,10 @@ function createColorControl(option, sectionId, isDisabled) {
         </div>
         <div class="theme-control-description">${option.description || ''}</div>
         <div class="theme-control-input">
-            <div class="color-picker-wrapper">
-                <input type="color" 
-                    id="color-${sectionId}-${option.id}" 
-                    value="${colorPickerValue}"
-                    onchange="updateColor('${sectionId}', '${option.id}', this.value)"
-                    ${isDisabled ? 'disabled' : ''}>
-                <input type="text" 
-                    class="color-hex-input" 
-                    id="hex-${sectionId}-${option.id}"
-                    value="${currentColor.toUpperCase()}"
-                    onchange="updateColorFromHex('${sectionId}', '${option.id}', this.value)"
-                    ${isDisabled ? 'disabled' : ''}
-                    maxlength="9"
-                    pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$">
+            <div class="theme-swatch-list" role="list" aria-label="${option.label} color presets">
+                ${swatches}
             </div>
+            <span class="theme-current-color">${currentColor}</span>
         </div>
     `;
     
@@ -8938,13 +9077,18 @@ function updateColor(sectionId, colorId, value) {
     if (!themeSettings[sectionId]) {
         themeSettings[sectionId] = { useGlobal: false, colors: {} };
     }
-    themeSettings[sectionId].colors[colorId] = value;
+    themeSettings[sectionId].colors[colorId] = normalizeThemeColor(value);
+
+    if (colorId === 'page-background') {
+        applyBackgroundCompanionColors(sectionId, value);
+    }
     
     const hexInput = document.getElementById(`hex-${sectionId}-${colorId}`);
     if (hexInput) {
-        hexInput.value = value.toUpperCase();
+        hexInput.value = normalizeThemeColor(value);
     }
     
+    renderThemeControls(sectionId);
     updatePreview(sectionId);
 }
 

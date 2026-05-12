@@ -3464,7 +3464,7 @@ td {
 .theme-sidebar-header {
     padding: 20px;
     border-bottom: 1px solid var(--theme-border-color);
-    background: #f8fafc;
+    background: var(--theme-card-bg);
 }
 
 .theme-sidebar-header h3 {
@@ -3531,7 +3531,7 @@ td {
 .theme-panel-header {
     padding: 24px;
     border-bottom: 1px solid var(--theme-border-color);
-    background: #f8fafc;
+    background: var(--theme-card-bg);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -3657,21 +3657,21 @@ td {
     justify-content: space-between;
     padding: 16px;
     margin-bottom: 12px;
-    background: #fdfdfd;
+    background: var(--theme-card-bg);
     border-radius: 8px;
     border: 1px solid var(--theme-border-color);
     transition: all 0.2s ease;
 }
 
 .theme-control:hover {
-    border-color: #cbd5e1;
+    border-color: var(--theme-border-color);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .theme-control-label {
     font-size: 14px;
     font-weight: 500;
-    color: black;
+    color: var(--theme-text-color);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -3681,6 +3681,62 @@ td {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 460px;
+}
+
+.theme-swatch-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.theme-swatch-button {
+    width: 34px;
+    height: 34px;
+    border: 2px solid #d7dee8;
+    border-radius: 8px;
+    padding: 3px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.theme-swatch-button span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    background: var(--swatch-color);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+.theme-swatch-button:hover:not(:disabled) {
+    border-color: #2563eb;
+    transform: translateY(-1px);
+}
+
+.theme-swatch-button.selected {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+}
+
+.theme-swatch-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.theme-current-color {
+    min-width: 74px;
+    padding: 7px 10px;
+    border: 1px solid var(--theme-border-color);
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    font: 700 12px/1 'Courier New', monospace;
+    text-align: center;
 }
 
 /* Color pickers and preview */
@@ -4166,7 +4222,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .theme-control-description {
     font-size: 0.85rem;
-    color: #64748b;
+    color: var(--theme-card-text);
     margin-bottom: 0.5rem;
     font-style: italic;
 }
@@ -4234,6 +4290,12 @@ input[type="color"]::-webkit-color-swatch {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
+    }
+
+    .theme-control-input,
+    .theme-swatch-list {
+        justify-content: flex-start;
+        max-width: 100%;
     }
     
     .saved-themes-grid {
@@ -4779,7 +4841,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .badge-template-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
     align-items: center;
     margin-bottom: 22px;
@@ -4822,27 +4884,6 @@ input[type="color"]::-webkit-color-swatch {
     color: #d8f3e8 !important;
     font-size: 16px;
     line-height: 1.65;
-}
-
-.badge-template-token-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.badge-template-token-list span {
-    min-height: 42px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: rgba(2, 6, 23, 0.34);
-    border: 1px solid rgba(187, 247, 208, 0.22);
-    color: #ecfdf5;
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 13px;
-    font-weight: 700;
 }
 
 .badge-email-template-section {
@@ -5032,10 +5073,6 @@ input[type="color"]::-webkit-color-swatch {
     .badge-template-grid {
         grid-template-columns: 1fr;
     }
-
-    .badge-template-token-list {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 640px) {
@@ -5046,10 +5083,6 @@ input[type="color"]::-webkit-color-swatch {
     .badge-template-hero,
     .badge-email-template-section {
         padding: 20px;
-    }
-
-    .badge-template-token-list {
-        grid-template-columns: 1fr;
     }
 }
 
