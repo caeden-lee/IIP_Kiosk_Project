@@ -175,6 +175,11 @@ let selectedTheme = 'nature';
 let userData = {};
 let stream = null;
 let photoData = null;
+let captureMode = 'photo';
+let boomerangFrames = [];
+let boomerangPreviewInterval = null;
+const BOOMERANG_FRAME_COUNT = 10;
+const BOOMERANG_FRAME_DELAY = 90;
 let currentDevice = 'desktop'; // 'desktop' or 'mobile'
 let inactivityTimer = null;
 let idleWarningTimer = null;
@@ -237,6 +242,10 @@ function showLandingPages() {
 }
 
 function showFlowPage(pageId) {
+    if (pageId !== 'style-page') {
+        stopBoomerangPreview();
+    }
+
     hideLandingPages();
     FLOW_PAGE_IDS.forEach(id => {
         const page = document.getElementById(id);
@@ -529,6 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDynamicQRCode();
     startQrRefreshLoop();
     initializeProgressIndicators();
+    updateCaptureModeButtons();
     
     // Detect device type
     detectDeviceType();
@@ -637,6 +647,7 @@ function stayOnForm() {
 // Return to landing page when timeout reached
 function returnToLandingPage() {
     console.log('Inactivity timeout reached - returning to landing page');
+    stopBoomerangPreview();
     
     // Stop camera stream if active
     if (stream) {
@@ -665,6 +676,9 @@ function returnToLandingPage() {
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
+    captureMode = 'photo';
+    boomerangFrames = [];
+    updateCaptureModeButtons();
     
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
@@ -1281,6 +1295,8 @@ async function handlePhotoUpload(event) {
         // Apply the local beauty filter to uploaded mobile photos.
         const uploadedImage = await loadImageElement(dataUrl);
         photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
+        userData.captureMode = 'photo';
+        boomerangFrames = [];
 
         const previewImg = document.getElementById('uploaded-photo-preview');
         previewImg.src = photoData;
@@ -1326,6 +1342,7 @@ function retakePhotoFromUpload() {
     document.getElementById('upload-continue-btn').disabled = true;
     updateFaceDetectionStatus('Upload a photo to run face detection.', 'info', 'upload-face-detection-status');
     photoData = null;
+    boomerangFrames = [];
 
     // Trigger click on file input again
     document.getElementById('photo-input').click();
@@ -1497,6 +1514,122 @@ function createBeautyFilteredPhotoDataUrl(image, faceDetection = null) {
     return canvas.toDataURL('image/png');
 }
 
+function updateCaptureModeButtons() {
+    const photoModeBtn = document.getElementById('photo-mode-btn');
+    const boomerangModeBtn = document.getElementById('boomerang-mode-btn');
+    const captureText = document.getElementById('capture-photo-text');
+
+    if (photoModeBtn) {
+        const isPhoto = captureMode === 'photo';
+        photoModeBtn.classList.toggle('active', isPhoto);
+        photoModeBtn.setAttribute('aria-pressed', isPhoto ? 'true' : 'false');
+    }
+
+    if (boomerangModeBtn) {
+        const isBoomerang = captureMode === 'boomerang';
+        boomerangModeBtn.classList.toggle('active', isBoomerang);
+        boomerangModeBtn.setAttribute('aria-pressed', isBoomerang ? 'true' : 'false');
+    }
+
+    if (captureText) {
+        captureText.textContent = captureMode === 'boomerang' ? 'Capture Boomerang' : 'Capture Photo';
+    }
+}
+
+function selectCaptureMode(mode) {
+    if (!['photo', 'boomerang'].includes(mode)) {
+        return;
+    }
+
+    captureMode = mode;
+    userData.captureMode = mode;
+    updateCaptureModeButtons();
+    resetInactivityTimer();
+}
+
+function stopBoomerangPreview() {
+    if (boomerangPreviewInterval) {
+        clearInterval(boomerangPreviewInterval);
+        boomerangPreviewInterval = null;
+    }
+}
+
+function captureVideoFrameDataUrl(faceDetection = null) {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('photo-canvas');
+    const context = canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (isMirrored) {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+    }
+
+    drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
+    return canvas.toDataURL('image/png');
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function captureBoomerangIfFaceDetected() {
+    try {
+        updateFaceDetectionStatus('Checking for face...', 'loading');
+
+        const faceDetection = await detectFaceInCurrentFrame();
+        if (!faceDetection) {
+            updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
+            alert('No face detected. Please position your face clearly in the camera frame and capture again.');
+            return false;
+        }
+
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.classList.add('boomerang-capturing');
+        }
+
+        updateFaceDetectionStatus('Recording boomerang...', 'loading');
+
+        const frames = [];
+        for (let i = 0; i < BOOMERANG_FRAME_COUNT; i++) {
+            frames.push(captureVideoFrameDataUrl(faceDetection));
+            await wait(BOOMERANG_FRAME_DELAY);
+        }
+
+        boomerangFrames = frames.concat(frames.slice(1, -1).reverse());
+        userData.captureMode = 'boomerang';
+        photoData = frames[Math.floor(frames.length / 2)] || frames[0];
+
+        if (cameraContainer) {
+            cameraContainer.classList.remove('boomerang-capturing');
+        }
+
+        updateFaceDetectionStatus('Boomerang captured.', 'success');
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+
+        continueToStyle();
+        return true;
+    } catch (error) {
+        console.error('Boomerang capture failed:', error);
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.classList.remove('boomerang-capturing');
+        }
+        updateFaceDetectionStatus('Boomerang capture failed. Please try again.', 'error');
+        alert(`Boomerang capture failed: ${error.message}`);
+        return false;
+    }
+}
+
 //Done by Yu Kang - Capture photo only when a face is detected
 // Beauty filter button state done by nick
 function updateBeautyFilterButton() {
@@ -1605,6 +1738,12 @@ async function capturePhoto() {
             return;
         }
 
+        const runSelectedCapture = () => {
+            return captureMode === 'boomerang'
+                ? captureBoomerangIfFaceDetected()
+                : capturePhotoIfFaceDetected();
+        };
+
         // Disable capture button during countdown
         captureBtn.disabled = true;
         
@@ -1619,7 +1758,7 @@ async function capturePhoto() {
         if (countdown === 0) {
 
             // facial detection (Done by Yu Kang)
-            await capturePhotoIfFaceDetected();
+            await runSelectedCapture();
             captureBtn.disabled = false;
             return;
         }
@@ -1639,7 +1778,7 @@ async function capturePhoto() {
                 
                 // facial detection (Done by Yu Kang)
                 // Take the photo only when a face is detected
-                await capturePhotoIfFaceDetected();
+                await runSelectedCapture();
                 
                 // Re-enable capture button
                 captureBtn.disabled = false;
@@ -1657,31 +1796,14 @@ async function capturePhoto() {
 
 // Take photo from camera stream (desktop)
 async function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('photo-canvas');
-    
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Draw current video frame to canvas
-    const context = canvas.getContext('2d');
-    if (isMirrored) {
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-}
-
-    // Apply beauty filter to captured camera photo done by nick
-    drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
-    drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Convert canvas to data URL
-    photoData = canvas.toDataURL('image/png');
+    photoData = captureVideoFrameDataUrl(faceDetection);
+    userData.captureMode = 'photo';
+    boomerangFrames = [];
     
     // Stop camera stream after taking photo
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
+        stream = null;
     }
     
     // Immediately go to style page (don't save photo yet)
@@ -1953,13 +2075,8 @@ function updateThemePreview() {
     updatePreviewWithCutout();
 }
 
-// Update preview with cutout and overlay positioning
-function updatePreviewWithCutout() {
-    const previewPhoto = document.getElementById('preview-photo');
-    const overlayImage = document.getElementById('selected-overlay');
-    
-    if (!previewPhoto || !overlayImage) return;
-    
+function renderPreviewPhotoFrame(frameDataUrl, previewPhoto) {
+    return new Promise((resolve) => {
     const previewCanvas = document.createElement('canvas');
     const ctx = previewCanvas.getContext('2d');
     
@@ -1991,8 +2108,8 @@ function updatePreviewWithCutout() {
     
     const cutout = cutoutSpecs[currentDevice];
     
-    const img = new Image();
-    img.onload = function() {
+        const img = new Image();
+        img.onload = function() {
         // Fill background with white
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
@@ -2015,11 +2132,45 @@ function updatePreviewWithCutout() {
         
         // Update the preview image
         previewPhoto.src = previewCanvas.toDataURL('image/png');
+            resolve();
         
         console.log('Preview updated with cutout positioning');
     };
+
+        img.src = frameDataUrl;
+    });
+}
+
+async function startBoomerangPreview(previewPhoto) {
+    stopBoomerangPreview();
+
+    if (!boomerangFrames.length) {
+        return;
+    }
+
+    let frameIndex = 0;
+    await renderPreviewPhotoFrame(boomerangFrames[frameIndex], previewPhoto);
+
+    boomerangPreviewInterval = setInterval(() => {
+        frameIndex = (frameIndex + 1) % boomerangFrames.length;
+        renderPreviewPhotoFrame(boomerangFrames[frameIndex], previewPhoto);
+    }, BOOMERANG_FRAME_DELAY);
+}
+
+// Update preview with cutout and overlay positioning
+function updatePreviewWithCutout() {
+    const previewPhoto = document.getElementById('preview-photo');
+    const overlayImage = document.getElementById('selected-overlay');
     
-    img.src = photoData;
+    if (!previewPhoto || !overlayImage || !photoData) return;
+
+    if (userData.captureMode === 'boomerang' && boomerangFrames.length) {
+        startBoomerangPreview(previewPhoto);
+        return;
+    }
+
+    stopBoomerangPreview();
+    renderPreviewPhotoFrame(photoData, previewPhoto);
 }
 
 // Process final photo with overlay for final submission
@@ -2580,6 +2731,7 @@ function setupSocialShare(data) {
 
 // Reset everything and return to landing page for new submission
 function submitAnother() {
+    stopBoomerangPreview();
     // Stop camera stream if still active
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -2591,6 +2743,9 @@ function submitAnother() {
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
+    captureMode = 'photo';
+    boomerangFrames = [];
+    updateCaptureModeButtons();
     
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
@@ -2629,6 +2784,7 @@ function goBackToDetails() {
 
 // Home button reset from feedback form done by nick
 function goHomeFromFeedbackForm() {
+    stopBoomerangPreview();
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
@@ -2638,6 +2794,9 @@ function goHomeFromFeedbackForm() {
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
+    captureMode = 'photo';
+    boomerangFrames = [];
+    updateCaptureModeButtons();
 
     document.querySelectorAll('form').forEach(form => form.reset());
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
@@ -2661,6 +2820,8 @@ function goBackToFeedback() {
 
 // From Photo/Upload to Pledge
 function goBackToPledge() {
+    stopBoomerangPreview();
+
     // Stop camera stream if active (for desktop)
     if (stream) {
         stream.getTracks().forEach(track => track.stop());

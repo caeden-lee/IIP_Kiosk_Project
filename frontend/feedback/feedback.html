@@ -480,6 +480,16 @@
             <!-- facial detection (Done by Yu Kang) -->
             <p id="face-detection-status" class="face-detection-status info">Preparing face detection...</p>
 
+            <!-- Photo or boomerang capture selection done by nick -->
+            <div class="capture-mode-selector" role="group" aria-label="Capture mode">
+                <button type="button" id="photo-mode-btn" class="capture-mode-btn active" onclick="selectCaptureMode('photo')" aria-pressed="true">
+                    Photo
+                </button>
+                <button type="button" id="boomerang-mode-btn" class="capture-mode-btn" onclick="selectCaptureMode('boomerang')" aria-pressed="false">
+                    Boomerang GIF
+                </button>
+            </div>
+
             <div class="photo-preview">
                 <div id="camera-container" class="camera-view">
                     <video id="video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
