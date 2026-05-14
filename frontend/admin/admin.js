@@ -27,8 +27,17 @@
 //
 // 6. DAILY LEAVES AND PLEDGES DASHBOARD
 //    loadDailyLeafPledgeData          - Fetch last 6 days of leaf and pledge counts from admin API (DONE BY XY)
-//    createDailyLeafPledgeChart       - Render bar chart comparing leaves and pledges per day (DONE BY XY)
+//    createDailyLeafPledgeChart       - Render bar/line chart comparing leaves and pledges per day (DONE BY XY)
+//    setDailyLeafPledgeChartType      - Switch Daily Leaves & Pledges between bar and line chart (DONE BY XY)
 //    updateDailyLeafPledgeSummary     - Render totals and daily handover summary cards (DONE BY XY)
+//
+// 7. PLEDGE MODERATION UI
+//    renderPledgeModerationButtons    - Add Approve, Reject and Pending admin controls (DONE BY XY)
+//    updatePledgeModerationStatus     - Save pledge moderation status from admin page (DONE BY XY)
+//
+// 8. LOCAL AI PLEDGE SENTIMENT
+//    pledge auto-approval             - Auto-approve positive and neutral pledges (DONE BY XY)
+//    local transformer fallback       - Use local @xenova/transformers AI when rules are unclear (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -59,6 +68,8 @@
 //   and provides revert button to easily restore prior image. (Done by Yu Kang)
 // - Added dropdown selector with functions to list and select existing leaf
 //   images from ./assets/Tree/leaf directory. (Done by Yu Kang)
+// - Added AI Insight Summary for feedback analysis with top concerns,
+//   compliments, weekly summary and suggested admin actions. (Done by Yu Kang)
 //
 // FIND COMMAND
 //    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
@@ -1468,6 +1479,8 @@ async function downloadAuditExcel() {
 let visitorTrendsChart = null;
 let feedbackDistributionChart = null;
 let dailyLeafPledgeChart = null;
+let dailyLeafPledgeChartType = 'bar';
+let dailyLeafPledgeChartData = { labels: [], leafData: [], pledgeData: [] };
 let currentChartRange = 'week';
 
 // ==================== ENHANCED DASHBOARD DATA LOADING ====================
@@ -1836,6 +1849,11 @@ async function loadDailyLeafPledgeData() {
 
         const data = await response.json();
         if (data.success && data.data) {
+            dailyLeafPledgeChartData = {
+                labels: data.data.labels || [],
+                leafData: data.data.leafData || [],
+                pledgeData: data.data.pledgeData || []
+            };
             createDailyLeafPledgeChart(data.data.labels, data.data.leafData, data.data.pledgeData);
             updateDailyLeafPledgeSummary(data.data);
             return;
@@ -1844,6 +1862,7 @@ async function loadDailyLeafPledgeData() {
         throw new Error(data.error || 'Invalid daily leaf and pledge data');
     } catch (error) {
         console.error('Error loading daily leaf and pledge counts:', error);
+        dailyLeafPledgeChartData = { labels: [], leafData: [], pledgeData: [] };
         createDailyLeafPledgeChart([], [], []);
         updateDailyLeafPledgeSummary({ labels: [], leafData: [], pledgeData: [], totalLeaves: 0, totalPledges: 0 });
     }
@@ -2080,6 +2099,51 @@ function createFeedbackDistributionChart(stats) {
     console.log('✅ Feedback distribution chart created with REAL data');
 }
 
+// Switch Daily Leaves & Pledges between bar and line chart (DONE BY XY)
+function setDailyLeafPledgeChartType(type) {
+    if (!['bar', 'line'].includes(type)) return;
+
+    dailyLeafPledgeChartType = type;
+
+    document.getElementById('daily-leaf-bar-btn')?.classList.toggle('active', type === 'bar');
+    document.getElementById('daily-leaf-line-btn')?.classList.toggle('active', type === 'line');
+
+    createDailyLeafPledgeChart(
+        dailyLeafPledgeChartData.labels,
+        dailyLeafPledgeChartData.leafData,
+        dailyLeafPledgeChartData.pledgeData
+    );
+}
+
+// Build the correct dataset style for bar or line chart display (DONE BY XY)
+function createDailyLeafPledgeDataset(label, data, color, fillColor) {
+    if (dailyLeafPledgeChartType === 'line') {
+        return {
+            label,
+            data,
+            borderColor: color,
+            backgroundColor: fillColor,
+            borderWidth: 3,
+            fill: false,
+            tension: 0.35,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        };
+    }
+
+    return {
+        label,
+        data,
+        backgroundColor: fillColor,
+        borderColor: color,
+        borderWidth: 1,
+        borderRadius: 8
+    };
+}
+
 function createDailyLeafPledgeChart(labels, leafData, pledgeData) {
     const ctx = document.getElementById('dailyLeafPledgeChart');
     if (!ctx) {
@@ -2092,26 +2156,12 @@ function createDailyLeafPledgeChart(labels, leafData, pledgeData) {
     }
 
     dailyLeafPledgeChart = new Chart(ctx, {
-        type: 'bar',
+        type: dailyLeafPledgeChartType,
         data: {
             labels,
             datasets: [
-                {
-                    label: 'Leaves',
-                    data: leafData,
-                    backgroundColor: 'rgba(34, 197, 94, 0.72)',
-                    borderColor: 'rgb(22, 163, 74)',
-                    borderWidth: 1,
-                    borderRadius: 8
-                },
-                {
-                    label: 'Pledges',
-                    data: pledgeData,
-                    backgroundColor: 'rgba(14, 165, 233, 0.72)',
-                    borderColor: 'rgb(2, 132, 199)',
-                    borderWidth: 1,
-                    borderRadius: 8
-                }
+                createDailyLeafPledgeDataset('Leaves', leafData, 'rgb(22, 163, 74)', 'rgba(34, 197, 94, 0.72)'),
+                createDailyLeafPledgeDataset('Pledges', pledgeData, 'rgb(2, 132, 199)', 'rgba(14, 165, 233, 0.72)')
             ]
         },
         options: {
@@ -3801,7 +3851,7 @@ function closeQAPopup() {
 }
 // Done by Yu Kang
 // Analyze and display all feedback answer values
-async function analyzeFeedbackData() {
+async function analyzeFeedbackDataLegacy() {
     const resultsContainer = document.getElementById('feedback-analysis-results');
     const output = document.getElementById('feedback-analysis-output');
 
@@ -3817,7 +3867,7 @@ async function analyzeFeedbackData() {
     `;
 
     try {
-        const response = await fetch('/api/admin/feedback-sentiment-analysis', {
+        const response = await fetch('/api/admin/feedback-insight-summary', {
             headers: {
                 'x-username': sessionStorage.getItem('loggedUser')
             }
@@ -3866,6 +3916,119 @@ async function analyzeFeedbackData() {
         output.innerHTML = `
             <div style="padding: 20px; color: #ef4444; text-align: center;">
                 Error analyzing feedback sentiment<br>
+                <small>${escapeHtml(error.message)}</small>
+            </div>
+        `;
+    }
+}
+
+// Render AI Insight Summary category cards (Done by Yu Kang)
+function renderInsightPanel(title, items, accentColor, emptyText) {
+    const content = items.length
+        ? items.map(item => `
+            <div style="padding: 12px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
+                    <strong style="color: #0f172a;">${escapeHtml(item.label)}</strong>
+                    <span style="color: ${accentColor}; font-weight: 800;">${Number(item.count || 0)}</span>
+                </div>
+                ${(item.examples || []).map(example => `
+                    <blockquote style="margin: 8px 0 0; padding-left: 10px; border-left: 3px solid ${accentColor}; color: #475569; font-size: 13px; line-height: 1.5;">
+                        ${escapeHtml(example.text)}
+                    </blockquote>
+                `).join('')}
+            </div>
+        `).join('')
+        : `<p style="margin: 12px 0 0; color: #64748b;">${escapeHtml(emptyText)}</p>`;
+
+    return `
+        <section style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h4 style="margin: 0; color: ${accentColor};">${escapeHtml(title)}</h4>
+            ${content}
+        </section>
+    `;
+}
+
+// Render AI Insight Summary suggested admin action cards (Done by Yu Kang)
+function renderActionPanel(title, items) {
+    const content = items.length
+        ? items.map(item => `
+            <div style="padding: 12px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+                    <strong style="color: #0f172a;">${escapeHtml(item.title)}</strong>
+                    <span style="font-size: 12px; color: #1d4ed8; font-weight: 800;">${escapeHtml(item.priority || 'Medium')}</span>
+                </div>
+                <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5;">${escapeHtml(item.action)}</p>
+            </div>
+        `).join('')
+        : '<p style="margin: 12px 0 0; color: #64748b;">No action needed yet.</p>';
+
+    return `
+        <section style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h4 style="margin: 0; color: #1d4ed8;">${escapeHtml(title)}</h4>
+            ${content}
+        </section>
+    `;
+}
+
+// Analyze feedback into AI Insight Summary (Done by Yu Kang)
+async function analyzeFeedbackData() {
+    const resultsContainer = document.getElementById('feedback-analysis-results');
+    const output = document.getElementById('feedback-analysis-output');
+
+    if (!resultsContainer || !output) return;
+
+    resultsContainer.style.display = 'block';
+    output.innerHTML = '<div style="padding: 20px; color: #64748b; text-align: center;">Analyzing feedback insights...</div>';
+
+    try {
+        const response = await fetch('/api/admin/feedback-insight-summary', {
+            credentials: 'include',
+            headers: { 'x-username': sessionStorage.getItem('loggedUser') }
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to analyze feedback');
+        }
+
+        const { positive = 0, neutral = 0, negative = 0, total = 0 } = data.sentiment || {};
+        const insights = data.insights || {};
+        const weeklySummary = insights.weeklySummary || {};
+
+        output.innerHTML = `
+            <div style="display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap: 22px; align-items: stretch;">
+                <div style="position: relative; min-height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
+                    <p style="margin: 0 0 16px; color: #475569; line-height: 1.6;">${escapeHtml(weeklySummary.summaryText || 'No summary available yet.')}</p>
+                    <div style="margin-bottom: 15px; font-size: 14px;">
+                        <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #10b981;">Positive:</strong> ${positive} (${total > 0 ? ((positive / total) * 100).toFixed(1) : 0}%)</div>
+                        <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #f59e0b;">Neutral:</strong> ${neutral} (${total > 0 ? ((neutral / total) * 100).toFixed(1) : 0}%)</div>
+                        <div style="color: #475569;"><strong style="color: #ef4444;">Negative:</strong> ${negative} (${total > 0 ? ((negative / total) * 100).toFixed(1) : 0}%)</div>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
+                        <strong>Total text responses analyzed:</strong> ${total}<br>
+                        <strong>Window:</strong> ${escapeHtml(weeklySummary.responseWindow || 'last 7 days')}<br>
+                        <strong>Pledge mentions:</strong> ${Number(weeklySummary.pledgeMentions || 0)}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 18px;">
+                ${renderInsightPanel('Top Concerns', insights.topConcerns || [], '#ef4444', 'No repeated concern detected.')}
+                ${renderInsightPanel('Top Compliments', insights.topCompliments || [], '#10b981', 'No repeated compliment detected.')}
+                ${renderActionPanel('Suggested Admin Actions', insights.suggestedActions || [])}
+            </div>
+        `;
+
+        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+    } catch (error) {
+        console.error('Error analyzing feedback insights:', error);
+        output.innerHTML = `
+            <div style="padding: 20px; color: #ef4444; text-align: center;">
+                Error analyzing feedback insights<br>
                 <small>${escapeHtml(error.message)}</small>
             </div>
         `;
@@ -10472,7 +10635,7 @@ function refreshArchiveData() {
 // Load pledgeboard data from API
 async function loadAdminPledgeboard() {
     try {
-        const response = await fetch('/api/pledgeboard/pledges');
+        const response = await fetch('/api/pledgeboard/admin/pledges?status=all');
         const data = await response.json();
         
         if (data.success) {
@@ -10532,7 +10695,7 @@ function renderPledgeboardPage() {
     if (filteredPledgeboardData.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
                     No pledges found
                 </td>
             </tr>
@@ -10550,6 +10713,8 @@ function renderPledgeboardPage() {
     tableBody.innerHTML = pageData.map((pledge, pageIndex) => {
         const date = new Date(pledge.created_at).toLocaleDateString();
         const actualRank = startIndex + pageIndex + 1; // Rank across all pages
+        const status = pledge.moderation_status || 'approved';
+        const sentiment = pledge.metadata?.pledgeSentiment || 'neutral';
         
         // Add medal for top 3 (only on first page)
         let rankDisplay = `<span style="font-size: 14px;">#${actualRank}</span>`;
@@ -10567,12 +10732,82 @@ function renderPledgeboardPage() {
                 <td style="font-weight: 600; color: #6366F1; text-align: center;">
                     ❤️ ${pledge.like_count || 0}
                 </td>
+                <td>
+                    <span class="pledge-status-badge pledge-status-${escapeHtml(status)}">${escapeHtml(status)}</span>
+                    <small class="pledge-sentiment-label">${escapeHtml(sentiment)}</small>
+                </td>
                 <td>${date}</td>
+                <td>${renderPledgeModerationButtons(pledge.id, status, sentiment)}</td>
             </tr>
         `;
     }).join('');
     
     updatePledgeboardPaginationControls();
+}
+
+// Pledge moderation controls for negative/admin-reviewed pledges (DONE BY XY)
+function renderPledgeModerationButtons(feedbackId, currentStatus, sentiment) {
+    if (sentiment !== 'negative' && currentStatus === 'approved') {
+        return '<span class="pledge-auto-approved">Auto-approved</span>';
+    }
+
+    const statuses = [
+        { value: 'approved', label: 'Approve' },
+        { value: 'rejected', label: 'Reject' },
+        { value: 'pending', label: 'Pending' }
+    ];
+
+    return `
+        <div class="pledge-moderation-actions">
+            ${statuses.map(status => `
+                <button
+                    type="button"
+                    class="pledge-moderation-btn pledge-moderation-${status.value}"
+                    onclick="updatePledgeModerationStatus(${Number(feedbackId)}, '${status.value}')"
+                    ${currentStatus === status.value ? 'disabled' : ''}
+                >${status.label}</button>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Save pledge moderation status from admin page (DONE BY XY)
+async function updatePledgeModerationStatus(feedbackId, status) {
+    try {
+        const response = await fetch(`/api/pledgeboard/admin/pledges/${feedbackId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                status,
+                username: sessionStorage.getItem('loggedUser') || 'admin'
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to update pledge status');
+        }
+
+        const updateRow = pledge => (
+            Number(pledge.id) === Number(feedbackId)
+                ? {
+                    ...pledge,
+                    moderation_status: status,
+                    metadata: {
+                        ...(pledge.metadata || {}),
+                        pledgeStatus: status
+                    }
+                }
+                : pledge
+        );
+
+        allPledgeboardData = allPledgeboardData.map(updateRow);
+        filteredPledgeboardData = filteredPledgeboardData.map(updateRow);
+        renderPledgeboardPage();
+    } catch (error) {
+        console.error('Error updating pledge moderation status:', error);
+        alert('Error updating pledge status: ' + error.message);
+    }
 }
 
 // Update pledgeboard pagination controls

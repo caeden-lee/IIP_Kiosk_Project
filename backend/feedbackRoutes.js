@@ -2,13 +2,15 @@
 // FEEDBACKROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
 // ============================================================
 //
-// DONE BY XY - FEEDBACK ROUTES BADGE EMAIL SUMMARY
+// DONE BY XY - FEEDBACK ROUTES BADGE EMAIL AND PLEDGE AI SUMMARY
 //  - Added badge email sending into the feedback submission path.
 //  - Sends the badge email before the API response so the frontend can show accurate badge status.
 //  - Supports the thank-you page social sharing state based on badge email success or failure.
 //  - Normalizes temporary/legacy retention selections before saving feedback.
 //  - Passes visit summary context into thank-you emails, including topic, retention, badge and tree leaf message.
 //  - Adds the same visit summary context when retrying failed thank-you emails.
+//  - Added pledge sentiment detection so negative pledges enter admin review while neutral/positive pledges auto-approve. (DONE BY XY)
+//  - Uses school-safe rules + local AI pledge sentiment flow without requiring a personal online API key. (DONE BY XY)
 //
 // CAEDEN CHANGE SUMMARY (DONE BY CAEDEN)
 // ============================================================
@@ -72,6 +74,7 @@ const emailService = require('./emailService');
 const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
 const { validateFeedbackSubmission } = require('./validationRules');
+const { analyzePledgeSentiment } = require('./pledgeSentiment');
 
 function normalizeRetentionSelection(retention) {
     const normalized = String(retention || '').toLowerCase();
@@ -739,7 +742,15 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
     });
 
     // Save feedback record (nested)
-    function saveFeedbackRecord(userId) {
+    async function saveFeedbackRecord(userId) {
+        let pledgeAnalysis;
+        try {
+            pledgeAnalysis = await analyzePledgeSentiment(userData.pledge);
+        } catch (error) {
+            console.warn('Pledge sentiment analysis failed, auto-approving as neutral:', error.message);
+            pledgeAnalysis = { sentiment: 'neutral', moderationStatus: 'approved', source: 'fallback' };
+        }
+
         const metadata = JSON.stringify({
             device: device,
             theme: theme,
@@ -751,7 +762,10 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
             improvementFeedback: userData.q3,
             pledge: userData.pledge,
             pledgeTopic: userData.pledgeTopic || null,
-            pledgeStatus: userData.pledge ? 'pending' : 'approved'
+            pledgeSentiment: pledgeAnalysis.sentiment,
+            pledgeSentimentConfidence: pledgeAnalysis.confidence,
+            pledgeSentimentSource: pledgeAnalysis.source,
+            pledgeStatus: pledgeAnalysis.moderationStatus
         });
         
         let photoPath = userData.photoId ? `photos/${userData.photoId}` : null;
