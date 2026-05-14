@@ -11120,6 +11120,16 @@ async function saveBadgeEmailTemplates() {
 
 // ==================== PARAMETER ADJUSTMENT MANAGEMENT ====================
 
+const DEFAULT_LANDING_LAYOUT_SETTINGS = {
+    landingTextScale: 1,
+    landingPanelOffsetX: 0,
+    landingPanelOffsetY: 0,
+    startButtonOffsetX: 0,
+    startButtonOffsetY: 0,
+    startButtonWidth: 280,
+    startButtonHeight: 64
+};
+
 function switchParameterTab(tabId) {
     document.querySelectorAll('#parameter-adjustment-page .param-tab').forEach(tab => {
         tab.classList.toggle('active', tab.getAttribute('onclick')?.includes(tabId));
@@ -11192,6 +11202,88 @@ function getNumberValue(id, fallback) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function clampNumber(value, min, max, fallback) {
+    const number = Number(value);
+    const safeNumber = Number.isFinite(number) ? number : fallback;
+    return Math.min(max, Math.max(min, safeNumber));
+}
+
+function getLandingLayoutValues() {
+    return {
+        landingTextScale: clampNumber(getInputValue('layout-landingTextScale'), 0.75, 1.4, 1),
+        landingPanelOffsetX: clampNumber(getInputValue('layout-landingPanelOffsetX'), -360, 360, 0),
+        landingPanelOffsetY: clampNumber(getInputValue('layout-landingPanelOffsetY'), -220, 220, 0),
+        startButtonOffsetX: clampNumber(getInputValue('layout-startButtonOffsetX'), -220, 220, 0),
+        startButtonOffsetY: clampNumber(getInputValue('layout-startButtonOffsetY'), -160, 160, 0),
+        startButtonWidth: clampNumber(getInputValue('layout-startButtonWidth'), 180, 600, 280),
+        startButtonHeight: clampNumber(getInputValue('layout-startButtonHeight'), 44, 120, 64)
+    };
+}
+
+function withLandingLayoutDefaults(config = {}) {
+    return {
+        ...config,
+        layoutSettings: {
+            ...DEFAULT_LANDING_LAYOUT_SETTINGS,
+            ...(config.layoutSettings || {})
+        }
+    };
+}
+
+function updateLandingLayoutPreview() {
+    const layout = getLandingLayoutValues();
+    const scaleOutput = document.getElementById('layout-landingTextScaleValue');
+    const previewStage = document.querySelector('.landing-preview-stage');
+
+    if (scaleOutput) {
+        scaleOutput.textContent = `${layout.landingTextScale.toFixed(2)}x`;
+    }
+
+    if (previewStage) {
+        previewStage.style.setProperty('--preview-text-scale', layout.landingTextScale);
+        previewStage.style.setProperty('--preview-brand-size', `${Math.round(14 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-language-size', `${Math.round(11 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-title-size', `${Math.round(30 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-subtitle-size', `${Math.round(14 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-button-size', `${Math.round(13 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-panel-x', `${Math.round(layout.landingPanelOffsetX * 0.45)}px`);
+        previewStage.style.setProperty('--preview-panel-y', `${Math.round(layout.landingPanelOffsetY * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-x', `${Math.round(layout.startButtonOffsetX * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-y', `${Math.round(layout.startButtonOffsetY * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-width', `${Math.round(layout.startButtonWidth * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-height', `${Math.round(layout.startButtonHeight * 0.45)}px`);
+    }
+}
+
+function resetLandingLayoutPreview() {
+    setInputValue('layout-landingTextScale', 1);
+    setInputValue('layout-landingPanelOffsetX', 0);
+    setInputValue('layout-landingPanelOffsetY', 0);
+    setInputValue('layout-startButtonOffsetX', 0);
+    setInputValue('layout-startButtonOffsetY', 0);
+    setInputValue('layout-startButtonWidth', 280);
+    setInputValue('layout-startButtonHeight', 64);
+    updateLandingLayoutPreview();
+}
+
+function bindLandingLayoutPreview() {
+    [
+        'layout-landingTextScale',
+        'layout-landingPanelOffsetX',
+        'layout-landingPanelOffsetY',
+        'layout-startButtonOffsetX',
+        'layout-startButtonOffsetY',
+        'layout-startButtonWidth',
+        'layout-startButtonHeight'
+    ].forEach(id => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.previewBound) {
+            input.addEventListener('input', updateLandingLayoutPreview);
+            input.dataset.previewBound = 'true';
+        }
+    });
+}
+
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
     const content = config.contentSettings || {};
@@ -11203,6 +11295,7 @@ function populateParameterForm(config) {
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
     const assets = config.visualAssets || {};
+    const layout = { ...DEFAULT_LANDING_LAYOUT_SETTINGS, ...(config.layoutSettings || {}) };
     const archive = config.archiveSettings || {}; // Auto-archive settings loaded into admin controls (Done by Caeden)
 
     setInputValue('param-thankYouTitle', feedback.thankYouTitle);
@@ -11273,6 +11366,15 @@ function populateParameterForm(config) {
     setInputValue('param-feedbackBackground', assets.feedbackBackground);
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
+    setInputValue('layout-landingTextScale', layout.landingTextScale ?? 1);
+    setInputValue('layout-landingPanelOffsetX', layout.landingPanelOffsetX ?? 0);
+    setInputValue('layout-landingPanelOffsetY', layout.landingPanelOffsetY ?? 0);
+    setInputValue('layout-startButtonOffsetX', layout.startButtonOffsetX ?? 0);
+    setInputValue('layout-startButtonOffsetY', layout.startButtonOffsetY ?? 0);
+    setInputValue('layout-startButtonWidth', layout.startButtonWidth ?? 280);
+    setInputValue('layout-startButtonHeight', layout.startButtonHeight ?? 64);
+    bindLandingLayoutPreview();
+    updateLandingLayoutPreview();
     // Leaf image preview - Done by Yu Kang
     const previewBox = document.getElementById('previewLeafBox');
     if (previewBox) {
@@ -11380,6 +11482,7 @@ function collectParameterForm() {
             treeBackground: getInputValue('param-treeBackground'),
             defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
         },
+        layoutSettings: getLandingLayoutValues(),
         archiveSettings: {
             autoArchiveEnabled: getCheckedValue('archive-autoArchiveEnabled'),
             archiveAfterDays: Number(getInputValue('archive-archiveAfterDays')) || 90
@@ -11617,16 +11720,39 @@ async function selectParameterLeaf() {
 async function saveParameters() {
     try {
         setParameterStatus('Saving parameters...', 'info');
+        const payload = collectParameterForm();
         const response = await fetch('/api/admin/parameters', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(collectParameterForm())
+            body: JSON.stringify(payload)
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Failed to save parameters');
-        populateParameterForm(data.parameters || {});
-        setParameterStatus(data.message || 'Parameters saved successfully.', 'success');
+
+        // Save the layout category explicitly so newer layout controls persist even
+        // if the running main save endpoint has not been restarted yet.
+        const layoutResponse = await fetch('/api/admin/parameters/layoutSettings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload.layoutSettings)
+        });
+        const layoutData = await layoutResponse.json();
+        if (!layoutResponse.ok || !layoutData.success) {
+            if (layoutResponse.status === 404 && String(layoutData.error || '').includes('layoutSettings')) {
+                populateParameterForm(withLandingLayoutDefaults({
+                    ...(data.parameters || {}),
+                    layoutSettings: payload.layoutSettings
+                }));
+                setParameterStatus('Parameters saved. Restart the Node server once so start screen layout can persist after resets.', 'info');
+                return;
+            }
+            throw new Error(layoutData.error || 'Failed to save start screen layout');
+        }
+
+        populateParameterForm(withLandingLayoutDefaults(layoutData.parameters || data.parameters || {}));
+        setParameterStatus('Parameters and start screen layout saved successfully.', 'success');
     } catch (error) {
         console.error('Error saving parameters:', error);
         setParameterStatus(error.message || 'Failed to save parameters.', 'error');
@@ -11640,7 +11766,7 @@ async function resetParametersToDefaults() {
         const response = await fetch('/api/admin/parameters/reset', { method: 'POST', credentials: 'include' });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Failed to reset parameters');
-        populateParameterForm(data.parameters || {});
+        populateParameterForm(withLandingLayoutDefaults(data.parameters || {}));
         setParameterStatus(data.message || 'Parameters reset to defaults.', 'success');
     } catch (error) {
         console.error('Error resetting parameters:', error);

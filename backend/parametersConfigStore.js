@@ -142,6 +142,15 @@ const DEFAULT_CONFIG = {
     leafImage: "",
     previousLeafImage: "",
     defaultOverlayTheme: ""
+  },
+  layoutSettings: {
+    landingTextScale: 1,
+    landingPanelOffsetX: 0,
+    landingPanelOffsetY: 0,
+    startButtonOffsetX: 0,
+    startButtonOffsetY: 0,
+    startButtonWidth: 280,
+    startButtonHeight: 64
   }
 };
 
@@ -157,7 +166,8 @@ function mergeWithDefaults(config) {
     treeParameters: { ...DEFAULT_CONFIG.treeParameters, ...(config.treeParameters || {}) },
     photoSettings: { ...DEFAULT_CONFIG.photoSettings, ...(config.photoSettings || {}) },
     overlaySettings: { ...DEFAULT_CONFIG.overlaySettings, ...(config.overlaySettings || {}) },
-    visualAssets: { ...DEFAULT_CONFIG.visualAssets, ...(config.visualAssets || {}) }
+    visualAssets: { ...DEFAULT_CONFIG.visualAssets, ...(config.visualAssets || {}) },
+    layoutSettings: { ...DEFAULT_CONFIG.layoutSettings, ...(config.layoutSettings || {}) }
   };
 }
 

@@ -1789,6 +1789,9 @@
                         <button class="param-tab active" onclick="switchParameterTab('feedback-tab')">
                             <span class="tab-icon">💬</span> Feedback Messages
                         </button>
+                        <button class="param-tab" onclick="switchParameterTab('landing-layout-tab')">
+                            <span class="tab-icon">Layout</span> Start Screen Layout
+                        </button>
                         <button class="param-tab" onclick="switchParameterTab('content-tab')">
                             <span class="tab-icon">Text</span> Consent & Pledge Text
                         </button>
@@ -1870,6 +1873,86 @@
                             <label for="param-pledgePrompt">Pledge Prompt</label>
                             <textarea id="param-pledgePrompt" placeholder="Pledge prompt..." maxlength="500" rows="3"></textarea>
                             <small class="text-muted">Message on pledge selection page</small>
+                        </div>
+                    </div>
+
+                    <!-- Start Screen Layout Tab -->
+                    <div id="landing-layout-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Start Screen Layout</h3>
+                            <p class="section-description">Adjust the landing text size and position of the start screen elements, with a live demo preview</p>
+                        </div>
+
+                        <div class="landing-layout-editor">
+                            <div class="landing-layout-controls">
+                                <div class="form-group">
+                                    <label for="layout-landingTextScale">Text Size</label>
+                                    <div class="range-control">
+                                        <input type="range" id="layout-landingTextScale" min="0.75" max="1.4" step="0.05">
+                                        <output id="layout-landingTextScaleValue">1.00x</output>
+                                    </div>
+                                    <small class="text-muted">Scales the landing title, subtitle, brand, and main buttons</small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-landingPanelOffsetX">Form Position X</label>
+                                        <input type="number" id="layout-landingPanelOffsetX" min="-360" max="360" step="10">
+                                        <small class="text-muted">Negative moves left, positive moves right</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-landingPanelOffsetY">Form Position Y</label>
+                                        <input type="number" id="layout-landingPanelOffsetY" min="-220" max="220" step="10">
+                                        <small class="text-muted">Negative moves up, positive moves down</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-startButtonOffsetX">Start Button Position X</label>
+                                        <input type="number" id="layout-startButtonOffsetX" min="-220" max="220" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-startButtonOffsetY">Start Button Position Y</label>
+                                        <input type="number" id="layout-startButtonOffsetY" min="-160" max="160" step="10">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-startButtonWidth">Start Button Width</label>
+                                        <input type="number" id="layout-startButtonWidth" min="180" max="600" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-startButtonHeight">Start Button Height</label>
+                                        <input type="number" id="layout-startButtonHeight" min="44" max="120" step="4">
+                                    </div>
+                                </div>
+
+                                <button type="button" class="btn-secondary" onclick="resetLandingLayoutPreview()">
+                                    Reset Layout Values
+                                </button>
+                            </div>
+
+                            <div class="landing-layout-preview" aria-label="Start screen layout preview">
+                                <div class="landing-preview-stage">
+                                    <div class="landing-preview-card" id="landing-preview-card">
+                                        <div class="landing-preview-brand">
+                                            <span class="landing-preview-icon">+</span>
+                                            <span>Community Feedback Portal</span>
+                                        </div>
+                                        <div class="landing-preview-languages">
+                                            <span>English</span>
+                                            <span>Bahasa Melayu</span>
+                                            <span>Chinese</span>
+                                        </div>
+                                        <h4>Let's turn your ideas into reality</h4>
+                                        <p>Share your thoughts and help us improve our services. Your feedback matters.</p>
+                                        <button type="button" id="landing-preview-start">Start Feedback Form</button>
+                                        <button type="button" class="landing-preview-pledge">View Pledgeboards</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

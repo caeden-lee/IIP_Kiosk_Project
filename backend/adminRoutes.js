@@ -5360,7 +5360,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings } = req.body;
+    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -5390,6 +5390,9 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (visualAssets && typeof visualAssets !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid visualAssets format' });
     }
+    if (layoutSettings && typeof layoutSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid layoutSettings format' });
+    }
     if (archiveSettings && typeof archiveSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid archiveSettings format' });
     }
@@ -5409,6 +5412,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
     if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
+    if (layoutSettings) config.layoutSettings = { ...config.layoutSettings, ...layoutSettings };
     if (normalizedArchiveSettings) config.archiveSettings = { ...config.archiveSettings, ...normalizedArchiveSettings };
 
     // Save updated config
@@ -5444,9 +5448,24 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid parameter updates format' });
     }
     
-    // Validate category exists
+    // Validate category exists. Missing categories can occur after older reset
+    // logic writes an older defaults file, so known default-backed categories
+    // are allowed to be recreated by updateCategory().
     const config = parametersConfigStore.readParametersConfig();
-    if (!config[category]) {
+    const defaultBackedCategories = [
+      'feedbackMessages',
+      'contentSettings',
+      'emailContent',
+      'featureFlags',
+      'validationRules',
+      'treeParameters',
+      'photoSettings',
+      'overlaySettings',
+      'visualAssets',
+      'archiveSettings',
+      'layoutSettings'
+    ];
+    if (!config[category] && !defaultBackedCategories.includes(category)) {
       return res.status(404).json({ success: false, error: `Category '${category}' not found` });
     }
     
