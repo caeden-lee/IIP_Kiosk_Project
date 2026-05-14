@@ -58,15 +58,24 @@
     YU KANG CHANGE SUMMARY (DONE BY YU KANG)
     ============================================================
 
-    - Added admin controls for uploading a custom leaf image and adjusting
-        the displayed leaf scale. Uploads are saved to ./assets/Tree and the
-        selected leaf image is used on the /tree page when active. (Done by Yu Kang)
-    - Added revert button that allows admins to easily revert to the previous
-        leaf image with one click. (Done by Yu Kang)
-    - Added dropdown selector to browse and apply existing leaf images from
-        ./assets/Tree without re-uploading. (Done by Yu Kang)
-    - Added AI Insight Summary section for feedback analysis in the admin
-        feedback page. (Done by Yu Kang)
+    1. TREE BACKGROUND IMAGE SELECTION
+       nav item (tree management)     - Added parameter-adjustment page with tree management tab (DONE BY YU KANG)
+       div#param-treeBackgroundList   - Added grid-based selector to browse and select tree background images from ./assets/Tree/background (DONE BY YU KANG)
+       button#selectTreeBackground    - Added Apply Background button to persist selected background to /tree page (DONE BY YU KANG)
+       treeBackgroundPreview          - Added preview pane showing current tree background image (DONE BY YU KANG)
+       tree-background-status         - Added status display for current and selected tree backgrounds (DONE BY YU KANG)
+
+    2. TREE LEAF MANAGEMENT
+       leaf upload controls           - Added admin controls for uploading custom leaf images to ./assets/Tree/leaf (DONE BY YU KANG)
+       leaf scale adjustment          - Added leaf scale slider to adjust displayed leaf size on /tree page (DONE BY YU KANG)
+       revert leaf button             - Added revert button to easily restore to previous leaf image (DONE BY YU KANG)
+       leaf dropdown selector         - Added dropdown to browse and apply existing leaf images without re-uploading (DONE BY YU KANG)
+
+    3. TREE STAGES
+       param-treeStage                - Added tree stage selection dropdown for admin control over growth progression (DONE BY YU KANG)
+
+    4. AI FEEDBACK ANALYSIS
+       AI Insight Summary section     - Added AI-powered feedback analysis in the admin feedback page (DONE BY YU KANG)
 
     FIND COMMAND
         rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
