@@ -114,6 +114,7 @@ const DEFAULT_CONFIG = {
     allowedPhotoFormats: ["jpeg", "jpg", "png", "webp"]
   },
   treeParameters: {
+    treeStage: 0,
     ovalWidth: 850,
     ovalHeight: 300,
     ovalTopOffset: -100,

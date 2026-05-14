@@ -5568,6 +5568,84 @@ router.post('/parameters/leaf/select', auth.requireAdmin, (req, res) => {
     }
 });
 
+// GET /api/admin/parameters/tree-background/list - List available tree background images
+router.get('/parameters/tree-background/list', auth.requireAdmin, (req, res) => {
+    try {
+        const backgroundDir = path.join(__dirname, '../assets/Tree/background');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const backgroundImages = [];
+
+        if (!fs.existsSync(backgroundDir)) {
+            return res.json({ success: true, backgroundImages: [], currentTreeBackground: '' });
+        }
+
+        const files = fs.readdirSync(backgroundDir);
+        files.forEach((file) => {
+            const ext = path.extname(file).toLowerCase();
+            if (imageExtensions.includes(ext)) {
+                backgroundImages.push({
+                    filename: file,
+                    path: `/assets/Tree/background/${file}`,
+                    name: path.parse(file).name
+                });
+            }
+        });
+
+        const config = parametersConfigStore.readParametersConfig();
+        const currentTreeBackground = config?.visualAssets?.treeBackground || '';
+
+        return res.json({ success: true, backgroundImages, currentTreeBackground });
+    } catch (error) {
+        console.error('❌ Error listing tree backgrounds:', error.message);
+        return res.status(500).json({ success: false, error: error.message || 'Failed to list tree backgrounds' });
+    }
+});
+
+// POST /api/admin/parameters/tree-background/select - Select existing tree background image
+router.post('/parameters/tree-background/select', auth.requireAdmin, (req, res) => {
+    try {
+        const { treeBackground } = req.body;
+        if (!treeBackground) {
+            return res.status(400).json({ success: false, error: 'Tree background is required' });
+        }
+
+        const backgroundDir = path.join(__dirname, '../assets/Tree/background');
+        const safeFilename = path.basename(treeBackground);
+        const fullPath = path.join(backgroundDir, safeFilename);
+
+        if (!fullPath.startsWith(backgroundDir)) {
+            return res.status(400).json({ success: false, error: 'Invalid tree background path' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(400).json({ success: false, error: 'Tree background file does not exist' });
+        }
+
+        const assetPath = `/assets/Tree/background/${safeFilename}`;
+        const config = parametersConfigStore.readParametersConfig();
+        config.visualAssets = { ...config.visualAssets, treeBackground: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            return res.status(500).json({ success: false, error: 'Failed to save tree background' });
+        }
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_TREE_BACKGROUND_SELECTED', req.session.user.username, 'config', 'visualAssets.treeBackground', req);
+        }
+
+        return res.json({
+            success: true,
+            message: 'Tree background selected successfully',
+            assetPath,
+            parameters: parametersConfigStore.readParametersConfig()
+        });
+    } catch (error) {
+        console.error('❌ Error selecting tree background:', error.message, error.stack);
+        return res.status(500).json({ success: false, error: error.message || 'Failed to select tree background' });
+    }
+});
+
 // GET /api/admin/parameters/:category
 // Load parameters for specific category
 router.get('/parameters/:category', auth.requireAuth, (req, res) => {
