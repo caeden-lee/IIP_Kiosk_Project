@@ -5878,6 +5878,177 @@ input:checked + .slider:before {
     line-height: 1.4;
 }
 
+.landing-layout-editor {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+    gap: 22px;
+    align-items: start;
+}
+
+.landing-layout-controls {
+    display: grid;
+    gap: 14px;
+}
+
+.range-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 64px;
+    gap: 12px;
+    align-items: center;
+}
+
+#parameter-adjustment-page .range-control input[type="range"] {
+    width: 100%;
+    padding: 0;
+}
+
+.range-control output {
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.landing-layout-preview {
+    position: sticky;
+    top: 18px;
+    padding: 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.landing-preview-stage {
+    position: relative;
+    min-height: 420px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(50, 116, 129, 0.42), rgba(25, 52, 45, 0.55)),
+        url('/assets/static/rpPicture.jpg') center / cover;
+}
+
+.landing-preview-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(78%, 430px);
+    padding: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    background: rgba(10, 19, 26, 0.84);
+    box-shadow: 0 24px 54px rgba(0, 0, 0, 0.28);
+    color: #f8fafc;
+    transform: translate(calc(-50% + var(--preview-panel-x, 0px)), calc(-50% + var(--preview-panel-y, 0px)));
+    transition: transform 0.15s ease;
+}
+
+.landing-preview-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(90deg, #22c55e, #8bd7c1, #facc15);
+}
+
+.landing-preview-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+    color: #8bd7c1;
+    font-size: var(--preview-brand-size, 14px);
+    font-weight: 800;
+}
+
+.landing-preview-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #22c55e, #8bd7c1);
+    color: #163022;
+}
+
+.landing-preview-languages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.landing-preview-languages span {
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    font-size: var(--preview-language-size, 11px);
+    font-weight: 700;
+}
+
+.landing-preview-card h4 {
+    margin: 0 0 14px;
+    color: #ffffff;
+    font-size: var(--preview-title-size, 30px);
+    line-height: 1.08;
+}
+
+.landing-preview-card p {
+    margin: 0 0 24px;
+    color: #cbd5e1;
+    font-size: var(--preview-subtitle-size, 14px);
+    line-height: 1.55;
+}
+
+.landing-preview-card button {
+    border: 0;
+    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 800;
+}
+
+#landing-preview-start {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--preview-button-width, 126px);
+    min-height: var(--preview-button-height, 29px);
+    padding: 11px 22px;
+    background: linear-gradient(135deg, #16a34a, #0f766e);
+    font-size: var(--preview-button-size, 13px);
+    transform: translate(var(--preview-button-x, 0px), var(--preview-button-y, 0px));
+    transition: transform 0.15s ease;
+}
+
+.landing-preview-pledge {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    font-size: var(--preview-button-size, 13px);
+}
+
+@media (max-width: 980px) {
+    .landing-layout-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-layout-preview {
+        position: static;
+    }
+}
+
 .admin-translation-result { /* Translation result styling (Done by Caeden) */
     margin: 4px 0 14px;
     padding: 14px;
