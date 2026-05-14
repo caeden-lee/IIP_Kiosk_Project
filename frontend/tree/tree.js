@@ -46,6 +46,18 @@
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// - Tree now supports a custom leaf image uploaded via the admin panel
+//   and an adjustable display scale controlled by admin parameters.
+//   Uploaded leaf assets are saved to ./assets/Tree/leaf and applied to
+//   the visual tree when configured. (Done by Yu Kang)
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // TREE.JS - TABLE OF CONTENTS
 // ============================================================
@@ -263,6 +275,11 @@ class TreeManager {
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
+            // Leaf override image and display scale
+            this.leafDisplayScale = Number(tree.leafDisplayScale) || 1;
+            this.leafOverrideImage = assets.leafImage
+                ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
+                : null;
         } catch (error) {
             console.warn('Tree parameter config unavailable:', error);
         }
@@ -1028,7 +1045,11 @@ class TreeManager {
                     : 'Old' + side;
         }
 
-        leaf.style.backgroundImage = `url('/assets/Tree/${finalLeafImage}')`;
+        if (this.leafOverrideImage) {
+            leaf.style.backgroundImage = `url('${this.leafOverrideImage}')`;
+        } else {
+            leaf.style.backgroundImage = `url('/assets/Tree/leaf/${finalLeafImage}')`;
+        }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
         leaf.style.animationDuration = `${this.leafAnimationDuration}ms`;
@@ -1042,7 +1063,9 @@ class TreeManager {
         leaf.style.setProperty('--leaf-fall-rotation', `${(seededRandom() - 0.5) * 360}deg`);
         leaf.style.setProperty('--leaf-fall-tilt', `${(seededRandom() - 0.5) * 46}deg`);
 
-        const leafSize = 80 + ((visitor.visit_count || 1) * 5);
+        const baseLeafSize = 80 + ((visitor.visit_count || 1) * 5);
+        const scale = typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1;
+        const leafSize = Math.max(8, Math.round(baseLeafSize * scale));
         leaf.style.width = `${leafSize}px`;
         leaf.style.height = `${leafSize}px`;
 

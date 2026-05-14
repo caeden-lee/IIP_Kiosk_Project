@@ -47,6 +47,21 @@
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// - Added backend route to accept custom leaf image uploads and store
+//   the asset path in parameters config. Uploaded files are saved to
+//   ./assets/Tree/leaf and used by the frontend tree when active. (Done by Yu Kang)
+// - Added leaf image revert endpoint that swaps current and previous images,
+//   allowing users to revert to prior leaf image with one click. (Done by Yu Kang)
+// - Added endpoints to list available leaf images and select from existing images
+//   in ./assets/Tree/leaf without re-uploading. (Done by Yu Kang)
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // ============================================================
 // ADMINROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
@@ -342,6 +357,50 @@ const uploadParameterBackground = multer({
         if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
             cb(null, true);
         } else {
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024
+    }
+});
+
+// Storage for custom leaf image uploads
+const leafStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/Tree/leaf');
+        console.log('📂 Destination folder:', destFolder);
+        try {
+            if (!fs.existsSync(destFolder)) {
+                console.log('📁 Creating directory:', destFolder);
+                fs.mkdirSync(destFolder, { recursive: true });
+                console.log('✅ Directory created successfully');
+            } else {
+                console.log('✅ Directory already exists');
+            }
+        } catch (err) {
+            console.error('❌ Failed to create directory:', err.message);
+            return cb(err);
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        const filename = `CustomLeaf${ext}`;
+        console.log(`📁 Leaf filename: ${filename}`);
+        cb(null, filename);
+    }
+});
+
+const uploadParameterLeaf = multer({
+    storage: leafStorage,
+    fileFilter: (req, file, cb) => {
+        console.log('🔍 Checking file type:', file.mimetype, 'name:', file.originalname);
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            console.log('✅ File type accepted');
+            cb(null, true);
+        } else {
+            console.error('❌ File type rejected:', file.mimetype);
             cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
         }
     },
@@ -5097,6 +5156,185 @@ router.post('/parameters/background', auth.requireAdmin, uploadParameterBackgrou
     console.error('Error uploading parameter background:', error);
     res.status(500).json({ success: false, error: 'Failed to upload background' });
   }
+});
+
+// POST /api/admin/parameters/leaf - Upload a custom leaf image and activate it
+router.post('/parameters/leaf', auth.requireAdmin, uploadParameterLeaf.single('leaf'), (req, res) => {
+    try {
+        console.log('🍃 Leaf upload endpoint hit');
+        console.log('📦 Received file:', req.file);
+        
+        if (!req.file) {
+            console.error('❌ No file received in request');
+            return res.status(400).json({ success: false, error: 'No leaf file uploaded' });
+        }
+
+        const assetPath = `/assets/Tree/leaf/${req.file.filename}`;
+        console.log('✅ File saved to:', req.file.path);
+        console.log('🔗 Asset path:', assetPath);
+
+        const config = parametersConfigStore.readParametersConfig();
+        // Save current leaf image as previous before uploading new one
+        if (config.visualAssets?.leafImage) {
+            config.visualAssets.previousLeafImage = config.visualAssets.leafImage;
+            console.log('💾 Previous leaf image saved:', config.visualAssets.previousLeafImage);
+        }
+        config.visualAssets = { ...config.visualAssets, leafImage: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to save leaf image setting' });
+        }
+        
+        console.log('💾 Parameters config saved successfully');
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_UPLOADED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        console.log('✅ Leaf upload completed successfully');
+        res.json({ success: true, message: 'Leaf image uploaded successfully', assetPath, parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error uploading parameter leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to upload leaf image' });
+    }
+});
+
+// POST /api/admin/parameters/leaf/revert - Revert to previous leaf image
+router.post('/parameters/leaf/revert', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('🔄 Leaf revert endpoint hit');
+        
+        const config = parametersConfigStore.readParametersConfig();
+        const assets = config.visualAssets || {};
+        
+        if (!assets.previousLeafImage) {
+            console.log('❌ No previous leaf image to revert to');
+            return res.status(400).json({ success: false, error: 'No previous leaf image to revert to' });
+        }
+        
+        // Swap current and previous
+        const currentLeafImage = assets.leafImage;
+        config.visualAssets.leafImage = assets.previousLeafImage;
+        config.visualAssets.previousLeafImage = currentLeafImage;
+        
+        console.log('🔄 Reverting leaf - current:', currentLeafImage, 'previous:', config.visualAssets.leafImage);
+        
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to revert leaf image' });
+        }
+        
+        console.log('✅ Leaf reverted successfully');
+        
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_REVERTED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+        
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        res.json({ success: true, message: 'Leaf image reverted successfully', parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error reverting parameter leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to revert leaf image' });
+    }
+});
+
+// GET /api/admin/parameters/leaf/list - List available leaf images (Done by Yu Kang)
+router.get('/parameters/leaf/list', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('📂 Listing available leaf images');
+        
+        const leafDir = path.join(__dirname, '../assets/Tree/leaf');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const leafImages = [];
+        
+        // Check if directory exists
+        if (!fs.existsSync(leafDir)) {
+            console.log('📁 Leaf directory does not exist');
+            return res.json({ success: true, leafImages: [] });
+        }
+        
+        // Read directory
+        const files = fs.readdirSync(leafDir);
+        
+        files.forEach(file => {
+            const ext = path.extname(file).toLowerCase();
+            if (imageExtensions.includes(ext)) {
+                leafImages.push({
+                    filename: file,
+                    path: `/assets/Tree/leaf/${file}`,
+                    name: path.parse(file).name // filename without extension
+                });
+            }
+        });
+        
+        console.log(`✅ Found ${leafImages.length} leaf images`);
+        res.json({ success: true, leafImages });
+    } catch (error) {
+        console.error('❌ Error listing leaf images:', error.message);
+        res.status(500).json({ success: false, error: error.message || 'Failed to list leaf images' });
+    }
+});
+
+// POST /api/admin/parameters/leaf/select - Select an existing leaf image
+router.post('/parameters/leaf/select', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('🍃 Leaf select endpoint hit');
+        const { leafImage } = req.body;
+        
+        if (!leafImage) {
+            console.error('❌ No leaf image path provided');
+            return res.status(400).json({ success: false, error: 'Leaf image path is required' });
+        }
+        
+        // Validate path to prevent directory traversal
+        const leafDir = path.join(__dirname, '../assets/Tree/leaf');
+        const fullPath = path.join(leafDir, path.basename(leafImage));
+        
+        if (!fullPath.startsWith(leafDir)) {
+            console.error('❌ Invalid leaf image path (directory traversal attempt)');
+            return res.status(400).json({ success: false, error: 'Invalid leaf image path' });
+        }
+        
+        // Verify file exists
+        if (!fs.existsSync(fullPath)) {
+            console.error('❌ Leaf image file does not exist:', fullPath);
+            return res.status(400).json({ success: false, error: 'Leaf image file does not exist' });
+        }
+        
+        console.log('✅ Leaf image verified:', leafImage);
+        const assetPath = `/assets/Tree/leaf/${path.basename(leafImage)}`;
+        
+        const config = parametersConfigStore.readParametersConfig();
+        // Save current as previous before switching
+        if (config.visualAssets?.leafImage) {
+            config.visualAssets.previousLeafImage = config.visualAssets.leafImage;
+            console.log('💾 Previous leaf image saved:', config.visualAssets.previousLeafImage);
+        }
+
+        config.visualAssets = { ...config.visualAssets, leafImage: assetPath };
+        
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to select leaf image' });
+        }
+        
+        console.log('✅ Leaf image selected successfully:', assetPath);
+        
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_SELECTED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+        
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        res.json({ success: true, message: 'Leaf image selected successfully', parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error selecting leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to select leaf image' });
+    }
 });
 
 // GET /api/admin/parameters/:category

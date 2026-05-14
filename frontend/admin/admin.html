@@ -45,6 +45,21 @@
   FIND COMMAND
      rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 -->
+<!--
+    YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+    ============================================================
+
+    - Added admin controls for uploading a custom leaf image and adjusting
+        the displayed leaf scale. Uploads are saved to ./assets/Tree and the
+        selected leaf image is used on the /tree page when active. (Done by Yu Kang)
+    - Added revert button that allows admins to easily revert to the previous
+        leaf image with one click. (Done by Yu Kang)
+    - Added dropdown selector to browse and apply existing leaf images from
+        ./assets/Tree without re-uploading. (Done by Yu Kang)
+
+    FIND COMMAND
+        rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -417,6 +432,20 @@
                         <p>Manage and review visitor feedback submissions</p>
                     </div>
 
+                    <div class="feedback-section feedback-analyse">
+                        <div class="section-header">
+                            <h3>Feedback Analysis</h3>
+                            <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                        </div>
+
+                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
+                            <h4 style="margin-bottom: 12px;">All Answer Values:</h4>
+                            <div id="feedback-analysis-output"></div>
+                        </div>
+                    </div>
+
+                    <br>
+
                     <div class="feedback-section">
                         <div class="section-header">
                             <h3>Visitor Feedback</h3>
@@ -553,18 +582,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="feedback-section feedback-analyse">
-                        <div class="section-header">
-                            <h3>Feedback Analysis</h3>
-                            <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
-                        </div>
-
-                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
-                            <h4 style="margin-bottom: 12px;">All Answer Values:</h4>
-                            <div id="feedback-analysis-output"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Digital Tree Page (DONE BY PRETI)-->
@@ -573,6 +590,48 @@
                         <h2>Digital Tree</h2>
                         <p>View visitor tree data and statistics</p>
                     </div>
+
+                    <div class="tree-section">
+                        <div class="section-header">
+                            <h3>Leaf Adjustments</h3>
+                            <button class="btn-primary" onclick="saveParameters()">Save Changes</button>
+
+
+                        </div>
+                        <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                            <div style="flex:1;">
+                                <label for="param-leafUpload">Upload custom leaf image</label><br>
+                                <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
+                                <div style="display:flex;gap:8px;margin-top:6px;">
+                                    <button class="btn-secondary" onclick="uploadParameterLeaf()">Upload Leaf</button>
+                                    <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>
+                            </div>
+                            <div style="flex:1;">
+                                <label for="param-existingLeafList">Or select from existing leaf</label><br>
+                                <div id="param-existingLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                                    <button class="btn-secondary" onclick="selectParameterLeaf()">Apply Selected</button>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing leaf images with thumbnails and labels.</p>
+                            </div>
+                            <div style="width:260px;">
+                                <label for="param-leafDisplayScale">Leaf display scale</label>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="range" id="param-leafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-leafDisplayScaleValue').textContent = v; const p=document.getElementById('previewLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
+                                    <span id="param-leafDisplayScaleValue">1</span>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base leaf size on the tree.</p>
+                            </div>
+                            <div style="width:120px;text-align:center;">
+                                <div class="preview-leaf-box" id="previewLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Preview</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <br>
 
                     <div class="tree-section">
                         <div class="section-header">
