@@ -7610,6 +7610,8 @@ async function loadAvailableTreeBackgrounds() {
         });
         const data = await response.json();
 
+        console.log('🎨 Tree backgrounds API response:', { response: { ok: response.ok, status: response.status }, data });
+
         const picker = document.getElementById('param-treeBackgroundList');
         const preview = document.getElementById('treeBackgroundPreview');
         const status = document.getElementById('tree-background-status');
@@ -7619,7 +7621,9 @@ async function loadAvailableTreeBackgrounds() {
         window.selectedTreeBackground = '';
 
         if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Failed to load tree backgrounds');
+            const errorMsg = data.error || 'Failed to load tree backgrounds';
+            console.error('❌ Tree backgrounds load failed:', errorMsg);
+            throw new Error(errorMsg);
         }
 
         const currentTreeBackground = data.currentTreeBackground || '';
@@ -7628,10 +7632,12 @@ async function loadAvailableTreeBackgrounds() {
         }
 
         const backgrounds = Array.isArray(data.backgroundImages) ? data.backgroundImages : [];
+        console.log(`📂 Available tree backgrounds: ${backgrounds.length} images found`);
+        
         if (backgrounds.length === 0) {
-            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No background images found in /assets/Tree/background.</div>';
+            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No background images found in /assets/Tree/background. Please add .png, .jpg, or .webp files to that directory.</div>';
             if (status) {
-                status.textContent = 'No selectable tree backgrounds found.';
+                status.textContent = 'No selectable tree backgrounds found. Add images to /assets/Tree/background/';
             }
             return;
         }
@@ -7672,6 +7678,7 @@ async function loadAvailableTreeBackgrounds() {
                 if (status) {
                     status.textContent = `Selected: ${background.name}. Click Apply Background to save.`;
                 }
+                console.log('🎯 Selected background:', background.filename);
             };
 
             if (currentTreeBackground && currentTreeBackground.endsWith('/' + background.filename)) {
@@ -7688,10 +7695,10 @@ async function loadAvailableTreeBackgrounds() {
             picker.appendChild(tile);
         });
     } catch (error) {
-        console.error('Error loading available tree backgrounds:', error);
+        console.error('❌ Error loading available tree backgrounds:', error);
         const status = document.getElementById('tree-background-status');
         if (status) {
-            status.textContent = 'Failed to load tree backgrounds.';
+            status.textContent = `Error: ${error.message || 'Failed to load tree backgrounds.'}`;
         }
     }
 }
@@ -7705,6 +7712,7 @@ async function selectTreeBackground() {
             status.textContent = 'Choose a background tile first.';
         }
         showNotification('Choose a tree background before applying.', 'error');
+        console.warn('⚠️  No background selected');
         return;
     }
 
@@ -7712,6 +7720,7 @@ async function selectTreeBackground() {
         if (status) {
             status.textContent = `Applying ${selectedBackground}...`;
         }
+        console.log('🎨 Applying tree background:', selectedBackground);
 
         const response = await fetch('/api/admin/parameters/tree-background/select', {
             method: 'POST',
@@ -7721,6 +7730,8 @@ async function selectTreeBackground() {
         });
 
         const data = await response.json();
+        console.log('📡 Tree background response:', { ok: response.ok, status: response.status, data });
+
         if (!response.ok || !data.success) {
             throw new Error(data.error || 'Failed to apply tree background');
         }
@@ -7731,14 +7742,15 @@ async function selectTreeBackground() {
             preview.style.backgroundImage = `url('${applied}')`;
         }
         if (status) {
-            status.textContent = `Applied: ${selectedBackground}. /tree now uses this background.`;
+            status.textContent = `✅ Applied: ${selectedBackground}. /tree now uses this background.`;
         }
 
+        console.log('✅ Tree background applied successfully:', applied);
         showNotification('Tree background updated successfully.', 'success');
     } catch (error) {
-        console.error('Error applying tree background:', error);
+        console.error('❌ Error applying tree background:', error);
         if (status) {
-            status.textContent = 'Failed to apply tree background. Please try again.';
+            status.textContent = `Error: ${error.message || 'Failed to apply tree background.'}`;
         }
         showNotification(error.message || 'Failed to apply tree background.', 'error');
     }

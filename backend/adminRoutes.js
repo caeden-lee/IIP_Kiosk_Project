@@ -5575,11 +5575,16 @@ router.get('/parameters/tree-background/list', auth.requireAdmin, (req, res) => 
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
         const backgroundImages = [];
 
+        console.log('📂 Looking for tree backgrounds in:', backgroundDir);
+
         if (!fs.existsSync(backgroundDir)) {
+            console.warn('⚠️  Tree background directory does not exist:', backgroundDir);
             return res.json({ success: true, backgroundImages: [], currentTreeBackground: '' });
         }
 
         const files = fs.readdirSync(backgroundDir);
+        console.log('📄 Files found in background directory:', files);
+
         files.forEach((file) => {
             const ext = path.extname(file).toLowerCase();
             if (imageExtensions.includes(ext)) {
@@ -5588,15 +5593,21 @@ router.get('/parameters/tree-background/list', auth.requireAdmin, (req, res) => 
                     path: `/assets/Tree/background/${file}`,
                     name: path.parse(file).name
                 });
+                console.log(`✅ Added background: ${file}`);
+            } else {
+                console.log(`⏭️  Skipped non-image file: ${file} (ext: ${ext})`);
             }
         });
 
         const config = parametersConfigStore.readParametersConfig();
         const currentTreeBackground = config?.visualAssets?.treeBackground || '';
 
+        console.log(`🖼️  Current tree background: ${currentTreeBackground}`);
+        console.log(`✨ Found ${backgroundImages.length} background images`);
+
         return res.json({ success: true, backgroundImages, currentTreeBackground });
     } catch (error) {
-        console.error('❌ Error listing tree backgrounds:', error.message);
+        console.error('❌ Error listing tree backgrounds:', error.message, error.stack);
         return res.status(500).json({ success: false, error: error.message || 'Failed to list tree backgrounds' });
     }
 });
