@@ -27,7 +27,16 @@
 
   6. DAILY LEAVES AND PLEDGES DASHBOARD
      dailyLeafPledgeChart           - Added dashboard chart for last 6 days of leaves and pledges (DONE BY XY)
+     chart type buttons             - Added Bar/Line switch for Daily Leaves & Pledges chart (DONE BY XY)
      daily-leaf-summary             - Added totals and handover-friendly daily count cards (DONE BY XY)
+
+  7. PLEDGE MODERATION UI
+     pledge status columns          - Added status and moderation columns to admin Pledgeboard (DONE BY XY)
+     moderation buttons             - Added Approve, Reject and Pending buttons for admin review (DONE BY XY)
+
+  8. LOCAL AI PLEDGE SENTIMENT
+     pledge auto-approval           - Auto-approve positive and neutral pledges (DONE BY XY)
+     local transformer fallback     - Use local @xenova/transformers AI when rules are unclear (DONE BY XY)
 
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -56,6 +65,8 @@
         leaf image with one click. (Done by Yu Kang)
     - Added dropdown selector to browse and apply existing leaf images from
         ./assets/Tree without re-uploading. (Done by Yu Kang)
+    - Added AI Insight Summary section for feedback analysis in the admin
+        feedback page. (Done by Yu Kang)
 
     FIND COMMAND
         rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
@@ -300,6 +311,11 @@
                                     <h3>Daily Leaves & Pledges</h3>
                                     <p class="chart-subtitle">Last 6 days of tree growth and pledge activity</p>
                                 </div>
+                                <!-- Bar/Line chart switch (DONE BY XY) -->
+                                <div class="chart-controls" aria-label="Daily leaves and pledges chart type">
+                                    <button type="button" id="daily-leaf-bar-btn" class="chart-control-btn active" onclick="setDailyLeafPledgeChartType('bar')">Bar</button>
+                                    <button type="button" id="daily-leaf-line-btn" class="chart-control-btn" onclick="setDailyLeafPledgeChartType('line')">Line</button>
+                                </div>
                             </div>
                             <div class="chart-container daily-leaf-chart-container">
                                 <canvas id="dailyLeafPledgeChart"></canvas>
@@ -439,7 +455,8 @@
                         </div>
 
                         <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
-                            <h4 style="margin-bottom: 12px;">All Answer Values:</h4>
+                            <!-- AI Insight Summary (Done by Yu Kang) -->
+                            <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
                             <div id="feedback-analysis-output"></div>
                         </div>
                     </div>
@@ -699,12 +716,15 @@
                                     <th style="width: 200px;">Name</th>
                                     <th>Pledge</th>
                                     <th style="width: 100px; text-align: center;">Likes</th>
+                                    <!-- Pledge moderation columns (DONE BY XY) -->
+                                    <th style="width: 130px;">Status</th>
                                     <th style="width: 150px;">Date</th>
+                                    <th style="width: 210px;">Moderation</th>
                                 </tr>
                             </thead>
                             <tbody id="pledgeboard-table-body">
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
                                         Loading pledgeboard data...
                                     </td>
                                 </tr>

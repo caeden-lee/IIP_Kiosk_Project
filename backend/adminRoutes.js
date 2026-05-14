@@ -57,6 +57,8 @@
 //   allowing users to revert to prior leaf image with one click. (Done by Yu Kang)
 // - Added endpoints to list available leaf images and select from existing images
 //   in ./assets/Tree/leaf without re-uploading. (Done by Yu Kang)
+// - Added AI Insight Summary endpoint for top concerns, top compliments,
+//   weekly summary and suggested admin actions. (Done by Yu Kang)
 //
 // FIND COMMAND
 //    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
@@ -1325,6 +1327,235 @@ router.get('/feedback-sentiment-analysis', (req, res) => {
     });
 }); 
 */
+
+const INSIGHT_POSITIVE_KEYWORDS = [
+    'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
+    'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
+    'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant', 'nice',
+    'helpful', 'clear', 'easy', 'friendly', 'interesting', 'fun', 'smooth'
+];
+
+const INSIGHT_NEGATIVE_KEYWORDS = [
+    'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
+    'disappointing', 'disappointed', 'useless', 'waste', 'angry', 'frustrated',
+    'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic', 'mediocre',
+    'negative', 'concerning', 'problem', 'issue', 'difficult', 'confusing',
+    'slow', 'broken', 'error', 'unclear', 'boring', 'hard', 'cannot', "can't"
+];
+
+const INSIGHT_CONCERN_CATEGORIES = [
+    {
+        label: 'Usability or navigation confusion',
+        keywords: ['confusing', 'unclear', 'hard', 'difficult', 'cannot', "can't", 'lost', 'complicated', 'navigation', 'button', 'form'],
+        action: 'Review the visitor flow and simplify labels, button placement, and instructions on the affected pages.'
+    },
+    {
+        label: 'Performance or technical reliability',
+        keywords: ['slow', 'lag', 'loading', 'hang', 'broken', 'error', 'crash', 'bug', 'camera', 'photo', 'qr', 'upload'],
+        action: 'Check kiosk logs and test the camera, QR, upload, and network paths during peak visitor usage.'
+    },
+    {
+        label: 'Content clarity',
+        keywords: ['unclear', 'explain', 'information', 'more info', 'details', 'understand', 'meaning', 'question'],
+        action: 'Rewrite unclear prompts and add short examples for questions visitors struggle to answer.'
+    },
+    {
+        label: 'Experience engagement',
+        keywords: ['boring', 'plain', 'not fun', 'dull', 'uninteresting', 'long', 'too much', 'tired'],
+        action: 'Add more visual feedback, shorter steps, and clearer progress cues in the visitor journey.'
+    },
+    {
+        label: 'Facilities or service feedback',
+        keywords: ['staff', 'service', 'facility', 'place', 'room', 'queue', 'waiting', 'clean', 'noise'],
+        action: 'Share these comments with the responsible operations team and track whether the issue repeats next week.'
+    }
+];
+
+const INSIGHT_COMPLIMENT_CATEGORIES = [
+    { label: 'Positive visitor experience', keywords: ['good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fun', 'interesting', 'enjoy'] },
+    { label: 'Clear and useful content', keywords: ['clear', 'helpful', 'informative', 'useful', 'understand', 'learn', 'knowledge'] },
+    { label: 'Smooth kiosk interaction', keywords: ['easy', 'smooth', 'fast', 'simple', 'convenient', 'nice', 'friendly'] },
+    { label: 'Sustainability motivation', keywords: ['sustainability', 'green', 'recycle', 'environment', 'pledge', 'inspired', 'aware'] }
+];
+
+function normalizeInsightText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isUsefulInsightText(text) {
+    if (!text || text.length < 4) return false;
+    if (/^[0-9.\-/]+$/.test(text)) return false;
+    if (/^(yes|no|true|false|n\/a)$/i.test(text)) return false;
+    return true;
+}
+
+function countKeywordHits(text, keywords) {
+    const lower = text.toLowerCase();
+    return keywords.reduce((count, keyword) => count + (lower.includes(keyword) ? 1 : 0), 0);
+}
+
+function classifyInsightSentiment(text) {
+    const positiveScore = countKeywordHits(text, INSIGHT_POSITIVE_KEYWORDS);
+    const negativeScore = countKeywordHits(text, INSIGHT_NEGATIVE_KEYWORDS);
+
+    if (positiveScore > negativeScore) return 'positive';
+    if (negativeScore > positiveScore) return 'negative';
+    return 'neutral';
+}
+
+function buildInsightCategories(items, categories, sentimentFilter) {
+    return categories.map(category => {
+        const matches = items.filter(item => {
+            if (sentimentFilter && item.sentiment !== sentimentFilter) return false;
+            return countKeywordHits(item.text, category.keywords) > 0;
+        });
+
+        return {
+            label: category.label,
+            count: matches.length,
+            action: category.action,
+            examples: matches
+                .slice()
+                .sort((a, b) => b.text.length - a.text.length)
+                .slice(0, 2)
+                .map(item => ({
+                    text: item.text,
+                    question: item.question || item.source,
+                    date: item.date
+                }))
+        };
+    })
+        .filter(row => row.count > 0)
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+        .slice(0, 5);
+}
+
+function buildSuggestedActions(concerns, sentiment) {
+    const total = sentiment.total || 0;
+    const actions = concerns
+        .filter(concern => concern.action)
+        .slice(0, 4)
+        .map(concern => ({
+            title: concern.label,
+            action: concern.action,
+            priority: concern.count >= 3 ? 'High' : 'Medium'
+        }));
+
+    if (total > 0 && sentiment.negative / total >= 0.35) {
+        actions.unshift({
+            title: 'Negative feedback above normal',
+            action: 'Run a quick review of recent visitor comments and fix the most repeated issue before the next kiosk session.',
+            priority: 'High'
+        });
+    }
+
+    if (actions.length === 0) {
+        actions.push({
+            title: 'Maintain current visitor experience',
+            action: 'No repeated concern was detected. Continue monitoring next week and collect more free-text responses.',
+            priority: 'Low'
+        });
+    }
+
+    return actions.slice(0, 5);
+}
+
+function buildWeeklySummary(items, sentiment, concerns, compliments) {
+    const total = sentiment.total || 0;
+    const dominantSentiment = [
+        ['positive', sentiment.positive],
+        ['neutral', sentiment.neutral],
+        ['negative', sentiment.negative]
+    ].sort((a, b) => b[1] - a[1])[0][0];
+    const topConcern = concerns[0]?.label || 'No repeated concern detected';
+    const topCompliment = compliments[0]?.label || 'No repeated compliment detected';
+    const pledgeCount = items.filter(item => item.source === 'Pledge').length;
+
+    return {
+        responseWindow: 'last 7 days',
+        totalResponses: total,
+        pledgeMentions: pledgeCount,
+        dominantSentiment,
+        topConcern,
+        topCompliment,
+        summaryText: total === 0
+            ? 'No visitor comments were available for analysis in the last 7 days.'
+            : `In the last 7 days, ${total} visitor text response(s) were analyzed. The overall tone is ${dominantSentiment}. The most repeated concern is ${topConcern.toLowerCase()}, while the strongest positive signal is ${topCompliment.toLowerCase()}.`
+    };
+}
+
+// AI Insight Summary for admin feedback analysis (Done by Yu Kang)
+router.get('/feedback-insight-summary', auth.requireAuth, (req, res) => {
+    const query = `
+        SELECT
+            fa.answer_value AS text,
+            q.question_text AS question,
+            'Answer' AS source,
+            fa.created_at AS created_at
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        LEFT JOIN questions q ON fa.question_id = q.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        UNION ALL
+        SELECT
+            f.comment AS text,
+            'Visitor pledge' AS question,
+            'Pledge' AS source,
+            f.created_at AS created_at
+        FROM feedback f
+        WHERE f.comment IS NOT NULL
+          AND TRIM(f.comment) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ORDER BY created_at DESC
+        LIMIT 500
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Error loading feedback insight data:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        const items = (rows || [])
+            .map(row => ({
+                text: normalizeInsightText(row.text),
+                question: row.question || row.source || 'Feedback',
+                source: row.source || 'Feedback',
+                date: row.created_at
+            }))
+            .filter(item => isUsefulInsightText(item.text))
+            .map(item => ({ ...item, sentiment: classifyInsightSentiment(item.text) }));
+
+        const sentiment = items.reduce((counts, item) => {
+            counts[item.sentiment]++;
+            counts.total++;
+            return counts;
+        }, { positive: 0, neutral: 0, negative: 0, total: 0 });
+
+        const topConcerns = buildInsightCategories(items, INSIGHT_CONCERN_CATEGORIES, 'negative');
+        const topCompliments = buildInsightCategories(items, INSIGHT_COMPLIMENT_CATEGORIES, 'positive');
+        const suggestedActions = buildSuggestedActions(topConcerns, sentiment);
+        const weeklySummary = buildWeeklySummary(items, sentiment, topConcerns, topCompliments);
+
+        res.json({
+            success: true,
+            sentiment,
+            insights: {
+                weeklySummary,
+                topConcerns,
+                topCompliments,
+                suggestedActions,
+                analyzedAt: new Date().toISOString()
+            }
+        });
+    });
+});
 
 // Sentiment AI analysis of feedback answers (added by Yu Kang)
 router.get('/feedback-sentiment-analysis', async (req, res) => {
