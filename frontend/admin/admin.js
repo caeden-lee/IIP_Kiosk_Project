@@ -49,6 +49,21 @@
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// - Added admin controls for uploading a custom leaf image and adjusting
+//   the displayed leaf scale. Uploads are saved to ./assets/Tree/leaf and the
+//   selected leaf image is used on the /tree page when active. (Done by Yu Kang)
+// - Added revert leaf image functionality: stores previous leaf image path
+//   and provides revert button to easily restore prior image. (Done by Yu Kang)
+// - Added dropdown selector with functions to list and select existing leaf
+//   images from ./assets/Tree/leaf directory. (Done by Yu Kang)
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // ============================================================
 // ADMIN.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
@@ -11241,6 +11256,14 @@ function populateParameterForm(config) {
     setInputValue('param-leafFallThreshold', tree.leafFallThreshold);
     setInputValue('param-leafFallDuration', tree.leafFallDuration);
     setInputValue('param-leafGreenResetTime', tree.leafGreenResetTime || '00:00');
+    // Leaf display scale (new) - Done by Yu Kang
+    const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
+    const leafScaleEl = document.getElementById('param-leafDisplayScale');
+    if (leafScaleEl) {
+        leafScaleEl.value = leafScale;
+        const valEl = document.getElementById('param-leafDisplayScaleValue');
+        if (valEl) valEl.textContent = String(leafScale);
+    }
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
@@ -11250,6 +11273,28 @@ function populateParameterForm(config) {
     setInputValue('param-feedbackBackground', assets.feedbackBackground);
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
+    // Leaf image preview - Done by Yu Kang
+    const previewBox = document.getElementById('previewLeafBox');
+    if (previewBox) {
+        if (assets.leafImage) {
+            const leafPreviewPath = assets.leafImage.startsWith('/')
+                ? assets.leafImage
+                : `/assets/Tree/leaf/${assets.leafImage}`;
+            previewBox.style.backgroundImage = `url('${leafPreviewPath}')`;
+        } else {
+            previewBox.style.backgroundImage = '';
+        }
+        // apply scale to preview
+        previewBox.style.transform = `scale(${leafScale})`;
+    }
+    // Show/hide revert button based on previous leaf image - Done by Yu Kang
+    const revertBtn = document.getElementById('revert-leaf-btn');
+    if (revertBtn) {
+        revertBtn.style.display = assets.previousLeafImage ? 'block' : 'none';
+    }
+    // Load available leaf images from server - Done by Yu Kang
+    window.currentLeafImagePath = assets.leafImage || '';
+    loadAvailableLeafImages(window.currentLeafImagePath);
     setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
     setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
 }
@@ -11316,7 +11361,8 @@ function collectParameterForm() {
             leafAnimationDuration: getNumberValue('param-leafAnimationDuration', 500),
             leafFallThreshold: getNumberValue('param-leafFallThreshold', 15),
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
-            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00'
+            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
+            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
@@ -11405,6 +11451,166 @@ async function uploadParameterBackground() {
     } catch (error) {
         console.error('Error uploading parameter background:', error);
         setParameterStatus(error.message || 'Failed to upload background.', 'error');
+    }
+}
+
+async function uploadParameterLeaf() {
+    const fileInput = document.getElementById('param-leafUpload');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        setParameterStatus('Choose a leaf image first.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Uploading leaf image...', 'info');
+        const formData = new FormData();
+        formData.append('leaf', file);
+
+        const response = await fetch('/api/admin/parameters/leaf', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        if (fileInput) fileInput.value = '';
+        setParameterStatus(data.message || 'Leaf image uploaded.', 'success');
+    } catch (error) {
+        console.error('Error uploading parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to upload leaf image.', 'error');
+    }
+}
+
+async function revertParameterLeaf() {
+    try {
+        setParameterStatus('Reverting to previous leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/leaf/revert', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to revert leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Leaf image reverted.', 'success');
+    } catch (error) {
+        console.error('Error reverting parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to revert leaf image.', 'error');
+    }
+}
+
+async function loadAvailableLeafImages(currentLeafImagePath = '') {
+    try {
+        console.log('📂 Loading available leaf images...');
+        const response = await fetch('/api/admin/parameters/leaf/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error('Failed to load leaf images:', data.error);
+            return;
+        }
+
+        const picker = document.getElementById('param-existingLeafList');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedLeafImage = '';
+
+        // Add leaf images as thumbnail tiles
+        if (data.leafImages && data.leafImages.length > 0) {
+            console.log(`✅ Found ${data.leafImages.length} leaf images`);
+            data.leafImages.forEach(leaf => {
+                const tile = document.createElement('button');
+                tile.type = 'button';
+                tile.dataset.leafFilename = leaf.filename;
+                tile.dataset.leafPath = leaf.path;
+                tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+                const img = document.createElement('img');
+                img.src = leaf.path;
+                img.alt = leaf.name;
+                img.style.cssText = 'width:64px;height:64px;object-fit:contain;display:block;';
+
+                const label = document.createElement('span');
+                label.textContent = leaf.name;
+                label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+                tile.appendChild(img);
+                tile.appendChild(label);
+
+                tile.onclick = () => {
+                    picker.querySelectorAll('[data-selected="true"]').forEach(el => {
+                        el.dataset.selected = 'false';
+                        el.style.borderColor = '#d7dbe3';
+                        el.style.background = '#f8fafc';
+                        el.style.boxShadow = 'none';
+                    });
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedLeafImage = leaf.filename;
+                };
+
+                if (currentLeafImagePath && (currentLeafImagePath.endsWith('/' + leaf.filename) || currentLeafImagePath.endsWith(leaf.filename))) {
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedLeafImage = leaf.filename;
+                }
+
+                picker.appendChild(tile);
+            });
+        } else {
+            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No existing leaf images found.</div>';
+        }
+    } catch (error) {
+        console.error('Error loading available leaf images:', error);
+    }
+}
+
+async function selectParameterLeaf() {
+    const leafImage = window.selectedLeafImage;
+
+    if (!leafImage) {
+        setParameterStatus('Choose a leaf image tile to apply.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Applying leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/leaf/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ leafImage })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Leaf image applied.', 'success');
+    } catch (error) {
+        console.error('Error selecting parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to apply leaf image.', 'error');
     }
 }
 

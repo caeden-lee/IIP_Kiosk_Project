@@ -136,7 +136,7 @@ const os = require('os');
 const emailService = require('./emailService');
 const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
-const { startBluetoothScanner, nearbyDevices, logNearbyDevices } = require('./bluetooth');
+//const { startBluetoothScanner, nearbyDevices, logNearbyDevices } = require('./bluetooth');
 
 function isMobileUserAgent(userAgent) {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent || '');
@@ -162,7 +162,8 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 // Import QR code generation
 const QRCode = require('qrcode');
-const jwt = require('jsonwebtoken');
+// QR token configuration
+/*const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { Server: SocketIOServer } = require('socket.io');
 
@@ -227,13 +228,13 @@ function ensureQrPairingTables() {
     });
 
     return qrPairingSchemaReady;
-}
+}*/
 
 const app = express();
 const PORT = 3000;
 const JSON_BODY_LIMIT = '50mb';
 
-
+/*
 // Start Bluetooth scanner for proximity-based access control
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
@@ -309,7 +310,7 @@ app.get('/api/bluetooth/test-device', (req, res) => {
         console.error('Error in test-device endpoint:', error);
         res.status(500).json({ success: false, error: 'Server error' });
     }
-});
+});*/
 
 
 
@@ -629,6 +630,7 @@ app.get('/api/generate-qr', async (req, res) => {
     }
 });
 
+/*
 // Kiosk-specific QR generation (single-use, short lifetime) (Done By Yu Kang)
 app.get('/api/kiosk/generate-qr', async (req, res) => {
     try {
@@ -699,8 +701,9 @@ app.post('/api/kiosk/heartbeat', (req, res) => {
             console.error('heartbeat schema setup error', schemaError.message);
             res.status(500).json({ success: false, error: 'QR setup failed' });
         });
-});
+});*/
 
+/*
 // Phone connect token redemption helper
 async function redeemToken(req, res, token) {
     if (!token) return res.status(400).json({ success: false, error: 'Missing token' });
@@ -777,7 +780,7 @@ async function redeemToken(req, res, token) {
 app.post('/api/connect/redeem', express.json(), (req, res) => {
     const token = (req.body && req.body.token) || req.query.token;
     return redeemToken(req, res, token);
-});
+});*/
 
 // Test route
 app.get('/api/test-db', (req, res) => {
@@ -816,17 +819,17 @@ app.get('/feedback', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/feedback/feedback.html'));
 });
 
-app.get('/bluetooth-test', (req, res) => {
+/*app.get('/bluetooth-test', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/bluetooth-test.html'));
-});
+});*/
 
-app.get('/connect', (req, res) => {
+/*app.get('/connect', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
 });
 
 app.get('/connect/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
-});
+});*/
 
 app.get('/pledgeboard', requireMobileTokenForPledgeboard, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/Pledgeboard/Pledgeboard.html'));
@@ -897,7 +900,7 @@ function startServer() {
     }
 
     // Initialize Socket.IO
-    initSocketServer(server);
+    //initSocketServer(server);
 
     server.listen(PORT, bindHost, () => {
         printServerInfo(!!sslOptions);
@@ -971,7 +974,7 @@ function printServerInfo(isHttps) {
 // Note: DB schema creation moved to `database/schema.sql`.
 
 // Socket.IO server instance (set when starting)
-let ioServer = null;
+/*let ioServer = null;
 
 function initSocketServer(httpServer) {
     ioServer = new SocketIOServer(httpServer, {
@@ -1024,7 +1027,7 @@ function initSocketServer(httpServer) {
             }
         });
     });
-}
+}*/
 
 // Try to enable HTTPS if selfsigned package is available
 try {

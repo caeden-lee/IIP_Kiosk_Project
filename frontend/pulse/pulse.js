@@ -23,10 +23,10 @@ if (new URLSearchParams(window.location.search).get('embed') === 'admin') {
 }
 
 const leafImages = [
-    '/assets/Tree/NewLeftLeaf.png',
-    '/assets/Tree/NewRightLeaf.png',
-    '/assets/Tree/OldLeftLeaf.png',
-    '/assets/Tree/OldRightLeaf.png'
+    '/assets/Tree/leaf/NewLeftLeaf.png',
+    '/assets/Tree/leaf/NewRightLeaf.png',
+    '/assets/Tree/leaf/OldLeftLeaf.png',
+    '/assets/Tree/leaf/OldRightLeaf.png'
 ];
 
 const leafPositions = Array.from({ length: MAX_TREE_LEAVES }, (_, index) => {

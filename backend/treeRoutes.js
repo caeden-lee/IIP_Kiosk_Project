@@ -61,8 +61,10 @@ function parseTreeYear(value) {
 router.get('/', (req, res) => {
     if (!db) {
         console.error('❌ TreeRoutes: DB not initialized');
-        return res.status(500).json([]);
+        return res.status(500).json({ error: 'Database not initialized' });
     }
+
+    console.log('🌳 TreeRoutes: /api/tree GET request received');
 
     // 1) Get ALL VIP names (no is_deleted column anymore)
     const vipQuery = `
@@ -73,8 +75,10 @@ router.get('/', (req, res) => {
     db.all(vipQuery, [], (vipErr, vipRows) => {
         if (vipErr) {
             console.error('❌ VIP fetch error:', vipErr);
-            return res.status(500).json([]);
+            return res.status(500).json({ error: 'VIP fetch error: ' + vipErr.message });
         }
+        
+        console.log('✅ VIP rows fetched:', vipRows ? vipRows.length : 0);
 
         const vipSet = new Set(
             (vipRows || []).map(v => String(v.name || '').trim().toLowerCase()).filter(Boolean)
@@ -103,9 +107,10 @@ router.get('/', (req, res) => {
         db.all(leafQuery, [treeYear], (userErr, rows) => {
             if (userErr) {
                 console.error('❌ Tree route DB error:', userErr);
-                return res.status(500).json([]);
+                return res.status(500).json({ error: 'Leaf query error: ' + userErr.message });
             }
 
+            console.log('✅ Tree leaves fetched:', rows ? rows.length : 0);
             return res.json(mapRowsToVisitors(rows || [], vipSet));
         });
     });

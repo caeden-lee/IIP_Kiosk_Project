@@ -35,6 +35,18 @@
 // FIND COMMAND
 //   rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 // ============================================================
+//
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+// - Added admin-configurable leaf upload and leaf display scale.
+//   Uploaded leaf is saved to ./assets/Tree and applied to the /tree page when active.
+//   (Done by Yu Kang)
+// - Added leaf image revert functionality: stores previous leaf image and allows reverting
+//   to the prior image with one click. (Done by Yu Kang)
+//
+// FIND COMMAND
+//   rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
 
 const fs = require('fs');
 const path = require('path');
@@ -110,7 +122,8 @@ const DEFAULT_CONFIG = {
     leafAnimationDuration: 500,
     leafFallThreshold: 15,
     leafFallDuration: 4200,
-    leafGreenResetTime: "00:00"
+    leafGreenResetTime: "00:00",
+    leafDisplayScale: 1
   },
   photoSettings: {
     beautyFilterEnabled: true,
@@ -126,6 +139,8 @@ const DEFAULT_CONFIG = {
   visualAssets: {
     feedbackBackground: "",
     treeBackground: "/assets/Tree/BackGround.png",
+    leafImage: "",
+    previousLeafImage: "",
     defaultOverlayTheme: ""
   }
 };
