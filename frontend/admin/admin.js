@@ -61,15 +61,27 @@
 // YU KANG CHANGE SUMMARY (DONE BY YU KANG)
 // ============================================================
 //
-// - Added admin controls for uploading a custom leaf image and adjusting
-//   the displayed leaf scale. Uploads are saved to ./assets/Tree/leaf and the
-//   selected leaf image is used on the /tree page when active. (Done by Yu Kang)
-// - Added revert leaf image functionality: stores previous leaf image path
-//   and provides revert button to easily restore prior image. (Done by Yu Kang)
-// - Added dropdown selector with functions to list and select existing leaf
-//   images from ./assets/Tree/leaf directory. (Done by Yu Kang)
-// - Added AI Insight Summary for feedback analysis with top concerns,
-//   compliments, weekly summary and suggested admin actions. (Done by Yu Kang)
+// 1. TREE BACKGROUND IMAGE SELECTION
+//    loadAvailableTreeBackgrounds()   - Fetch and display all tree background images from ./assets/Tree/background (DONE BY YU KANG)
+//    selectTreeBackground()           - Apply selected tree background and persist to visualAssets.treeBackground (DONE BY YU KANG)
+//    window.selectedTreeBackground    - Global state for currently selected background image (DONE BY YU KANG)
+//    param-treeBackgroundList         - UI grid picker for browsing available tree background images (DONE BY YU KANG)
+//    treeBackgroundPreview            - Live preview display of selected/current tree background (DONE BY YU KANG)
+//
+// 2. TREE LEAF MANAGEMENT
+//    uploadLeafImage()                - Upload custom leaf image to ./assets/Tree/leaf (DONE BY YU KANG)
+//    adjustLeafScale()                - Adjust displayed leaf size on /tree page with scale slider (DONE BY YU KANG)
+//    revertLeafImage()                - Restore previous leaf image with one-click revert button (DONE BY YU KANG)
+//    loadAvailableLeafImages()        - Fetch existing leaf images from ./assets/Tree/leaf directory (DONE BY YU KANG)
+//    selectExistingLeaf()             - Browse and apply existing leaf images without re-uploading (DONE BY YU KANG)
+//
+// 3. TREE STAGES
+//    loadTreeStageSelection()          - Load tree stage dropdown for admin control (DONE BY YU KANG)
+//    param-treeStage                  - UI selector for tree growth stage progression (DONE BY YU KANG)
+//
+// 4. AI FEEDBACK ANALYSIS
+//    loadAIInsightSummary()            - Fetch AI-powered feedback analysis and insights (DONE BY YU KANG)
+//    renderAIInsights()               - Display top concerns, compliments, weekly summary and admin actions (DONE BY YU KANG)
 //
 // FIND COMMAND
 //    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
