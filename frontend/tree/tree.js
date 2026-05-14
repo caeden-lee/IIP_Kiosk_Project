@@ -342,12 +342,12 @@ class TreeManager {
         });
     }
 
-    loadImageWithFallback(imageEl, sourceCandidates) {
-        return new Promise((resolve) => {
-            if (!imageEl || !Array.isArray(sourceCandidates) || sourceCandidates.length === 0) {
-                resolve(false);
-                return;
-            }
+        loadImageWithFallback(imageEl, sourceCandidates) {
+            return new Promise((resolve) => {
+                if (!imageEl || !Array.isArray(sourceCandidates) || sourceCandidates.length === 0) {
+                    resolve(false);
+                    return;
+                }
 
             let index = 0;
             const tryNext = () => {
@@ -845,11 +845,9 @@ class TreeManager {
     createLeaves() {
         this.leavesContainer.innerHTML = '';
         this.closeLeafDetail();
-
         if (!this.stageHasLeaves()) {
             return;
         }
-
         const leafCycle = this.getLeafCycleState();
 
         const treeRect = this.treeImage.getBoundingClientRect();
