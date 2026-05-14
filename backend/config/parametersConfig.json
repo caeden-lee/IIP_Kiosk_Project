@@ -61,6 +61,7 @@
     ]
   },
   "treeParameters": {
+    "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": -100,
@@ -93,9 +94,9 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/BackGround.png",
-    "leafImage": "",
-    "previousLeafImage": "",
+    "treeBackground": "/assets/Tree/background/BackGround.png",
+    "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/OldLeftLeaf.png",
     "defaultOverlayTheme": ""
   },
   "archiveSettings": {

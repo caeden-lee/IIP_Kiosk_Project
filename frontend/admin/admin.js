@@ -7518,6 +7518,8 @@ function initializeArchivePage() {
 async function loadDigitalTreeData() {
     try {
         console.log('🌳 Loading digital tree data...');
+        await loadTreeStageSelection();
+        await loadAvailableTreeBackgrounds();
         const response = await fetch('/api/tree');
         
         if (!response.ok) {
@@ -7533,6 +7535,212 @@ async function loadDigitalTreeData() {
         console.error('Error loading tree data:', error);
         updateDigitalTreeTable([]);
         alert('Error loading tree data: ' + error.message);
+    }
+}
+
+async function loadTreeStageSelection() {
+    const stageSelect = document.getElementById('param-treeStage');
+    const stageStatus = document.getElementById('tree-stage-status');
+    if (!stageSelect) return;
+
+    try {
+        const response = await fetch('/api/admin/parameters/treeParameters', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load tree stage');
+        }
+
+        const treeParameters = data.parameters || {};
+        const rawStage = Number(treeParameters.treeStage);
+        const normalizedStage = Number.isInteger(rawStage) ? Math.max(0, Math.min(4, rawStage)) : 0;
+        stageSelect.value = String(normalizedStage);
+        if (stageStatus) {
+            stageStatus.textContent = `Current: stage ${normalizedStage}. Shown on /tree after apply.`;
+        }
+    } catch (error) {
+        console.error('Error loading tree stage selection:', error);
+        stageSelect.value = '0';
+        if (stageStatus) {
+            stageStatus.textContent = 'Unable to load saved stage. Using stage 0.';
+        }
+    }
+}
+
+async function saveTreeStageSelection() {
+    const stageSelect = document.getElementById('param-treeStage');
+    const stageStatus = document.getElementById('tree-stage-status');
+    if (!stageSelect) return;
+
+    const selectedStage = Math.max(0, Math.min(4, Number(stageSelect.value) || 0));
+
+    try {
+        if (stageStatus) {
+            stageStatus.textContent = `Applying stage ${selectedStage}...`;
+        }
+        const response = await fetch('/api/admin/parameters/treeParameters', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ treeStage: selectedStage })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to save tree stage');
+        }
+
+        if (stageStatus) {
+            stageStatus.textContent = `Saved: stage ${selectedStage}. /tree now uses this stage.`;
+        }
+        showNotification(`Tree stage updated to stage ${selectedStage}.`, 'success');
+    } catch (error) {
+        console.error('Error saving tree stage selection:', error);
+        if (stageStatus) {
+            stageStatus.textContent = 'Failed to apply stage. Please try again.';
+        }
+        showNotification(error.message || 'Failed to save tree stage.', 'error');
+    }
+}
+
+async function loadAvailableTreeBackgrounds() {
+    try {
+        const response = await fetch('/api/admin/parameters/tree-background/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        const picker = document.getElementById('param-treeBackgroundList');
+        const preview = document.getElementById('treeBackgroundPreview');
+        const status = document.getElementById('tree-background-status');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedTreeBackground = '';
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load tree backgrounds');
+        }
+
+        const currentTreeBackground = data.currentTreeBackground || '';
+        if (preview && currentTreeBackground) {
+            preview.style.backgroundImage = `url('${currentTreeBackground}')`;
+        }
+
+        const backgrounds = Array.isArray(data.backgroundImages) ? data.backgroundImages : [];
+        if (backgrounds.length === 0) {
+            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No background images found in /assets/Tree/background.</div>';
+            if (status) {
+                status.textContent = 'No selectable tree backgrounds found.';
+            }
+            return;
+        }
+
+        backgrounds.forEach((background) => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.dataset.backgroundFilename = background.filename;
+            tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+            const thumb = document.createElement('div');
+            thumb.style.cssText = `width:100%;height:84px;border-radius:6px;background:url('${background.path}') center/cover no-repeat;border:1px solid #e2e8f0;`;
+
+            const label = document.createElement('span');
+            label.textContent = background.name;
+            label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+            tile.appendChild(thumb);
+            tile.appendChild(label);
+
+            tile.onclick = () => {
+                picker.querySelectorAll('[data-selected="true"]').forEach((el) => {
+                    el.dataset.selected = 'false';
+                    el.style.borderColor = '#d7dbe3';
+                    el.style.background = '#f8fafc';
+                    el.style.boxShadow = 'none';
+                });
+
+                tile.dataset.selected = 'true';
+                tile.style.borderColor = '#2563eb';
+                tile.style.background = '#eff6ff';
+                tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                window.selectedTreeBackground = background.filename;
+
+                if (preview) {
+                    preview.style.backgroundImage = `url('${background.path}')`;
+                }
+                if (status) {
+                    status.textContent = `Selected: ${background.name}. Click Apply Background to save.`;
+                }
+            };
+
+            if (currentTreeBackground && currentTreeBackground.endsWith('/' + background.filename)) {
+                tile.dataset.selected = 'true';
+                tile.style.borderColor = '#2563eb';
+                tile.style.background = '#eff6ff';
+                tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                window.selectedTreeBackground = background.filename;
+                if (status) {
+                    status.textContent = `Current: ${background.name}.`;
+                }
+            }
+
+            picker.appendChild(tile);
+        });
+    } catch (error) {
+        console.error('Error loading available tree backgrounds:', error);
+        const status = document.getElementById('tree-background-status');
+        if (status) {
+            status.textContent = 'Failed to load tree backgrounds.';
+        }
+    }
+}
+
+async function selectTreeBackground() {
+    const selectedBackground = window.selectedTreeBackground;
+    const status = document.getElementById('tree-background-status');
+
+    if (!selectedBackground) {
+        if (status) {
+            status.textContent = 'Choose a background tile first.';
+        }
+        showNotification('Choose a tree background before applying.', 'error');
+        return;
+    }
+
+    try {
+        if (status) {
+            status.textContent = `Applying ${selectedBackground}...`;
+        }
+
+        const response = await fetch('/api/admin/parameters/tree-background/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ treeBackground: selectedBackground })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply tree background');
+        }
+
+        const applied = data.assetPath || '';
+        const preview = document.getElementById('treeBackgroundPreview');
+        if (preview && applied) {
+            preview.style.backgroundImage = `url('${applied}')`;
+        }
+        if (status) {
+            status.textContent = `Applied: ${selectedBackground}. /tree now uses this background.`;
+        }
+
+        showNotification('Tree background updated successfully.', 'success');
+    } catch (error) {
+        console.error('Error applying tree background:', error);
+        if (status) {
+            status.textContent = 'Failed to apply tree background. Please try again.';
+        }
+        showNotification(error.message || 'Failed to apply tree background.', 'error');
     }
 }
 
@@ -11584,6 +11792,14 @@ function populateParameterForm(config) {
     setInputValue('param-leafFallThreshold', tree.leafFallThreshold);
     setInputValue('param-leafFallDuration', tree.leafFallDuration);
     setInputValue('param-leafGreenResetTime', tree.leafGreenResetTime || '00:00');
+    const normalizedTreeStage = Number.isInteger(Number(tree.treeStage))
+        ? Math.max(0, Math.min(4, Number(tree.treeStage)))
+        : 0;
+    setInputValue('param-treeStage', normalizedTreeStage);
+    const treeStageStatus = document.getElementById('tree-stage-status');
+    if (treeStageStatus) {
+        treeStageStatus.textContent = `Current: stage ${normalizedTreeStage}. Shown on /tree after apply.`;
+    }
     // Leaf display scale (new) - Done by Yu Kang
     const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
@@ -11699,6 +11915,7 @@ function collectParameterForm() {
             leafFallThreshold: getNumberValue('param-leafFallThreshold', 15),
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
+            treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
             leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1
         },
         photoSettings: {

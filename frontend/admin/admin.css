@@ -1827,6 +1827,23 @@ body {
     color: #64748b;
 }
 
+/* ==================== DIGITAL TREE ADJUSTMENT PAGE STYLES ==================== */
+
+/* Digital tree page container */
+#tree-adjustment-page {
+    min-height: 100%;
+    padding: 30px;
+    margin-top: 0;
+}
+
+/* Tree section and info display */
+.tree-adjustment-section {
+    background: var(--theme-card-bg);
+    border-radius: 16px;
+    padding: 25px;
+    border: 2px solid var(--theme-border-color);
+}
+
 /* ==================== OVERLAY MANAGEMENT PAGE STYLES ==================== */
 
 /* Overlay page container */
