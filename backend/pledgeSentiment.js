@@ -12,7 +12,6 @@
 // ============================================================
 
 const https = require('https');
-const { pipeline } = require('@xenova/transformers');
 
 let localClassifier = null;
 
@@ -64,6 +63,7 @@ function detectPledgeSentimentRule(pledgeText) {
 async function getLocalClassifier() {
     if (!localClassifier) {
         console.log('Loading local pledge sentiment model...');
+        const { pipeline } = require('@xenova/transformers');
         localClassifier = await pipeline(
             'sentiment-analysis',
             'Xenova/bert-base-multilingual-uncased-sentiment'
