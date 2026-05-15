@@ -2824,6 +2824,7 @@ function applyLandingLayoutSettings(layout = {}) {
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
     const content = kioskParameters.contentSettings || {};
+    const campaign = kioskParameters.campaignSettings || {};
     const assets = kioskParameters.visualAssets || {};
     const layout = kioskParameters.layoutSettings || {};
     const flags = getFeatureFlags();
@@ -2866,10 +2867,19 @@ function applyParameterOverrides() {
         setText('details-description', messages.detailsPrompt);
         setText('feedback-description', messages.feedbackPrompt);
         setText('pledge-description', messages.pledgePrompt);
-        const examples = Array.isArray(content.pledgeExamples) ? content.pledgeExamples : [];
+        const campaignExamples = campaign.enabled === true && Array.isArray(campaign.pledgeExamples)
+            ? campaign.pledgeExamples
+            : [];
+        const examples = campaignExamples.length > 0
+            ? campaignExamples
+            : (Array.isArray(content.pledgeExamples) ? content.pledgeExamples : []);
+        const campaignPrefix = campaign.enabled === true && campaign.title ? `${campaign.title}: ` : '';
         setText('pledge-example-1', examples[0] || 'Carry a reusable bottle and cutlery every day');
         setText('pledge-example-2', examples[1] || 'Sort waste properly and recycle whenever possible');
         setText('pledge-example-3', examples[2] || 'Reduce food waste by taking only what I can finish');
+        if (campaignPrefix) {
+            setText('pledge-examples-header', `${campaignPrefix}Pledge Examples:`);
+        }
         setText('thankyou-title', messages.thankYouTitle);
         setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
         setText('thankyou-footer-text', messages.thankYouFooter);

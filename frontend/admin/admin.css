@@ -25,8 +25,23 @@ PARAMETER ADJUSTMENT ADMIN UI
     - Added tab, form, status, upload note and action styles for the Parameter Adjustment section (DONE BY CAEDEN)
     - Added translation result and archive setting styles for admin feedback controls (Done by Caeden)
 
+DASHBOARD INTERVENTION ALERTS
+    - Added Intervention Alerts dashboard card, severity badges, alert rows, metrics and mobile layout styles. (DONE BY CAEDEN)
+
 FIND COMMAND
   rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+
+============================================================ */
+
+/* ============================================================
+NICK CHANGE SUMMARY (DONE BY NICK)
+============================================================
+
+ESG JOURNEY PASSPORT
+    - Added Journey Passport dashboard card, milestone summary, stamp chips and visitor journey rows. (DONE BY NICK)
+
+FIND COMMAND
+  rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
 
 ============================================================ */
 
@@ -1125,6 +1140,424 @@ body {
     font-size: 14px;
 }
 
+/* Intervention Alerts */
+.intervention-alerts-card {
+    background: var(--theme-card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.intervention-alerts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--theme-border-color);
+}
+
+.intervention-alerts-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--theme-text-color);
+    margin: 0 0 0.25rem;
+}
+
+.intervention-alerts-header p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.intervention-alerts-count {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.intervention-alerts-count.severity-high {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+
+.intervention-alerts-count.severity-medium {
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+}
+
+.intervention-alerts-count.severity-low {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.intervention-alerts-list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.intervention-alert {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem;
+    border: 1px solid var(--theme-border-color);
+    border-left: 5px solid #94a3b8;
+    border-radius: 12px;
+    background: var(--theme-bg-color);
+}
+
+.intervention-alert--high {
+    border-left-color: #ef4444;
+}
+
+.intervention-alert--medium {
+    border-left-color: #f59e0b;
+}
+
+.intervention-alert--low {
+    border-left-color: #10b981;
+}
+
+.intervention-alert-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.intervention-alert--high .intervention-alert-icon {
+    color: #dc2626;
+}
+
+.intervention-alert--medium .intervention-alert-icon {
+    color: #b45309;
+}
+
+.intervention-alert--low .intervention-alert-icon {
+    color: #047857;
+}
+
+.intervention-alert-topline {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+}
+
+.intervention-alert-topline h4 {
+    margin: 0;
+    color: var(--theme-text-color);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.intervention-alert-severity {
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.07);
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.intervention-alert-message,
+.intervention-alert-action {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.intervention-alert-message {
+    color: var(--theme-text-color);
+}
+
+.intervention-alert-action {
+    margin-top: 0.45rem;
+    color: var(--color-muted);
+}
+
+.intervention-alert-metric {
+    align-self: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--theme-text-color);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.intervention-alert-empty {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.intervention-alert-error {
+    color: #dc2626;
+}
+
+/* ESG Journey Passport */
+.journey-passport-card {
+    background: var(--theme-card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.journey-passport-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--theme-border-color);
+}
+
+.journey-passport-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--theme-text-color);
+    margin: 0 0 0.25rem;
+}
+
+.journey-passport-header p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.journey-passport-status {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.journey-passport-status.is-ready {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.journey-passport-status.is-error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+
+.journey-passport-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.journey-passport-summary div {
+    padding: 0.9rem;
+    border: 1px solid var(--theme-border-color);
+    border-radius: 12px;
+    background: var(--theme-bg-color);
+}
+
+.journey-passport-summary span {
+    display: block;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.journey-passport-summary strong {
+    display: block;
+    color: var(--theme-text-color);
+    font-size: 24px;
+    line-height: 1;
+}
+
+.journey-passport-list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.journey-passport-breakdown {
+    display: grid;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.journey-breakdown-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.journey-breakdown-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 30px;
+    padding: 0.32rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(16, 185, 129, 0.22);
+    background: #f0fdf4;
+    color: #065f46;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.journey-breakdown-chip strong {
+    min-width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #047857;
+    font-size: 11px;
+}
+
+.journey-breakdown-topic {
+    border-color: rgba(59, 130, 246, 0.24);
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.journey-breakdown-topic strong {
+    color: #1d4ed8;
+}
+
+.journey-passport-item {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--theme-border-color);
+    border-radius: 12px;
+    background: var(--theme-bg-color);
+}
+
+.journey-passport-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.journey-passport-topline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+}
+
+.journey-passport-topline h4 {
+    margin: 0;
+    color: var(--theme-text-color);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.journey-passport-topline span {
+    color: #047857;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.journey-passport-meta {
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 0.6rem;
+}
+
+.journey-passport-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+.journey-passport-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #10b981, #3b82f6);
+}
+
+.journey-passport-stamps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.journey-stamp {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #065f46;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.journey-stamp-topic {
+    border-color: rgba(59, 130, 246, 0.28);
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+.journey-stamp-muted {
+    color: #64748b;
+    border-color: rgba(148, 163, 184, 0.3);
+    background: #f8fafc;
+}
+
+.journey-passport-empty {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.journey-passport-error {
+    color: #dc2626;
+}
+
 /* Bottom Section */
 .dashboard-bottom-section {
     display: grid;
@@ -1395,6 +1828,38 @@ body {
     
     .quick-actions-grid {
         grid-template-columns: 1fr;
+    }
+
+    .intervention-alerts-header {
+        flex-direction: column;
+    }
+
+    .intervention-alert {
+        grid-template-columns: 1fr;
+    }
+
+    .intervention-alert-icon {
+        display: none;
+    }
+
+    .intervention-alert-metric {
+        justify-self: start;
+    }
+
+    .journey-passport-header {
+        flex-direction: column;
+    }
+
+    .journey-passport-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .journey-passport-item {
+        grid-template-columns: 1fr;
+    }
+
+    .journey-passport-avatar {
+        display: none;
     }
 
     .daily-leaf-list {

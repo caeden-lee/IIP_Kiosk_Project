@@ -11,8 +11,15 @@
 const express = require('express');
 const router = express.Router();
 const db = require('./db');
+const parametersConfigStore = require('./parametersConfigStore');
 
 const CAMPAIGN_GOAL = Number(process.env.PULSE_CAMPAIGN_GOAL || 100);
+
+function getActiveCampaign() {
+    const config = parametersConfigStore.readParametersConfig();
+    const campaign = config.campaignSettings || {};
+    return campaign.enabled === true ? campaign : null;
+}
 
 function queryAll(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -101,7 +108,7 @@ function buildBadgeEarners(rows) {
         .slice(0, 5);
 }
 
-function buildBadgeBreakdown(rows) {
+function buildBadgeBreakdown(rows, activeCampaign) {
     const counts = new Map();
 
     rows.forEach((row) => {
@@ -111,12 +118,19 @@ function buildBadgeBreakdown(rows) {
     });
 
     return Array.from(counts.entries())
-        .map(([badge, count]) => ({ badge, count }))
-        .sort((a, b) => b.count - a.count);
+        .map(([badge, count]) => ({
+            badge,
+            count,
+            emphasized: activeCampaign?.badgeEmphasis
+                ? badge === topicToBadge(activeCampaign.badgeEmphasis, true)
+                : false
+        }))
+        .sort((a, b) => Number(b.emphasized) - Number(a.emphasized) || b.count - a.count);
 }
 
 router.get('/summary', async (req, res) => {
     try {
+        const activeCampaign = getActiveCampaign();
         const [today, month, total, recentPledges, badgeRows, treeVisitors] = await Promise.all([
             queryOne(`
                 SELECT COUNT(*) AS count
@@ -173,7 +187,10 @@ router.get('/summary', async (req, res) => {
         ]);
 
         const pledgesThisMonth = Number(month.count || 0);
-        const goal = Number.isFinite(CAMPAIGN_GOAL) && CAMPAIGN_GOAL > 0 ? CAMPAIGN_GOAL : 100;
+        const configuredGoal = Number(activeCampaign?.pulseGoal);
+        const goal = Number.isFinite(configuredGoal) && configuredGoal > 0
+            ? configuredGoal
+            : (Number.isFinite(CAMPAIGN_GOAL) && CAMPAIGN_GOAL > 0 ? CAMPAIGN_GOAL : 100);
         const progressPercent = Math.min(100, Math.round((pledgesThisMonth / goal) * 100));
 
         res.json({
@@ -187,9 +204,15 @@ router.get('/summary', async (req, res) => {
                 progressPercent,
                 treeLeaves: treeVisitors.length
             },
+            activeCampaign: activeCampaign ? {
+                title: activeCampaign.title || 'Current ESG Campaign',
+                cadence: activeCampaign.cadence || 'weekly',
+                badgeEmphasis: activeCampaign.badgeEmphasis || '',
+                treeSubtitle: activeCampaign.treeSubtitle || ''
+            } : null,
             newestPledges: recentPledges.map(anonymizePledge),
             topBadgeEarners: buildBadgeEarners(badgeRows),
-            badgeBreakdown: buildBadgeBreakdown(badgeRows),
+            badgeBreakdown: buildBadgeBreakdown(badgeRows, activeCampaign),
             treeVisitors: treeVisitors.map((visitor, index) => ({
                 name: visitor.name || `Visitor ${index + 1}`,
                 visit_count: Number(visitor.visit_count) || 1,

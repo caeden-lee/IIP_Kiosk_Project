@@ -55,8 +55,23 @@
 //    function runConfiguredArchiveNow - Run configurable feedback auto-archive update from admin UI (Done by Caeden)
 //    function toggleDailyOperation    - One-button End Day / Start Day kiosk control (Done by Caeden)
 //
+// 2. DASHBOARD INTERVENTION ALERTS
+//    function loadInterventionAlerts  - Fetch food waste, pledge, negative feedback and upload risk alerts for dashboard (DONE BY CAEDEN)
+//    function renderInterventionAlerts - Render severity, metric and suggested staff action cards (DONE BY CAEDEN)
+//    loadDashboardData                - Load chart data and intervention alerts together on dashboard refresh (DONE BY CAEDEN)
+//
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+// ============================================================
+// NICK CHANGE SUMMARY (DONE BY NICK)
+// ============================================================
+//
+// 1. ESG JOURNEY PASSPORT
+//    function loadJourneyPassport     - Fetch visitor milestone passports for repeat engagement tracking (DONE BY NICK)
+//    function renderJourneyPassport   - Render passport summary, stamps, topic badges and top visitor journeys (DONE BY NICK)
+//
+// FIND COMMAND
+//    rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
 // ============================================================
 // YU KANG CHANGE SUMMARY (DONE BY YU KANG)
 // ============================================================
@@ -1515,7 +1530,11 @@ async function loadDashboardData() {
             
             preti_startDashboardKioskMonitoring();
             
-            await loadChartData(); // Load chart data separately
+            await Promise.all([
+                loadChartData(), // Load chart data separately
+                loadInterventionAlerts(),
+                loadJourneyPassport()
+            ]);
             updateLastUpdated();
         } else {
             console.error('[PRETI] Failed to load dashboard data:', data.error);
@@ -1624,6 +1643,229 @@ async function updateSystemStatus(activity) {
     }
     
     console.log('✅ System status check complete:', statusMessages);
+}
+
+function getInterventionAlertIcon(severity) {
+    if (severity === 'high') return '!';
+    if (severity === 'medium') return 'i';
+    return 'OK';
+}
+
+function formatInterventionSeverity(severity) {
+    const normalized = String(severity || 'low').toLowerCase();
+    if (normalized === 'high') return 'High';
+    if (normalized === 'medium') return 'Medium';
+    return 'Low';
+}
+
+function renderInterventionAlerts(alerts) {
+    const list = document.getElementById('intervention-alerts-list');
+    const count = document.getElementById('intervention-alerts-count');
+    if (!list) return;
+
+    const safeAlerts = Array.isArray(alerts) ? alerts : [];
+    const actionableAlerts = safeAlerts.filter(alert => alert.severity !== 'low' || alert.id !== 'monitoring-normal');
+
+    if (count) {
+        count.textContent = actionableAlerts.length > 0
+            ? `${actionableAlerts.length} active`
+            : 'No urgent alerts';
+        count.className = actionableAlerts.some(alert => alert.severity === 'high')
+            ? 'intervention-alerts-count severity-high'
+            : (actionableAlerts.length > 0 ? 'intervention-alerts-count severity-medium' : 'intervention-alerts-count severity-low');
+    }
+
+    if (safeAlerts.length === 0) {
+        list.innerHTML = '<p class="intervention-alert-empty">No intervention alerts available yet.</p>';
+        return;
+    }
+
+    list.innerHTML = safeAlerts.map(alert => {
+        const severity = String(alert.severity || 'low').toLowerCase();
+        const severityLabel = formatInterventionSeverity(severity);
+        return `
+            <article class="intervention-alert intervention-alert--${escapeHtmlSafe(severity)}">
+                <div class="intervention-alert-icon" aria-hidden="true">${escapeHtmlSafe(getInterventionAlertIcon(severity))}</div>
+                <div class="intervention-alert-body">
+                    <div class="intervention-alert-topline">
+                        <h4>${escapeHtmlSafe(alert.title || 'Intervention alert')}</h4>
+                        <span class="intervention-alert-severity">${severityLabel}</span>
+                    </div>
+                    <p class="intervention-alert-message">${escapeHtmlSafe(alert.message || '')}</p>
+                    <p class="intervention-alert-action">${escapeHtmlSafe(alert.suggestedAction || '')}</p>
+                </div>
+                <div class="intervention-alert-metric">${escapeHtmlSafe(alert.metric || '')}</div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadInterventionAlerts() {
+    const list = document.getElementById('intervention-alerts-list');
+    const count = document.getElementById('intervention-alerts-count');
+
+    try {
+        if (count) {
+            count.textContent = 'Checking...';
+            count.className = 'intervention-alerts-count';
+        }
+
+        const response = await fetch('/api/admin/intervention-alerts', {
+            credentials: 'include',
+            cache: 'no-store'
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : { success: false, error: 'Intervention alerts endpoint is not available. Restart the backend server to load the new route.' };
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load intervention alerts');
+        }
+
+        renderInterventionAlerts(data.alerts || []);
+    } catch (error) {
+        console.error('Error loading intervention alerts:', error);
+        if (count) {
+            count.textContent = 'Unavailable';
+            count.className = 'intervention-alerts-count severity-high';
+        }
+        if (list) {
+            list.innerHTML = `<p class="intervention-alert-empty intervention-alert-error">${escapeHtmlSafe(error.message || 'Unable to load intervention alerts. Check server logs if this repeats.')}</p>`;
+        }
+    }
+}
+
+function setPassportStatus(text, className = '') {
+    const status = document.getElementById('journey-passport-status');
+    if (!status) return;
+    status.textContent = text;
+    status.className = `journey-passport-status ${className}`.trim();
+}
+
+function updatePassportMetric(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function renderJourneyPassport(passport) {
+    const list = document.getElementById('journey-passport-list');
+    const breakdown = document.getElementById('journey-passport-breakdown');
+    if (!list) return;
+
+    const summary = passport?.summary || {};
+    const topPassports = Array.isArray(passport?.topPassports) ? passport.topPassports : [];
+    const stampBreakdown = Array.isArray(passport?.stampBreakdown) ? passport.stampBreakdown : [];
+    const topicBreakdown = Array.isArray(passport?.topicBreakdown) ? passport.topicBreakdown : [];
+
+    updatePassportMetric('passport-holder-count', summary.passportHolders || 0);
+    updatePassportMetric('passport-repeat-count', summary.repeatVisitors || 0);
+    updatePassportMetric('passport-stamp-count', summary.totalStamps || 0);
+    updatePassportMetric('passport-average-count', summary.averageStamps || 0);
+
+    setPassportStatus(topPassports.length > 0 ? `${topPassports.length} shown` : 'No passports yet', topPassports.length > 0 ? 'is-ready' : '');
+
+    if (breakdown) {
+        const activeStamps = stampBreakdown.filter(stamp => Number(stamp.count || 0) > 0);
+        const activeTopics = topicBreakdown.filter(topic => Number(topic.count || 0) > 0);
+        if (activeStamps.length === 0 && activeTopics.length === 0) {
+            breakdown.innerHTML = '<p class="journey-passport-empty">Passport stamp breakdown will appear after visitor milestones are earned.</p>';
+        } else {
+            const stampHtml = activeStamps.map(stamp => `
+                <span class="journey-breakdown-chip">
+                    ${escapeHtmlSafe(stamp.label || 'Stamp')}
+                    <strong>${escapeHtmlSafe(String(stamp.count || 0))}</strong>
+                </span>
+            `).join('');
+            const topicHtml = activeTopics.map(topic => `
+                <span class="journey-breakdown-chip journey-breakdown-topic">
+                    ${escapeHtmlSafe(topic.label || 'Topic')}
+                    <strong>${escapeHtmlSafe(String(topic.count || 0))}</strong>
+                </span>
+            `).join('');
+            breakdown.innerHTML = `
+                <div class="journey-breakdown-group" aria-label="Milestone stamp totals">${stampHtml}</div>
+                ${topicHtml ? `<div class="journey-breakdown-group" aria-label="Topic badge totals">${topicHtml}</div>` : ''}
+            `;
+        }
+    }
+
+    if (topPassports.length === 0) {
+        list.innerHTML = '<p class="journey-passport-empty">No visitor passport milestones available yet.</p>';
+        return;
+    }
+
+    list.innerHTML = topPassports.map(visitor => {
+        const stamps = Array.isArray(visitor.stamps) ? visitor.stamps : [];
+        const topicBadges = Array.isArray(visitor.topicBadges) ? visitor.topicBadges : [];
+        const lastSeen = visitor.lastSeen ? new Date(visitor.lastSeen).toLocaleDateString() : 'No date';
+        const stampHtml = stamps.map(stamp => `
+            <span class="journey-stamp" title="${escapeHtmlSafe(stamp.detail || '')}">
+                ${escapeHtmlSafe(stamp.label || 'Stamp')}
+            </span>
+        `).join('');
+        const topicHtml = topicBadges.map(badge => `
+            <span class="journey-stamp journey-stamp-topic">
+                ${escapeHtmlSafe(badge.label || 'Topic Badge')}
+            </span>
+        `).join('');
+
+        return `
+            <article class="journey-passport-item">
+                <div class="journey-passport-avatar" aria-hidden="true">${escapeHtmlSafe(String(visitor.name || 'V').trim().charAt(0).toUpperCase() || 'V')}</div>
+                <div class="journey-passport-body">
+                    <div class="journey-passport-topline">
+                        <h4>${escapeHtmlSafe(visitor.name || 'Anonymous Visitor')}</h4>
+                        <span>${escapeHtmlSafe(String(visitor.stampCount || 0))} stamp${Number(visitor.stampCount || 0) === 1 ? '' : 's'}</span>
+                    </div>
+                    <div class="journey-passport-meta">
+                        ${escapeHtmlSafe(String(visitor.feedbackCount || 0))} feedback &bull;
+                        ${escapeHtmlSafe(String(visitor.pledgeCount || 0))} pledge${Number(visitor.pledgeCount || 0) === 1 ? '' : 's'} &bull;
+                        ${escapeHtmlSafe(String(visitor.likedPledgeCount || 0))} like${Number(visitor.likedPledgeCount || 0) === 1 ? '' : 's'} &bull;
+                        Last seen ${escapeHtmlSafe(lastSeen)}
+                    </div>
+                    <div class="journey-passport-progress" aria-label="Passport completion">
+                        <span style="width:${Math.max(0, Math.min(100, Number(visitor.progressPercent || 0)))}%"></span>
+                    </div>
+                    <div class="journey-passport-stamps">
+                        ${stampHtml || '<span class="journey-stamp journey-stamp-muted">First milestone pending</span>'}
+                        ${topicHtml}
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadJourneyPassport() {
+    try {
+        setPassportStatus('Loading...');
+        const response = await fetch('/api/admin/journey-passport', {
+            credentials: 'include',
+            cache: 'no-store'
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : { success: false, error: 'Journey passport endpoint is not available. Restart the backend server to load the new route.' };
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load journey passport');
+        }
+
+        renderJourneyPassport(data.passport || {});
+    } catch (error) {
+        console.error('Error loading journey passport:', error);
+        setPassportStatus('Unavailable', 'is-error');
+        const list = document.getElementById('journey-passport-list');
+        const breakdown = document.getElementById('journey-passport-breakdown');
+        if (list) {
+            list.innerHTML = `<p class="journey-passport-empty journey-passport-error">${escapeHtmlSafe(error.message || 'Unable to load journey passport data.')}</p>`;
+        }
+        if (breakdown) {
+            breakdown.innerHTML = '';
+        }
+    }
 }
 
 // Update kiosk server status on dashboard
@@ -11754,6 +11996,7 @@ function bindLandingLayoutPreview() {
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
     const content = config.contentSettings || {};
+    const campaign = config.campaignSettings || {};
     const email = config.emailContent || {};
     // Feature flags and centralized validation rules loaded into admin controls (DONE BY CAEDEN)
     const flags = config.featureFlags || {};
@@ -11779,6 +12022,18 @@ function populateParameterForm(config) {
     setInputValue('param-pledgeExample1', pledgeExamples[0] || 'Carry a reusable bottle and cutlery every day');
     setInputValue('param-pledgeExample2', pledgeExamples[1] || 'Sort waste properly and recycle whenever possible');
     setInputValue('param-pledgeExample3', pledgeExamples[2] || 'Reduce food waste by taking only what I can finish');
+
+    const campaignExamples = Array.isArray(campaign.pledgeExamples) ? campaign.pledgeExamples : [];
+    setCheckedValue('campaign-enabled', campaign.enabled === true);
+    setInputValue('campaign-title', campaign.title || 'Food Waste Week');
+    setInputValue('campaign-cadence', campaign.cadence || 'weekly');
+    setInputValue('campaign-treeSubtitle', campaign.treeSubtitle || "This week's focus: reduce food waste through mindful choices.");
+    setInputValue('campaign-pulseGoal', campaign.pulseGoal || 100);
+    setInputValue('campaign-badgeEmphasis', campaign.badgeEmphasis || 'sustainable-living');
+    setInputValue('campaign-focusKeywords', (campaign.focusKeywords || []).join(','));
+    setInputValue('campaign-pledgeExample1', campaignExamples[0] || 'Take only what I can finish during meals');
+    setInputValue('campaign-pledgeExample2', campaignExamples[1] || 'Share food waste tips with one friend this week');
+    setInputValue('campaign-pledgeExample3', campaignExamples[2] || 'Choose reusable containers for takeaway food');
 
     setInputValue('param-thankYouSubject', email.thankYouSubject);
     setInputValue('param-thankYouIntro', email.thankYouIntro);
@@ -11824,6 +12079,7 @@ function populateParameterForm(config) {
     if (treeStageStatus) {
         treeStageStatus.textContent = `Current: stage ${normalizedTreeStage}. Shown on /tree after apply.`;
     }
+    setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
     // Leaf display scale (new) - Done by Yu Kang
     const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
@@ -11896,6 +12152,20 @@ function collectParameterForm() {
                 getInputValue('param-pledgeExample3')
             ].filter(Boolean)
         },
+        campaignSettings: {
+            enabled: getCheckedValue('campaign-enabled'),
+            title: getInputValue('campaign-title') || 'ESG Campaign',
+            cadence: getInputValue('campaign-cadence') || 'weekly',
+            treeSubtitle: getInputValue('campaign-treeSubtitle'),
+            pulseGoal: Number(getInputValue('campaign-pulseGoal')) || 100,
+            badgeEmphasis: getInputValue('campaign-badgeEmphasis') || 'sustainable-living',
+            focusKeywords: getInputValue('campaign-focusKeywords').split(',').map(keyword => keyword.trim()).filter(Boolean),
+            pledgeExamples: [
+                getInputValue('campaign-pledgeExample1'),
+                getInputValue('campaign-pledgeExample2'),
+                getInputValue('campaign-pledgeExample3')
+            ].filter(Boolean)
+        },
         emailContent: {
             thankYouSubject: getInputValue('param-thankYouSubject'),
             thankYouIntro: getInputValue('param-thankYouIntro'),
@@ -11940,7 +12210,8 @@ function collectParameterForm() {
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
-            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1
+            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1,
+            showTitleBox: getCheckedValue('param-showTitleBox')
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
