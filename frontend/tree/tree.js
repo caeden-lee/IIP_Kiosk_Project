@@ -104,6 +104,7 @@ class TreeManager {
         this.treeImageLeaves = document.getElementById('treeImageLeaves');
         this.leavesContainer = document.getElementById('leavesContainer');
         this.loadingMessage = document.getElementById('loadingMessage');
+        this.treeTitleBox = document.querySelector('.tree-title');
         this.treeTitle = document.getElementById('treeTitle');
         this.treeSubtitle = document.getElementById('treeSubtitle');
         this.yearReviewToggle = document.getElementById('yearReviewToggle');
@@ -203,6 +204,8 @@ class TreeManager {
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
         this.treeStage = 0;
+        this.showTitleBox = true;
+        this.activeCampaign = null;
         this.leafFallStarted = false;
         this.leafGreenified = false;
         this.leafGreenTimer = null;
@@ -257,6 +260,7 @@ class TreeManager {
 
             const tree = data.parameters?.treeParameters || {};
             const assets = data.parameters?.visualAssets || {};
+            const campaign = data.parameters?.campaignSettings || {};
 
             this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
             this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
@@ -268,6 +272,9 @@ class TreeManager {
             this.leafFallDuration = Number(tree.leafFallDuration) || this.leafFallDuration;
             this.leafGreenResetTime = this.normalizeResetTime(tree.leafGreenResetTime) || this.leafGreenResetTime;
             this.treeStage = this.normalizeTreeStage(tree.treeStage);
+            this.showTitleBox = tree.showTitleBox !== false;
+            this.activeCampaign = campaign.enabled === true ? campaign : null;
+            this.applyTitleBoxVisibility();
 
             this.applyTreeStageAssets(this.treeStage);
 
@@ -286,6 +293,12 @@ class TreeManager {
                 : null;
         } catch (error) {
             console.warn('Tree parameter config unavailable:', error);
+        }
+    }
+
+    applyTitleBoxVisibility() {
+        if (this.treeTitleBox) {
+            this.treeTitleBox.style.display = this.showTitleBox ? 'block' : 'none';
         }
     }
 
@@ -749,7 +762,7 @@ class TreeManager {
         if (this.treeSubtitle) {
             this.treeSubtitle.textContent = this.isReviewMode
                 ? `Completed yearly tree with ${this.visitors.length} contribution${this.visitors.length === 1 ? '' : 's'}`
-                : `Growing with every visitor's contribution in ${this.currentYear}`;
+                : (this.activeCampaign?.treeSubtitle || `Growing with every visitor's contribution in ${this.currentYear}`);
         }
     }
 

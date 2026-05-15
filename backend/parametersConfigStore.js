@@ -73,6 +73,20 @@ const DEFAULT_CONFIG = {
       "Reduce food waste by taking only what I can finish"
     ]
   },
+  campaignSettings: {
+    enabled: false,
+    title: "Food Waste Week",
+    cadence: "weekly",
+    treeSubtitle: "This week's focus: reduce food waste through mindful choices.",
+    pulseGoal: 100,
+    badgeEmphasis: "sustainable-living",
+    focusKeywords: ["food waste", "leftovers", "canteen", "meal"],
+    pledgeExamples: [
+      "Take only what I can finish during meals",
+      "Share food waste tips with one friend this week",
+      "Choose reusable containers for takeaway food"
+    ]
+  },
   emailContent: {
     thankYouSubject: "Thank you for visiting RP ESG Centre, {name}!",
     thankYouIntro: "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
@@ -124,7 +138,8 @@ const DEFAULT_CONFIG = {
     leafFallThreshold: 15,
     leafFallDuration: 4200,
     leafGreenResetTime: "00:00",
-    leafDisplayScale: 1
+    leafDisplayScale: 1,
+    showTitleBox: true
   },
   photoSettings: {
     beautyFilterEnabled: true,
@@ -161,6 +176,7 @@ function mergeWithDefaults(config) {
     ...config,
     feedbackMessages: { ...DEFAULT_CONFIG.feedbackMessages, ...(config.feedbackMessages || {}) },
     contentSettings: { ...DEFAULT_CONFIG.contentSettings, ...(config.contentSettings || {}) },
+    campaignSettings: { ...DEFAULT_CONFIG.campaignSettings, ...(config.campaignSettings || {}) },
     emailContent: { ...DEFAULT_CONFIG.emailContent, ...(config.emailContent || {}) },
     featureFlags: { ...DEFAULT_CONFIG.featureFlags, ...(config.featureFlags || {}) },
     validationRules: { ...DEFAULT_CONFIG.validationRules, ...(config.validationRules || {}) },

@@ -44,8 +44,23 @@
 //    POST /translate                  - Translate visitor feedback text to English from admin popups (Done by Caeden)
 //    archiveSettings                  - Configure auto-archive timing without changing the stored procedure (Done by Caeden)
 //
+// 2. ADMIN INTERVENTION ALERTS
+//    GET /intervention-alerts         - Return dashboard alerts for food waste, low pledge rate, negative feedback and upload risk (DONE BY CAEDEN)
+//    getInterventionAlertsFromRows    - Build severity-ranked staff action alerts from recent feedback, pledges and health checks (DONE BY CAEDEN)
+//    resolveHealthDetails fallback    - Keep alerts route available even when camera/storage health checks fail (DONE BY CAEDEN)
+//
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
+// ============================================================
+// NICK CHANGE SUMMARY (DONE BY NICK)
+// ============================================================
+//
+// 1. ESG JOURNEY PASSPORT
+//    GET /journey-passport            - Return visitor passport milestones for repeat engagement tracking (DONE BY NICK)
+//    buildJourneyPassport             - Derive feedback, pledge, keepsake, liked pledge, repeat visit and topic stamps (DONE BY NICK)
+//
+// FIND COMMAND
+//    rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
 // ============================================================
 // YU KANG CHANGE SUMMARY (DONE BY YU KANG)
 // ============================================================
@@ -1483,6 +1498,447 @@ function buildWeeklySummary(items, sentiment, concerns, compliments) {
             : `In the last 7 days, ${total} visitor text response(s) were analyzed. The overall tone is ${dominantSentiment}. The most repeated concern is ${topConcern.toLowerCase()}, while the strongest positive signal is ${topCompliment.toLowerCase()}.`
     };
 }
+
+function formatSgtDateKey(date) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
+
+function getSgtDateKey(value) {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return '';
+    return formatSgtDateKey(date);
+}
+
+function getSgtWeekStartKey(daysAgo = 0) {
+    const now = new Date();
+    const sgtNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+    sgtNow.setDate(sgtNow.getDate() - daysAgo);
+    const day = sgtNow.getDay();
+    const mondayOffset = day === 0 ? 6 : day - 1;
+    sgtNow.setDate(sgtNow.getDate() - mondayOffset);
+    return formatSgtDateKey(sgtNow);
+}
+
+function parseAlertMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function buildInterventionAlert(id, severity, title, message, suggestedAction, metric) {
+    return {
+        id,
+        severity,
+        title,
+        message,
+        suggestedAction,
+        metric
+    };
+}
+
+function getAlertSeverityRank(severity) {
+    return { high: 3, medium: 2, low: 1 }[severity] || 0;
+}
+
+function getActiveCampaignSettings() {
+    const config = parametersConfigStore.readParametersConfig();
+    const campaign = config.campaignSettings || {};
+    return campaign.enabled === true ? campaign : null;
+}
+
+function getCampaignKeywordList(campaign) {
+    const keywords = Array.isArray(campaign?.focusKeywords) ? campaign.focusKeywords : [];
+    return keywords.map(keyword => normalizeInsightText(keyword).toLowerCase()).filter(Boolean);
+}
+
+function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaign = null) {
+    const todayKey = getSgtDateKey();
+    const thisWeekStart = getSgtWeekStartKey(0);
+    const previousWeekStart = getSgtWeekStartKey(7);
+    const textItems = [];
+
+    (feedbackRows || []).forEach(row => {
+        const metadata = parseAlertMetadata(row.metadata);
+        const dateKey = getSgtDateKey(row.created_at);
+        const pledge = normalizeInsightText(row.comment);
+        if (isUsefulInsightText(pledge)) {
+            textItems.push({
+                text: pledge,
+                dateKey,
+                created_at: row.created_at,
+                source: 'Pledge'
+            });
+        }
+        row._alertMetadata = metadata;
+        row._alertDateKey = dateKey;
+    });
+
+    (answerRows || []).forEach(row => {
+        const text = normalizeInsightText(row.text);
+        if (isUsefulInsightText(text)) {
+            textItems.push({
+                text,
+                dateKey: getSgtDateKey(row.created_at),
+                created_at: row.created_at,
+                source: 'Answer'
+            });
+        }
+    });
+
+    const todayFeedback = (feedbackRows || []).filter(row => row._alertDateKey === todayKey);
+    const todayPledges = todayFeedback.filter(row => normalizeInsightText(row.comment).length > 0);
+    const todayPhotos = todayFeedback.filter(row => row.photo_path || row.processed_photo_path);
+    const pledgeRate = todayFeedback.length > 0 ? todayPledges.length / todayFeedback.length : 1;
+    const photoRate = todayFeedback.length > 0 ? todayPhotos.length / todayFeedback.length : 1;
+
+    const thisWeekItems = textItems.filter(item => item.dateKey >= thisWeekStart);
+    const previousWeekItems = textItems.filter(item => item.dateKey >= previousWeekStart && item.dateKey < thisWeekStart);
+    const negativeThisWeek = thisWeekItems.filter(item => classifyInsightSentiment(item.text) === 'negative');
+    const negativePreviousWeek = previousWeekItems.filter(item => classifyInsightSentiment(item.text) === 'negative');
+    const negativeRate = thisWeekItems.length > 0 ? negativeThisWeek.length / thisWeekItems.length : 0;
+
+    const foodWasteKeywords = ['food waste', 'food', 'meal', 'leftover', 'leftovers', 'canteen', 'waste food', 'throw food'];
+    const campaignKeywords = getCampaignKeywordList(campaign);
+    const focusKeywords = campaignKeywords.length > 0 ? campaignKeywords : foodWasteKeywords;
+    const focusThisWeek = thisWeekItems.filter(item => countKeywordHits(item.text, focusKeywords) > 0);
+    const focusPreviousWeek = previousWeekItems.filter(item => countKeywordHits(item.text, focusKeywords) > 0);
+    const pendingPledges = (feedbackRows || []).filter(row => {
+        const metadata = row._alertMetadata || {};
+        return normalizeInsightText(row.comment) && metadata.pledgeStatus === 'pending';
+    });
+
+    const alerts = [];
+
+    if (focusThisWeek.length >= 2 && focusThisWeek.length >= Math.max(2, Math.ceil(focusPreviousWeek.length * 1.5))) {
+        const focusTitle = campaign?.title ? `${campaign.title} comments increased this week` : 'Food waste comments increased this week';
+        alerts.push(buildInterventionAlert(
+            campaign?.title ? 'campaign-focus-comments' : 'food-waste-complaints',
+            focusThisWeek.length >= 4 ? 'high' : 'medium',
+            focusTitle,
+            `${focusThisWeek.length} campaign-related concern(s) were detected this week, compared with ${focusPreviousWeek.length} last week.`,
+            campaign?.title
+                ? 'Review recent feedback against the active campaign focus and update pledge examples if the same issue repeats.'
+                : 'Review recent free-text feedback for food waste patterns and share the repeated issue with the sustainability or operations lead.',
+            `${focusThisWeek.length} this week`
+        ));
+    }
+
+    if (todayFeedback.length >= 3 && pledgeRate < 0.4) {
+        alerts.push(buildInterventionAlert(
+            'low-pledge-rate-today',
+            pledgeRate < 0.2 ? 'high' : 'medium',
+            'Low pledge rate today',
+            `${todayPledges.length} of ${todayFeedback.length} visitor(s) submitted a pledge today.`,
+            campaign?.title
+                ? `Check whether the pledge step is visible and whether the ${campaign.title} examples are clear enough for visitors.`
+                : 'Check whether the pledge step is enabled, visible, and easy to complete. Consider refreshing the pledge examples for the current campaign.',
+            `${Math.round(pledgeRate * 100)}% pledge rate`
+        ));
+    }
+
+    if ((negativeThisWeek.length >= 3 && negativeRate >= 0.3) || pendingPledges.length >= 2) {
+        alerts.push(buildInterventionAlert(
+            'negative-feedback-spike',
+            negativeThisWeek.length >= 5 || pendingPledges.length >= 4 ? 'high' : 'medium',
+            'Negative feedback needs review',
+            `${negativeThisWeek.length} negative text response(s) and ${pendingPledges.length} pending pledge(s) were detected in the active feedback set.`,
+            'Open the feedback insight summary and pledge moderation table, then resolve the repeated concern before the next kiosk session.',
+            `${negativeThisWeek.length} negative`
+        ));
+    }
+
+    const storageIssue = health?.storage && health.storage.ok === false;
+    const cameraIssue = health?.camera && health.camera.ok === false;
+    if (storageIssue || cameraIssue || (todayFeedback.length >= 3 && photoRate < 0.25)) {
+        const severity = storageIssue || cameraIssue ? 'high' : 'medium';
+        alerts.push(buildInterventionAlert(
+            'camera-upload-risk',
+            severity,
+            'Camera or upload flow may need attention',
+            storageIssue
+                ? health.storage.message
+                : (cameraIssue ? health.camera.message : `${todayPhotos.length} of ${todayFeedback.length} visitor(s) submitted a photo today.`),
+            'Check kiosk camera permissions, upload folders, and the photo feature flags before the next visitor group arrives.',
+            storageIssue ? `${health.storage.failing} folder issue(s)` : `${Math.round(photoRate * 100)}% photo rate`
+        ));
+    }
+
+    if (alerts.length === 0 && todayFeedback.length > 0) {
+        alerts.push(buildInterventionAlert(
+            'monitoring-normal',
+            'low',
+            'No urgent intervention detected',
+            'Today\'s kiosk activity does not show repeated concerns, low pledge engagement, or upload risk.',
+            'Continue monitoring the dashboard after the next visitor group.',
+            `${todayFeedback.length} feedback today`
+        ));
+    }
+
+    return alerts
+        .sort((a, b) => getAlertSeverityRank(b.severity) - getAlertSeverityRank(a.severity))
+        .slice(0, 5);
+}
+
+const PASSPORT_TOPIC_LABELS = {
+    'climate-change': 'Climate Champion',
+    'renewable-energy': 'Renewable Innovator',
+    'sustainable-living': 'Sustainable Living Advocate',
+    'ocean-conservation': 'Ocean Guardian',
+    'ethical-governance': 'Governance Guardian',
+    'community-impact': 'Social Champion'
+};
+
+const PASSPORT_STAMP_LABELS = {
+    firstFeedback: 'First Feedback',
+    firstPledge: 'First Pledge',
+    photoKeepsake: 'Photo Keepsake',
+    likedPledge: 'Community Liked',
+    repeatVisitor: 'Repeat Visitor',
+    topicExplorer: 'Topic Explorer'
+};
+
+function parsePassportMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function addPassportStamp(visitor, key, label, detail) {
+    if (visitor._stampKeys.has(key)) return;
+    visitor._stampKeys.add(key);
+    visitor.stamps.push({ key, label, detail });
+}
+
+function buildJourneyPassport(rows) {
+    const visitorsById = new Map();
+
+    (rows || []).forEach(row => {
+        if (!visitorsById.has(row.user_id)) {
+            visitorsById.set(row.user_id, {
+                id: row.user_id,
+                name: row.name || 'Anonymous Visitor',
+                visitCount: Number(row.visit_count || 0),
+                firstSeen: row.user_created_at,
+                lastSeen: row.last_visit || row.feedback_created_at,
+                feedbackCount: 0,
+                pledgeCount: 0,
+                photoCount: 0,
+                likedPledgeCount: 0,
+                keepsakeCount: 0,
+                topics: new Set(),
+                stamps: [],
+                _stampKeys: new Set()
+            });
+        }
+
+        const visitor = visitorsById.get(row.user_id);
+        if (!row.feedback_id) return;
+
+        const metadata = parsePassportMetadata(row.metadata);
+        const pledgeText = normalizeInsightText(row.comment);
+        const topic = metadata.pledgeTopic || '';
+        visitor.feedbackCount += 1;
+        visitor.pledgeCount += pledgeText ? 1 : 0;
+        visitor.photoCount += row.photo_path || row.processed_photo_path ? 1 : 0;
+        visitor.keepsakeCount += Number(row.email_sent || 0) > 0 || row.processed_photo_path ? 1 : 0;
+        visitor.likedPledgeCount += Number(row.like_count || 0);
+        if (topic && PASSPORT_TOPIC_LABELS[topic]) visitor.topics.add(topic);
+        if (!visitor.lastSeen || new Date(row.feedback_created_at) > new Date(visitor.lastSeen)) {
+            visitor.lastSeen = row.feedback_created_at;
+        }
+    });
+
+    const stampBreakdown = Object.fromEntries(
+        Object.keys(PASSPORT_STAMP_LABELS).map(key => [key, { label: PASSPORT_STAMP_LABELS[key], count: 0 }])
+    );
+
+    const passports = Array.from(visitorsById.values()).map(visitor => {
+        if (visitor.feedbackCount > 0) {
+            addPassportStamp(visitor, 'firstFeedback', PASSPORT_STAMP_LABELS.firstFeedback, `${visitor.feedbackCount} feedback submission${visitor.feedbackCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.pledgeCount > 0) {
+            addPassportStamp(visitor, 'firstPledge', PASSPORT_STAMP_LABELS.firstPledge, `${visitor.pledgeCount} pledge${visitor.pledgeCount === 1 ? '' : 's'} shared`);
+        }
+        if (visitor.keepsakeCount > 0 || visitor.photoCount > 0) {
+            addPassportStamp(visitor, 'photoKeepsake', PASSPORT_STAMP_LABELS.photoKeepsake, `${Math.max(visitor.keepsakeCount, visitor.photoCount)} keepsake moment${Math.max(visitor.keepsakeCount, visitor.photoCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.likedPledgeCount > 0) {
+            addPassportStamp(visitor, 'likedPledge', PASSPORT_STAMP_LABELS.likedPledge, `${visitor.likedPledgeCount} pledge like${visitor.likedPledgeCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.visitCount >= 2 || visitor.feedbackCount >= 2) {
+            addPassportStamp(visitor, 'repeatVisitor', PASSPORT_STAMP_LABELS.repeatVisitor, `${Math.max(visitor.visitCount, visitor.feedbackCount)} recorded visit${Math.max(visitor.visitCount, visitor.feedbackCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.topics.size >= 2) {
+            addPassportStamp(visitor, 'topicExplorer', PASSPORT_STAMP_LABELS.topicExplorer, `${visitor.topics.size} pledge topics explored`);
+        }
+
+        const topicBadges = Array.from(visitor.topics)
+            .map(topic => ({ topic, label: PASSPORT_TOPIC_LABELS[topic] }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        visitor.stamps.forEach(stamp => {
+            if (stampBreakdown[stamp.key]) stampBreakdown[stamp.key].count += 1;
+        });
+
+        const stampCount = visitor.stamps.length + topicBadges.length;
+
+        return {
+            id: visitor.id,
+            name: visitor.name,
+            visitCount: visitor.visitCount,
+            feedbackCount: visitor.feedbackCount,
+            pledgeCount: visitor.pledgeCount,
+            photoCount: visitor.photoCount,
+            likedPledgeCount: visitor.likedPledgeCount,
+            firstSeen: visitor.firstSeen,
+            lastSeen: visitor.lastSeen,
+            stampCount,
+            progressPercent: Math.min(100, Math.round((stampCount / 12) * 100)),
+            stamps: visitor.stamps,
+            topicBadges
+        };
+    })
+        .filter(visitor => visitor.feedbackCount > 0)
+        .sort((a, b) => b.stampCount - a.stampCount || b.feedbackCount - a.feedbackCount || new Date(b.lastSeen) - new Date(a.lastSeen));
+
+    const totalStamps = passports.reduce((sum, visitor) => sum + visitor.stampCount, 0);
+    const repeatVisitors = passports.filter(visitor => visitor.visitCount >= 2 || visitor.feedbackCount >= 2).length;
+    const topicBreakdown = Object.entries(passports.reduce((counts, visitor) => {
+        (visitor.topicBadges || []).forEach(badge => {
+            counts[badge.label] = (counts[badge.label] || 0) + 1;
+        });
+        return counts;
+    }, {}))
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    return {
+        summary: {
+            passportHolders: passports.length,
+            repeatVisitors,
+            totalStamps,
+            averageStamps: passports.length ? Number((totalStamps / passports.length).toFixed(1)) : 0,
+            repeatRate: passports.length ? Math.round((repeatVisitors / passports.length) * 100) : 0
+        },
+        stampBreakdown: Object.values(stampBreakdown),
+        topicBreakdown,
+        topPassports: passports.slice(0, 6)
+    };
+}
+
+// Dashboard intervention alerts for staff action.
+router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
+    const activeCampaign = getActiveCampaignSettings();
+    const feedbackQuery = `
+        SELECT id, comment, metadata, photo_path, processed_photo_path, created_at
+        FROM feedback
+        WHERE is_active = 1
+          AND archive_status = 'not_archived'
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY created_at DESC
+        LIMIT 800
+    `;
+
+    const answersQuery = `
+        SELECT fa.answer_value AS text, fa.created_at
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY fa.created_at DESC
+        LIMIT 800
+    `;
+
+    db.all(feedbackQuery, [], (feedbackErr, feedbackRows) => {
+        if (feedbackErr) {
+            console.error('Error loading intervention feedback data:', feedbackErr);
+            return res.status(500).json({ success: false, error: feedbackErr.message });
+        }
+
+        db.all(answersQuery, [], (answersErr, answerRows) => {
+            if (answersErr) {
+                console.error('Error loading intervention answer data:', answersErr);
+                return res.status(500).json({ success: false, error: answersErr.message });
+            }
+
+            let health = null;
+            try {
+                health = resolveHealthDetails();
+            } catch (healthError) {
+                console.warn('Intervention alert health check unavailable:', healthError.message);
+            }
+
+            const alerts = getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
+            res.json({
+                success: true,
+                generatedAt: new Date().toISOString(),
+                activeCampaign,
+                alerts
+            });
+        });
+    });
+});
+
+// ESG Journey Passport dashboard summary for repeat engagement tracking.
+router.get('/journey-passport', auth.requireAuth, (req, res) => {
+    const query = `
+        SELECT
+            u.id AS user_id,
+            u.name,
+            u.visit_count,
+            u.created_at AS user_created_at,
+            u.last_visit,
+            f.id AS feedback_id,
+            f.comment,
+            f.metadata,
+            f.photo_path,
+            f.processed_photo_path,
+            f.email_sent,
+            f.created_at AS feedback_created_at,
+            COALESCE(pl.like_count, 0) AS like_count
+        FROM users u
+        LEFT JOIN feedback f
+            ON f.user_id = u.id
+           AND f.is_active = 1
+           AND f.archive_status = 'not_archived'
+        LEFT JOIN (
+            SELECT feedback_id, COUNT(*) AS like_count
+            FROM pledge_likes
+            GROUP BY feedback_id
+        ) pl ON pl.feedback_id = f.id
+        ORDER BY u.last_visit DESC, f.created_at DESC
+        LIMIT 1200
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Error loading journey passport data:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        res.json({
+            success: true,
+            generatedAt: new Date().toISOString(),
+            passport: buildJourneyPassport(rows || [])
+        });
+    });
+});
 
 // AI Insight Summary for admin feedback analysis (Done by Yu Kang)
 router.get('/feedback-insight-summary', auth.requireAuth, (req, res) => {
@@ -5210,6 +5666,32 @@ function normalizeArchiveSettings(archiveSettings) {
   return normalized;
 }
 
+function normalizeCampaignSettings(campaignSettings) {
+  if (!campaignSettings || typeof campaignSettings !== 'object') {
+    return campaignSettings;
+  }
+
+  const normalized = { ...campaignSettings };
+  normalized.enabled = normalized.enabled === true;
+  normalized.title = String(normalized.title || '').trim().slice(0, 80) || 'ESG Campaign';
+  normalized.cadence = ['weekly', 'monthly'].includes(String(normalized.cadence)) ? normalized.cadence : 'weekly';
+  normalized.treeSubtitle = String(normalized.treeSubtitle || '').trim().slice(0, 180);
+  normalized.badgeEmphasis = String(normalized.badgeEmphasis || '').trim().slice(0, 80);
+
+  const goal = Number(normalized.pulseGoal);
+  normalized.pulseGoal = Number.isFinite(goal) ? Math.max(1, Math.min(10000, Math.round(goal))) : 100;
+
+  normalized.focusKeywords = Array.isArray(normalized.focusKeywords)
+    ? normalized.focusKeywords.map(keyword => String(keyword || '').trim()).filter(Boolean).slice(0, 10)
+    : [];
+
+  normalized.pledgeExamples = Array.isArray(normalized.pledgeExamples)
+    ? normalized.pledgeExamples.map(example => String(example || '').trim()).filter(Boolean).slice(0, 3)
+    : [];
+
+  return normalized;
+}
+
 function translateToEnglish(text, callback) {
   const cleanText = String(text || '').trim();
   if (!cleanText) {
@@ -5680,7 +6162,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
+    const { feedbackMessages, contentSettings, campaignSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -5688,6 +6170,9 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     }
     if (contentSettings && typeof contentSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid contentSettings format' });
+    }
+    if (campaignSettings && typeof campaignSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid campaignSettings format' });
     }
     if (treeParameters && typeof treeParameters !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid treeParameters format' });
@@ -5717,6 +6202,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid archiveSettings format' });
     }
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
+    const normalizedCampaignSettings = normalizeCampaignSettings(campaignSettings);
     const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
 
     // Read current config
@@ -5725,6 +6211,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     // Update only provided categories
     if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
     if (normalizedContentSettings) config.contentSettings = { ...config.contentSettings, ...normalizedContentSettings };
+    if (normalizedCampaignSettings) config.campaignSettings = { ...config.campaignSettings, ...normalizedCampaignSettings };
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
@@ -5775,6 +6262,7 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
     const defaultBackedCategories = [
       'feedbackMessages',
       'contentSettings',
+      'campaignSettings',
       'emailContent',
       'featureFlags',
       'validationRules',
@@ -5792,6 +6280,8 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
     let normalizedUpdates = updates;
     if (category === 'contentSettings') {
       normalizedUpdates = normalizeContentSettings(updates);
+    } else if (category === 'campaignSettings') {
+      normalizedUpdates = normalizeCampaignSettings(updates);
     } else if (category === 'archiveSettings') {
       normalizedUpdates = normalizeArchiveSettings(updates);
     }
