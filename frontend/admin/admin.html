@@ -91,10 +91,19 @@
     5.  LOCAL AI PLEDGE SENTIMENT
         pledge auto-approval           - Auto-approve positive and neutral pledges (DONE BY YU KANG)
         local transformer fallback     - Use local @xenova/transformers AI when rules are unclear (DONE BY YU KANG)
+        Feedback Analysis Options & LocalGPT (Done by Yu Kang)
+        
+    6. Feedback analysis modes available in the admin UI:
+        * rule-based: server-side heuristic rules
+        * xenova: Xenova transformer integration (remote or local)
+        * localgpt: on-prem LocalGPT fallback for private/offline inference
+    7. LocalGPT note: LocalGPT runs models locally/offline to avoid external API calls
+        and preserve visitor data privacy when required.
 
     FIND COMMAND
         rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
 -->
+        
 <!DOCTYPE html>
 <html lang="en">
 <head>

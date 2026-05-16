@@ -1,4 +1,11 @@
 // ============================================================
+// YU KANG — Feedback Analysis Options & LocalGPT (Done by Yu Kang)
+// - Feedback analysis modes handled by admin endpoints:
+//   * rule-based: server-side heuristic analysis
+//   * xenova: transformer-based processing (Xenova)
+//   * localgpt: on-prem LocalGPT inference for offline/private processing
+// - LocalGPT note: Use local models to avoid external API calls and protect data privacy.
+// ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
 //
