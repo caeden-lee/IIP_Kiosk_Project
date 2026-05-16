@@ -34,10 +34,6 @@
      pledge status columns          - Added status and moderation columns to admin Pledgeboard (DONE BY XY)
      moderation buttons             - Added Approve, Reject and Pending buttons for admin review (DONE BY XY)
 
-  8. LOCAL AI PLEDGE SENTIMENT
-     pledge auto-approval           - Auto-approve positive and neutral pledges (DONE BY XY)
-     local transformer fallback     - Use local @xenova/transformers AI when rules are unclear (DONE BY XY)
-
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
 
@@ -91,6 +87,10 @@
 
     4. AI FEEDBACK ANALYSIS
        AI Insight Summary section     - Added AI-powered feedback analysis in the admin feedback page (DONE BY YU KANG)
+    
+    5.  LOCAL AI PLEDGE SENTIMENT
+        pledge auto-approval           - Auto-approve positive and neutral pledges (DONE BY YU KANG)
+        local transformer fallback     - Use local @xenova/transformers AI when rules are unclear (DONE BY YU KANG)
 
     FIND COMMAND
         rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
@@ -531,10 +531,21 @@
                         <p>Manage and review visitor feedback submissions</p>
                     </div>
 
+                    <!-- Feedback Analysis Section (DONE BY YU KANG)-->
                     <div class="feedback-section feedback-analyse">
                         <div class="section-header">
                             <h3>Feedback Analysis</h3>
-                            <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
+                                    <option value="rule-based">Rule-Based Analysis</option>
+
+                                    <option value="xenova">Xenova AI</option>
+
+                                    <option value="localgpt">LocalGPT</option>
+                                </select>
+                            
+                                <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                            </div>
                         </div>
 
                         <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
@@ -542,7 +553,7 @@
                             <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
                             <div id="feedback-analysis-output"></div>
                         </div>
-                    </div>
+                    </div> 
 
                     <br>
 

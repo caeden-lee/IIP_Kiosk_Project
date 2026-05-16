@@ -235,6 +235,7 @@
 
 
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const auth = require('./auth');
 const db = require('./db');
@@ -1189,159 +1190,15 @@ router.delete('/feedback/:id', async (req, res) => {
     }); // Close db.get callback
 });
 
-/*
-// Get question answers for specific feedback
-router.get('/feedback/:id/questions', (req, res) => {
-    const { id } = req.params;
-    
-    console.log(`📋 Fetching question answers for feedback ID: ${id}`);
-    
-    const query = `
-        SELECT 
-            fa.id,
-            fa.question_id,
-            fa.answer_value,
-            fa.created_at,
-            q.question_text,
-            q.question_type,
-            qo.option_label
-        FROM feedback_answers fa
-        JOIN questions q ON fa.question_id = q.id
-        LEFT JOIN question_options qo ON (
-            q.question_type = 'choice' 
-            AND fa.answer_value = qo.id
-        )
-        WHERE fa.feedback_id = ?
-        ORDER BY q.display_order ASC
-    `;
-    
-    db.all(query, [id], (err, answers) => {
-        if (err) {
-            console.error('❌ Error fetching question answers:', err);
-            return res.status(500).json({ 
-                success: false,
-                error: 'Database error: ' + err.message 
-            });
-        }
-        
-        console.log(`✅ Found ${answers.length} answers for feedback ${id}`);
-        
-        res.json({
-            success: true,
-            answers: answers || []
-        });
-    });
-});
-*/
 
-// Get all feedback answers for analysis (Done by Yu Kang)
-// Get all feedback answer values for analysis
-router.get('/feedback-answers', (req, res) => {
-    console.log('📋 Fetching all feedback answer values...');
+// ==================== 6. FEEDBACK SENTIMENT ANALYSIS (Done by Yu Kang) ====================
 
-    const query = `
-        SELECT
-            answer_value
-        FROM feedback_answers
-        ORDER BY created_at DESC, id DESC
-    `;
-
-    db.all(query, [], (err, answers) => {
-        if (err) {
-            console.error('❌ Error fetching feedback answer values:', err);
-            return res.status(500).json({
-                success: false,
-                error: 'Database error: ' + err.message
-            });
-        }
-
-        console.log(`✅ Found ${answers.length} feedback answer rows`);
-
-        res.json({
-            success: true,
-            answers: answers || []
-        });
-    });
-});
-
-/*
-// Rule-based sentiment analysis of feedback answers (added by Yu Kang)
-router.get('/feedback-sentiment-analysis', (req, res) => {
-    console.log('🧠 Performing sentiment analysis on feedback answers...');
-
-    const query = `
-        SELECT answer_value
-        FROM feedback_answers
-        WHERE answer_value IS NOT NULL AND answer_value != ''
-    `;
-
-    db.all(query, [], (err, answers) => {
-        if (err) {
-            console.error('❌ Error fetching answers for sentiment analysis:', err);
-            return res.status(500).json({
-                success: false,
-                error: 'Database error: ' + err.message
-            });
-        }
-
-        // Simple keyword-based sentiment analysis
-        const positiveKeywords = [
-            'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
-            'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
-            'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant',
-            'nice', 'delighted', 'thrilled', 'enjoyed', 'liked', 'helpful'
-        ];
-
-        const negativeKeywords = [
-            'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
-            'disappointing', 'disappointed', 'useless', 'waste', 'angry',
-            'frustrated', 'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic',
-            'mediocre', 'negative', 'concerning', 'problem', 'issue', 'difficult'
-        ];
-
-        let positive = 0, neutral = 0, negative = 0;
-
-        answers.forEach(answer => {
-            const text = (answer.answer_value || '').toLowerCase().trim();
-            
-            if (!text) {
-                neutral++;
-                return;
-            }
-
-            let hasPositive = false, hasNegative = false;
-
-            positiveKeywords.forEach(keyword => {
-                if (text.includes(keyword)) hasPositive = true;
-            });
-
-            negativeKeywords.forEach(keyword => {
-                if (text.includes(keyword)) hasNegative = true;
-            });
-
-            if (hasPositive && !hasNegative) {
-                positive++;
-            } else if (hasNegative && !hasPositive) {
-                negative++;
-            } else {
-                neutral++;
-            }
-        });
-
-        console.log(`✅ Sentiment analysis complete: Positive: ${positive}, Neutral: ${neutral}, Negative: ${negative}`);
-
-        res.json({
-            success: true,
-            sentiment: {
-                positive,
-                neutral,
-                negative,
-                total: answers.length
-            }
-        });
-    });
-}); 
-*/
+//AI analysis modes
+const analysis_modes = {
+    RULE_BASED: 'rule-based',
+    XENOVA: 'xenova',
+    LOCALGPT: 'localgpt'
+}
 
 const INSIGHT_POSITIVE_KEYWORDS = [
     'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
@@ -1409,7 +1266,7 @@ function countKeywordHits(text, keywords) {
     return keywords.reduce((count, keyword) => count + (lower.includes(keyword) ? 1 : 0), 0);
 }
 
-function classifyInsightSentiment(text) {
+function classifyRuleBasedSentiment(text) {
     const positiveScore = countKeywordHits(text, INSIGHT_POSITIVE_KEYWORDS);
     const negativeScore = countKeywordHits(text, INSIGHT_NEGATIVE_KEYWORDS);
 
@@ -1417,6 +1274,74 @@ function classifyInsightSentiment(text) {
     if (negativeScore > positiveScore) return 'negative';
     return 'neutral';
 }
+
+// Xenova Analysis Engine
+async function analyzeWithXenova(text) {
+    try {
+        const model = await getModel();
+        const result = await model(text);
+        const label =
+            result[0]?.label || '';
+        if (
+            label.includes('5')
+            || label.toLowerCase() === 'positive'
+        ) {
+            return 'positive';
+        }
+        if (
+            label.includes('1')
+            || label.toLowerCase() === 'negative'
+        ) {
+            return 'negative';
+        }
+        return 'neutral';
+    } catch (error) {
+        console.error(
+            '❌ Xenova analysis error:',
+            error
+        );
+        return 'neutral';
+    }
+}
+
+// LocalGPT Analysis Engine
+async function analyzeWithLocalGPT(text) {
+    try {
+        const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
+
+        const response = await axios.post(
+            'http://localhost:11434/api/generate',
+            { model: 'phi3', prompt, stream: false }
+        );
+
+        const result = String(response.data.response || '').trim().toLowerCase();
+        if (result.includes('positive')) {
+            return 'positive';
+        }
+        if (result.includes('negative')) {
+            return 'negative';
+        }
+        return 'neutral';
+
+    } catch (error) {
+        console.error('❌ LocalGPT analysis error:', error);
+        return 'neutral';
+    }
+}
+
+// Master Classifier
+async function classifySentiment(text, mode) {
+    switch (mode) {
+        case analysis_modes.XENOVA: return await analyzeWithXenova(text);
+
+        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+
+        case analysis_modes.RULE_BASED:
+        default: return classifyRuleBasedSentiment(text);
+    }
+}
+
+
 
 function buildInsightCategories(items, categories, sentimentFilter) {
     return categories.map(category => {
@@ -1941,7 +1866,9 @@ router.get('/journey-passport', auth.requireAuth, (req, res) => {
 });
 
 // AI Insight Summary for admin feedback analysis (Done by Yu Kang)
-router.get('/feedback-insight-summary', auth.requireAuth, (req, res) => {
+router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
+    const mode = req.query.mode || analysis_modes.RULE_BASED;
+    console.log(`🧠 Generating feedback insights using mode: ${mode}`);
     const query = `
         SELECT
             fa.answer_value AS text,
@@ -1969,24 +1896,29 @@ router.get('/feedback-insight-summary', auth.requireAuth, (req, res) => {
           AND f.archive_status = 'not_archived'
           AND f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         ORDER BY created_at DESC
-        LIMIT 500
+        LIMIT 2;
     `;
 
-    db.all(query, [], (err, rows) => {
+    db.all(query, [], async (err, rows) => {
         if (err) {
             console.error('Error loading feedback insight data:', err);
             return res.status(500).json({ success: false, error: err.message });
         }
 
-        const items = (rows || [])
-            .map(row => ({
-                text: normalizeInsightText(row.text),
-                question: row.question || row.source || 'Feedback',
-                source: row.source || 'Feedback',
-                date: row.created_at
+        const rawItems = (rows || []).map(row => ({
+            text: normalizeInsightText(row.text),
+            question: row.question || row.source || 'Feedback',
+            source: row.source || 'Feedback',
+            date: row.created_at
             }))
-            .filter(item => isUsefulInsightText(item.text))
-            .map(item => ({ ...item, sentiment: classifyInsightSentiment(item.text) }));
+            .filter(item => isUsefulInsightText(item.text));
+
+        const items = await Promise.all(rawItems.map(async (item) => {
+            const sentiment = await classifySentiment(item.text, mode);
+            return { ...item, sentiment };
+        }));
+
+        
 
         const sentiment = items.reduce((counts, item) => {
             counts[item.sentiment]++;
@@ -2061,7 +1993,7 @@ router.get('/feedback-sentiment-analysis', async (req, res) => {
     });
 });
 
-// ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
+// ==================== 7. ARCHIVE MANAGEMENT ROUTES ====================
 
 // Get archived feedback (older than 3 months)
 router.get('/archive', (req, res) => {
@@ -2404,7 +2336,7 @@ router.get('/download-file/:filename', async (req, res) => {
     }
 });
 
-// ==================== 7. ARCHIVE DELETION ROUTES (System Admin Only) ====================
+// ==================== 8. ARCHIVE DELETION ROUTES (System Admin Only) ====================
 
 
 // Preview deletion count before executing
@@ -2774,7 +2706,7 @@ router.post('/archive/delete-by-date', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 8. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
+// ==================== 9. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
 
 // Verify system admin password for photo access
 router.post('/verify-photo-access', (req, res) => {
@@ -2902,7 +2834,7 @@ router.post('/decrypt-email', (req, res) => {
     });
 });
 
-// ==================== 9. ADMIN USER MANAGEMENT ROUTES  ====================
+// ==================== 10. ADMIN USER MANAGEMENT ROUTES  ====================
 
 // Get all ACTIVE admin users (excludes soft-deleted users)
 router.get('/users', (req, res) => {
@@ -3569,7 +3501,7 @@ router.put('/users/:id', async (req, res) => {
     });
 });
 
-// ==================== 10. DATA EXPORT MANAGEMENT ROUTES ====================
+// ==================== 11. DATA EXPORT MANAGEMENT ROUTES ====================
 
 // Unlock data export with password verification (System Admin only)
 router.post('/data-export/unlock', (req, res) => {
@@ -3667,7 +3599,7 @@ router.post('/data-export/unlock', (req, res) => {
     });
 });
 
-// ==================== 11. EXPORT/IMPORT ROUTES ====================
+// ==================== 12. EXPORT/IMPORT ROUTES ====================
 
 // Excel download endpoint with email decryption
 router.get('/download-excel', (req, res) => {
@@ -3934,7 +3866,7 @@ router.get('/download-photos', async (req, res) => {
     }
 });
 
-// ==================== 12. OVERLAY MANAGEMENT ROUTES ====================
+// ==================== 13. OVERLAY MANAGEMENT ROUTES ====================
 
 // Overlay list route
 router.get('/overlays', (req, res) => {
@@ -4308,7 +4240,7 @@ router.delete('/overlays/:id', (req, res) => {
     });
 });
 
-// ==================== 13. QUESTION MANAGEMENT ROUTES ====================
+// ==================== 14. QUESTION MANAGEMENT ROUTES ====================
 
 // Get all active questions with their options
 router.get('/questions', (req, res) => {
@@ -4745,7 +4677,7 @@ router.put('/questions/:id', (req, res) => {
     });
 });
 
-// ==================== 14. AUDIT LOGS ROUTES ====================
+// ==================== 15. AUDIT LOGS ROUTES ====================
 
 // Get audit logs
 router.get('/audit-logs', (req, res) => {
@@ -4780,7 +4712,7 @@ router.get('/audit-logs', (req, res) => {
     });
 });
 
-// ==================== 15. HELPER FUNCTIONS ====================
+// ==================== 16. HELPER FUNCTIONS ====================
 
 // Helper function to delete user photos from filesystem
 function deleteUserPhotos(feedback, callback) {
@@ -5033,7 +4965,7 @@ function convertToCSV(data) {
     return [headers, ...rows].join('\n');
 }
 
-// ==================== 16. SAVED THEMES ROUTES ====================
+// ==================== 17. SAVED THEMES ROUTES ====================
 
 
 // GET /api/admin/saved-themes
@@ -5404,7 +5336,7 @@ router.get('/saved-themes/active', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 17. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
+// ==================== 18. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
 
 // Get VIP list (Active only)
 // GET /vips
@@ -5528,7 +5460,7 @@ router.delete('/vips/:name', (req, res) => {
 });
 
 
-// ==================== 18. FORM UI CONFIGURATION ====================
+// ==================== 19. FORM UI CONFIGURATION ====================
 // Read + write feedback form UI settings 
 
 const FORM_UI_CONFIG_PATH = path.join(__dirname, 'config', 'form-ui.json');
@@ -6353,7 +6285,7 @@ router.post('/retention-cleanup/run', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 19. EMAIL MANAGEMENT ====================
+// ==================== 20. EMAIL MANAGEMENT ====================
 // Get/Update SMTP config (Gmail / Outlook / Custom) without restarting server
 
 router.get('/email-config', auth.requireAuth, (req, res) => {
@@ -6467,7 +6399,7 @@ router.put('/badge-email-templates', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 20. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 21. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
  // GET /api/admin/countdown-management
  // Returns: { success: true, countdown_seconds: number }
@@ -6555,7 +6487,7 @@ router.put('/countdown-management', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 21. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 22. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
 // SERVER SCHEDULE MANAGEMENT (Config File Based)
 

@@ -35,9 +35,6 @@
 //    renderPledgeModerationButtons    - Add Approve, Reject and Pending admin controls (DONE BY XY)
 //    updatePledgeModerationStatus     - Save pledge moderation status from admin page (DONE BY XY)
 //
-// 8. LOCAL AI PLEDGE SENTIMENT
-//    pledge auto-approval             - Auto-approve positive and neutral pledges (DONE BY XY)
-//    local transformer fallback       - Use local @xenova/transformers AI when rules are unclear (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -97,6 +94,11 @@
 // 4. AI FEEDBACK ANALYSIS
 //    loadAIInsightSummary()            - Fetch AI-powered feedback analysis and insights (DONE BY YU KANG)
 //    renderAIInsights()               - Display top concerns, compliments, weekly summary and admin actions (DONE BY YU KANG)
+//
+// 5. LOCAL AI PLEDGE SENTIMENT
+//    pledge auto-approval             - Auto-approve positive and neutral pledges (DONE BY Yu Kang)
+//    local transformer fallback       - Use local @xenova/transformers AI when rules are unclear (DONE BY Yu Kang)
+//
 //
 // FIND COMMAND
 //    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
@@ -4103,6 +4105,9 @@ function closeQAPopup() {
         popup.remove();
     }
 }
+
+// ==================== Feedback Sentiment Analysis ====================
+
 // Done by Yu Kang
 // Analyze and display all feedback answer values
 async function analyzeFeedbackDataLegacy() {
@@ -4138,7 +4143,7 @@ async function analyzeFeedbackDataLegacy() {
         }
 
         const { positive, neutral, negative, total } = data.sentiment;
-
+        
         output.innerHTML = `
             <div style="display: flex; gap: 30px; align-items: center;">
                 <div style="flex: 1; position: relative; height: 300px;">
@@ -4235,9 +4240,13 @@ async function analyzeFeedbackData() {
     output.innerHTML = '<div style="padding: 20px; color: #64748b; text-align: center;">Analyzing feedback insights...</div>';
 
     try {
-        const response = await fetch('/api/admin/feedback-insight-summary', {
+        const analysisMode = document.getElementById('analysis-mode')?.value || 'rule-based';
+
+        const response = await fetch(`/api/admin/feedback-insight-summary?mode=${encodeURIComponent(analysisMode)}`, {
             credentials: 'include',
-            headers: { 'x-username': sessionStorage.getItem('loggedUser') }
+            headers: {
+                'x-username': sessionStorage.getItem('loggedUser')
+            }
         });
 
         const data = await response.json();
@@ -4256,6 +4265,19 @@ async function analyzeFeedbackData() {
                 </div>
                 <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
+                    <!--<div style=" 
+                        display: inline-block;
+                        margin-bottom: 12px;
+                        padding: 6px 10px;
+                        background: #e2e8f0;
+                        border-radius: 999px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #334155;
+                    ">
+                        Analysis Engine: ${escapeHtml((data.mode || 'rule-based').toUpperCase())}
+                    </div> -->
+
                     <p style="margin: 0 0 16px; color: #475569; line-height: 1.6;">${escapeHtml(weeklySummary.summaryText || 'No summary available yet.')}</p>
                     <div style="margin-bottom: 15px; font-size: 14px;">
                         <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #10b981;">Positive:</strong> ${positive} (${total > 0 ? ((positive / total) * 100).toFixed(1) : 0}%)</div>
