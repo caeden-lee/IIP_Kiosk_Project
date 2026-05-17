@@ -27,7 +27,12 @@
 
   6. DAILY LEAVES AND PLEDGES DASHBOARD
      dailyLeafPledgeChart           - Added dashboard chart for last 6 days of leaves and pledges (DONE BY XY)
+     chart type buttons             - Added Bar/Line switch for Daily Leaves & Pledges chart (DONE BY XY)
      daily-leaf-summary             - Added totals and handover-friendly daily count cards (DONE BY XY)
+
+  7. PLEDGE MODERATION UI
+     pledge status columns          - Added status and moderation columns to admin Pledgeboard (DONE BY XY)
+     moderation buttons             - Added Approve, Reject and Pending buttons for admin review (DONE BY XY)
 
   FIND COMMAND
      rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -42,9 +47,63 @@
      archive-tab                      - Added Auto Archive timing controls for feedback records (Done by Caeden)
      server-schedule-page             - Added daily End Day / Start Day kiosk operation button (Done by Caeden)
 
+  2. DASHBOARD INTERVENTION ALERTS
+     section#intervention-alerts-title - Added dashboard alert panel for staff action signals and severity status (DONE BY CAEDEN)
+     div#intervention-alerts-list      - Added render target for food waste, pledge, negative feedback and upload risk alerts (DONE BY CAEDEN)
+
   FIND COMMAND
      rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 -->
+<!--
+  NICK CHANGE SUMMARY (DONE BY NICK)
+  ============================================================
+
+  1. ESG JOURNEY PASSPORT
+     section#journey-passport-title    - Added dashboard passport panel for repeat visitor engagement milestones (DONE BY NICK)
+     div#journey-passport-list         - Added render target for visitor stamps, topic badges and repeat engagement summary (DONE BY NICK)
+
+  FIND COMMAND
+     rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
+-->
+<!--
+    YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+    ============================================================
+
+    1. TREE BACKGROUND IMAGE SELECTION
+       nav item (tree management)     - Added parameter-adjustment page with tree management tab (DONE BY YU KANG)
+       div#param-treeBackgroundList   - Added grid-based selector to browse and select tree background images from ./assets/Tree/background (DONE BY YU KANG)
+       button#selectTreeBackground    - Added Apply Background button to persist selected background to /tree page (DONE BY YU KANG)
+       treeBackgroundPreview          - Added preview pane showing current tree background image (DONE BY YU KANG)
+       tree-background-status         - Added status display for current and selected tree backgrounds (DONE BY YU KANG)
+
+    2. TREE LEAF MANAGEMENT
+       leaf upload controls           - Added admin controls for uploading custom leaf images to ./assets/Tree/leaf (DONE BY YU KANG)
+       leaf scale adjustment          - Added leaf scale slider to adjust displayed leaf size on /tree page (DONE BY YU KANG)
+       revert leaf button             - Added revert button to easily restore to previous leaf image (DONE BY YU KANG)
+       leaf dropdown selector         - Added dropdown to browse and apply existing leaf images without re-uploading (DONE BY YU KANG)
+
+    3. TREE STAGES
+       param-treeStage                - Added tree stage selection dropdown for admin control over growth progression (DONE BY YU KANG)
+
+    4. AI FEEDBACK ANALYSIS
+       AI Insight Summary section     - Added AI-powered feedback analysis in the admin feedback page (DONE BY YU KANG)
+    
+    5.  LOCAL AI PLEDGE SENTIMENT
+        pledge auto-approval           - Auto-approve positive and neutral pledges (DONE BY YU KANG)
+        local transformer fallback     - Use local @xenova/transformers AI when rules are unclear (DONE BY YU KANG)
+        Feedback Analysis Options & LocalGPT (Done by Yu Kang)
+        
+    6. Feedback analysis modes available in the admin UI:
+        * rule-based: server-side heuristic rules
+        * xenova: Xenova transformer integration (remote or local)
+        * localgpt: on-prem LocalGPT fallback for private/offline inference
+    7. LocalGPT note: LocalGPT runs models locally/offline to avoid external API calls
+        and preserve visitor data privacy when required.
+
+    FIND COMMAND
+        rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+-->
+        
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -134,6 +193,16 @@
                         <a href="#" class="nav-item" onclick="showPage('theme-settings')">
                             <span class="nav-icon">🎨</span>
                             Style & Theme Settings
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar-section" id="adjust-section">
+                    <h3>ADJUSTMENTS</h3>
+                    <nav>
+                        <a href="#" class="nav-item" onclick="showPage('tree-adjustment')">
+                            <span class="nav-icon">⚙️</span>
+                            Digital Tree Adjustment
                         </a>
                     </nav>
                 </div>
@@ -285,6 +354,11 @@
                                     <h3>Daily Leaves & Pledges</h3>
                                     <p class="chart-subtitle">Last 6 days of tree growth and pledge activity</p>
                                 </div>
+                                <!-- Bar/Line chart switch (DONE BY XY) -->
+                                <div class="chart-controls" aria-label="Daily leaves and pledges chart type">
+                                    <button type="button" id="daily-leaf-bar-btn" class="chart-control-btn active" onclick="setDailyLeafPledgeChartType('bar')">Bar</button>
+                                    <button type="button" id="daily-leaf-line-btn" class="chart-control-btn" onclick="setDailyLeafPledgeChartType('line')">Line</button>
+                                </div>
                             </div>
                             <div class="chart-container daily-leaf-chart-container">
                                 <canvas id="dailyLeafPledgeChart"></canvas>
@@ -304,6 +378,55 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Intervention Alerts -->
+                    <section class="intervention-alerts-card" aria-labelledby="intervention-alerts-title">
+                        <div class="intervention-alerts-header">
+                            <div>
+                                <h3 id="intervention-alerts-title">Intervention Alerts</h3>
+                                <p>Signals that may need staff action before the next visitor group</p>
+                            </div>
+                            <span id="intervention-alerts-count" class="intervention-alerts-count">Checking...</span>
+                        </div>
+                        <div id="intervention-alerts-list" class="intervention-alerts-list">
+                            <p class="intervention-alert-empty">Loading intervention alerts...</p>
+                        </div>
+                    </section>
+
+                    <!-- ESG Journey Passport -->
+                    <section class="journey-passport-card" aria-labelledby="journey-passport-title">
+                        <div class="journey-passport-header">
+                            <div>
+                                <h3 id="journey-passport-title">ESG Journey Passport</h3>
+                                <p>Tracks visitor milestones across feedback, pledges, keepsakes and repeat visits</p>
+                            </div>
+                            <span id="journey-passport-status" class="journey-passport-status">Loading...</span>
+                        </div>
+                        <div class="journey-passport-summary">
+                            <div>
+                                <span>Passport Holders</span>
+                                <strong id="passport-holder-count">0</strong>
+                            </div>
+                            <div>
+                                <span>Repeat Visitors</span>
+                                <strong id="passport-repeat-count">0</strong>
+                            </div>
+                            <div>
+                                <span>Total Stamps</span>
+                                <strong id="passport-stamp-count">0</strong>
+                            </div>
+                            <div>
+                                <span>Avg Stamps</span>
+                                <strong id="passport-average-count">0</strong>
+                            </div>
+                        </div>
+                        <div id="journey-passport-breakdown" class="journey-passport-breakdown">
+                            <p class="journey-passport-empty">Loading passport stamp breakdown...</p>
+                        </div>
+                        <div id="journey-passport-list" class="journey-passport-list">
+                            <p class="journey-passport-empty">Loading visitor passports...</p>
+                        </div>
+                    </section>
 
                     <!-- System Status & Quick Actions -->
                     <div class="dashboard-bottom-section">
@@ -416,6 +539,32 @@
                         <h2>Feedback Data</h2>
                         <p>Manage and review visitor feedback submissions</p>
                     </div>
+
+                    <!-- Feedback Analysis Section (DONE BY YU KANG)-->
+                    <div class="feedback-section feedback-analyse">
+                        <div class="section-header">
+                            <h3>Feedback Analysis</h3>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
+                                    <option value="rule-based">Rule-Based Analysis</option>
+
+                                    <option value="xenova">Xenova AI</option>
+
+                                    <option value="localgpt">LocalGPT</option>
+                                </select>
+                            
+                                <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                            </div>
+                        </div>
+
+                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
+                            <!-- AI Insight Summary (Done by Yu Kang) -->
+                            <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
+                            <div id="feedback-analysis-output"></div>
+                        </div>
+                    </div> 
+
+                    <br>
 
                     <div class="feedback-section">
                         <div class="section-header">
@@ -553,18 +702,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="feedback-section feedback-analyse">
-                        <div class="section-header">
-                            <h3>Feedback Analysis</h3>
-                            <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
-                        </div>
-
-                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
-                            <h4 style="margin-bottom: 12px;">All Answer Values:</h4>
-                            <div id="feedback-analysis-output"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Digital Tree Page (DONE BY PRETI)-->
@@ -573,6 +710,8 @@
                         <h2>Digital Tree</h2>
                         <p>View visitor tree data and statistics</p>
                     </div>
+
+
 
                     <div class="tree-section">
                         <div class="section-header">
@@ -603,6 +742,104 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                <!-- Tree Adjustment Page (DONE BY Yu Kang)-->
+                <div id="tree-adjustment-page" class="page">
+                    <div class="page-header">
+                        <h2>Tree Adjustment</h2>
+                        <p>Adjust tree growth parameters and background settings</p>
+                    </div>
+
+                    <div class="tree-adjustment-section">
+                        <div class="section-header">
+                            <h3>Tree Display</h3>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button class="btn-primary" onclick="saveTreeStageSelection()">Apply Stage</button>
+                                <button class="btn-primary" onclick="saveParameters()">Save Display</button>
+                                <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
+                            </div>
+                        </div>
+                        <div class="section-body">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+                                <label for="param-treeStage" style="font-weight:600;">Current stage:</label>
+                                <select id="param-treeStage" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
+                                    <option value="0">Stage 0 - Bare Trunk</option>
+                                    <option value="1">Stage 1 - Early Growth</option>
+                                    <option value="2">Stage 2 - Young Canopy</option>
+                                    <option value="3">Stage 3 - Mature Canopy</option>
+                                    <option value="4">Stage 4 - Full Canopy</option>
+                                </select>
+                                <span id="tree-stage-status" style="font-size:13px;color:#64748b;">Shown on /tree after apply.</span>
+                            </div>
+                            <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#334155;">
+                                <input type="checkbox" id="param-showTitleBox">
+                                Show title box on tree display
+                            </label>
+                            <p style="font-size:12px;color:#666;margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="tree-adjustment-section">
+                        <div class="section-header">
+                            <h3>Tree Background</h3>
+                            <button class="btn-primary" onclick="selectTreeBackground()">Apply Background</button>
+                        </div>
+                        <div class="section-body" style="display:flex;gap:20px;align-items:flex-start;margin-top:12px;">
+                            <div style="flex:1;">
+                                <label for="param-treeBackgroundList">Select Background</label><br>
+                                <div id="param-treeBackgroundList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:240px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">The selected image will be used as the /tree page background.</p>
+                            </div>
+                            <div style="width:240px;">
+                                <div id="treeBackgroundPreview" style="width:100%;height:140px;border:1px solid #e6e9ef;border-radius:8px;background:#eef2f7 center/cover no-repeat;"></div>
+                                <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Background.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <br>
+                    <div class="tree-adjustment-section">
+                        <div class="section-header">
+                            <h3>Leaf Adjustments</h3>
+                            <button class="btn-primary" onclick="saveParameters()">Save Changes</button>
+
+
+                        </div>
+                        <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                            <div style="flex:1;">
+                                <label for="param-leafUpload">Upload custom leaf image</label><br>
+                                <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
+                                <div style="display:flex;gap:8px;margin-top:6px;">
+                                    <button class="btn-secondary" onclick="uploadParameterLeaf()">Upload Leaf</button>
+                                    <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>
+                            </div>
+                            <div style="flex:1;">
+                                <label for="param-existingLeafList">Or select from existing leaf</label><br>
+                                <div id="param-existingLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                                    <button class="btn-secondary" onclick="selectParameterLeaf()">Apply Selected</button>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing leaf images with thumbnails and labels.</p>
+                            </div>
+                            <div style="width:260px;">
+                                <label for="param-leafDisplayScale">Leaf display scale</label>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="range" id="param-leafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-leafDisplayScaleValue').textContent = v; const p=document.getElementById('previewLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
+                                    <span id="param-leafDisplayScaleValue">1</span>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base leaf size on the tree.</p>
+                            </div>
+                            <div style="width:120px;text-align:center;">
+                                <div class="preview-leaf-box" id="previewLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Preview</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <br>
                 </div>
 
 
@@ -640,12 +877,15 @@
                                     <th style="width: 200px;">Name</th>
                                     <th>Pledge</th>
                                     <th style="width: 100px; text-align: center;">Likes</th>
+                                    <!-- Pledge moderation columns (DONE BY XY) -->
+                                    <th style="width: 130px;">Status</th>
                                     <th style="width: 150px;">Date</th>
+                                    <th style="width: 210px;">Moderation</th>
                                 </tr>
                             </thead>
                             <tbody id="pledgeboard-table-body">
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
                                         Loading pledgeboard data...
                                     </td>
                                 </tr>
@@ -1275,7 +1515,7 @@
                         </div>
                         
                         <div class="export-grid">
-                            <!-- School Impact Report (DONE BY CODEX)-->
+                            <!-- School Impact Report (DONE BY XY)-->
                             <div class="export-card export-card-report">
                                 <div class="export-card-icon">REPORT</div>
                                 <h3 class="export-card-title">School impact report</h3>
@@ -1730,6 +1970,9 @@
                         <button class="param-tab active" onclick="switchParameterTab('feedback-tab')">
                             <span class="tab-icon">💬</span> Feedback Messages
                         </button>
+                        <button class="param-tab" onclick="switchParameterTab('landing-layout-tab')">
+                            <span class="tab-icon">Layout</span> Start Screen Layout
+                        </button>
                         <button class="param-tab" onclick="switchParameterTab('content-tab')">
                             <span class="tab-icon">Text</span> Consent & Pledge Text
                         </button>
@@ -1814,6 +2057,86 @@
                         </div>
                     </div>
 
+                    <!-- Start Screen Layout Tab -->
+                    <div id="landing-layout-tab" class="parameter-section">
+                        <div class="section-header">
+                            <h3>Start Screen Layout</h3>
+                            <p class="section-description">Adjust the landing text size and position of the start screen elements, with a live demo preview</p>
+                        </div>
+
+                        <div class="landing-layout-editor">
+                            <div class="landing-layout-controls">
+                                <div class="form-group">
+                                    <label for="layout-landingTextScale">Text Size</label>
+                                    <div class="range-control">
+                                        <input type="range" id="layout-landingTextScale" min="0.75" max="1.4" step="0.05">
+                                        <output id="layout-landingTextScaleValue">1.00x</output>
+                                    </div>
+                                    <small class="text-muted">Scales the landing title, subtitle, brand, and main buttons</small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-landingPanelOffsetX">Form Position X</label>
+                                        <input type="number" id="layout-landingPanelOffsetX" min="-360" max="360" step="10">
+                                        <small class="text-muted">Negative moves left, positive moves right</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-landingPanelOffsetY">Form Position Y</label>
+                                        <input type="number" id="layout-landingPanelOffsetY" min="-220" max="220" step="10">
+                                        <small class="text-muted">Negative moves up, positive moves down</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-startButtonOffsetX">Start Button Position X</label>
+                                        <input type="number" id="layout-startButtonOffsetX" min="-220" max="220" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-startButtonOffsetY">Start Button Position Y</label>
+                                        <input type="number" id="layout-startButtonOffsetY" min="-160" max="160" step="10">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-startButtonWidth">Start Button Width</label>
+                                        <input type="number" id="layout-startButtonWidth" min="180" max="600" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-startButtonHeight">Start Button Height</label>
+                                        <input type="number" id="layout-startButtonHeight" min="44" max="120" step="4">
+                                    </div>
+                                </div>
+
+                                <button type="button" class="btn-secondary" onclick="resetLandingLayoutPreview()">
+                                    Reset Layout Values
+                                </button>
+                            </div>
+
+                            <div class="landing-layout-preview" aria-label="Start screen layout preview">
+                                <div class="landing-preview-stage">
+                                    <div class="landing-preview-card" id="landing-preview-card">
+                                        <div class="landing-preview-brand">
+                                            <span class="landing-preview-icon">+</span>
+                                            <span>Community Feedback Portal</span>
+                                        </div>
+                                        <div class="landing-preview-languages">
+                                            <span>English</span>
+                                            <span>Bahasa Melayu</span>
+                                            <span>Chinese</span>
+                                        </div>
+                                        <h4>Let's turn your ideas into reality</h4>
+                                        <p>Share your thoughts and help us improve our services. Your feedback matters.</p>
+                                        <button type="button" id="landing-preview-start">Start Feedback Form</button>
+                                        <button type="button" class="landing-preview-pledge">View Pledgeboards</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Consent & Pledge Text Tab -->
                     <div id="content-tab" class="parameter-section">
                         <div class="section-header">
@@ -1847,6 +2170,74 @@
                         <div class="form-group">
                             <label for="param-pledgeExample3">Pledge Example 3</label>
                             <input type="text" id="param-pledgeExample3" maxlength="180" placeholder="Reduce food waste by taking only what I can finish">
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="parameter-field-heading">
+                            <h4>Smart Campaign Mode</h4>
+                            <p>When enabled, the kiosk uses campaign pledge examples, tree subtitle, pulse goal, and campaign-focused dashboard alerts.</p>
+                        </div>
+
+                        <label class="parameter-toggle-card">
+                            <input type="checkbox" id="campaign-enabled">
+                            <span><strong>Enable Smart Campaign</strong><small>Apply campaign settings to visitor and dashboard screens</small></span>
+                        </label>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="campaign-title">Campaign Title</label>
+                                <input type="text" id="campaign-title" maxlength="80" placeholder="Food Waste Week">
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-cadence">Campaign Cycle</label>
+                                <select id="campaign-cadence">
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="campaign-treeSubtitle">Tree Subtitle</label>
+                            <input type="text" id="campaign-treeSubtitle" maxlength="180" placeholder="This week's focus: reduce food waste through mindful choices.">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="campaign-pulseGoal">Pulse Pledge Goal</label>
+                                <input type="number" id="campaign-pulseGoal" min="1" max="10000" step="1" placeholder="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-badgeEmphasis">Badge Emphasis</label>
+                                <select id="campaign-badgeEmphasis">
+                                    <option value="sustainable-living">Sustainable Living Advocate</option>
+                                    <option value="climate-change">Climate Champion</option>
+                                    <option value="renewable-energy">Renewable Innovator</option>
+                                    <option value="ocean-conservation">Ocean Guardian</option>
+                                    <option value="ethical-governance">Governance Guardian</option>
+                                    <option value="community-impact">Social Champion</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="campaign-focusKeywords">Campaign Alert Keywords</label>
+                            <input type="text" id="campaign-focusKeywords" maxlength="240" placeholder="food waste,leftovers,canteen,meal">
+                            <small class="text-muted">Comma-separated words used by Intervention Alerts</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="campaign-pledgeExample1">Campaign Pledge Example 1</label>
+                            <input type="text" id="campaign-pledgeExample1" maxlength="180" placeholder="Take only what I can finish during meals">
+                        </div>
+                        <div class="form-group">
+                            <label for="campaign-pledgeExample2">Campaign Pledge Example 2</label>
+                            <input type="text" id="campaign-pledgeExample2" maxlength="180" placeholder="Share food waste tips with one friend this week">
+                        </div>
+                        <div class="form-group">
+                            <label for="campaign-pledgeExample3">Campaign Pledge Example 3</label>
+                            <input type="text" id="campaign-pledgeExample3" maxlength="180" placeholder="Choose reusable containers for takeaway food">
                         </div>
                     </div>
 

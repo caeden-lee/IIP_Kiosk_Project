@@ -22,7 +22,14 @@
     "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
     "thankYouClosing": "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
     "senderName": "ESG Centre Team",
-    "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message."
+    "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.",
+    "visitSummaryTitle": "Your Visit Summary",
+    "visitSummaryDateLabel": "Visit date",
+    "visitSummaryTopicLabel": "Pledge topic",
+    "visitSummaryBadgeLabel": "Badge earned",
+    "visitSummaryRetentionLabel": "Data retention",
+    "visitSummaryTreeLabel": "Digital tree",
+    "visitSummaryTreeMessage": "Your virtual leaf has been added to the RP ESG digital tree."
   },
   "featureFlags": {
     "cameraCaptureEnabled": true,
@@ -46,9 +53,15 @@
     "pledgeTopicRequired": true,
     "photoRequired": true,
     "maxPhotoFileSizeMb": 5,
-    "allowedPhotoFormats": ["jpeg", "jpg", "png", "webp"]
+    "allowedPhotoFormats": [
+      "jpeg",
+      "jpg",
+      "png",
+      "webp"
+    ]
   },
   "treeParameters": {
+    "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": -100,
@@ -57,22 +70,42 @@
     "leafAnimationDuration": 500,
     "leafFallThreshold": 15,
     "leafFallDuration": 4200,
-    "leafGreenResetTime": "00:00"
+    "leafGreenResetTime": "00:00",
+    "leafDisplayScale": 1
   },
   "photoSettings": {
     "beautyFilterEnabled": true,
     "beautyFilterStrength": "medium",
     "maxPhotoFileSize": 5242880,
-    "supportedFormats": ["jpeg", "png", "webp"]
+    "supportedFormats": [
+      "jpeg",
+      "png",
+      "webp"
+    ]
   },
   "overlaySettings": {
     "enableOverlayUpload": true,
     "maxOverlayFileSize": 10485760,
-    "supportedFormats": ["png", "jpg", "jpeg"]
+    "supportedFormats": [
+      "png",
+      "jpg",
+      "jpeg"
+    ]
   },
   "visualAssets": {
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/BackGround.png",
+    "leafImage": "",
+    "previousLeafImage": "",
     "defaultOverlayTheme": ""
+  },
+  "layoutSettings": {
+    "landingTextScale": 1,
+    "landingPanelOffsetX": 0,
+    "landingPanelOffsetY": 0,
+    "startButtonOffsetX": 0,
+    "startButtonOffsetY": 0,
+    "startButtonWidth": 280,
+    "startButtonHeight": 64
   }
 }

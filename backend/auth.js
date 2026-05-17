@@ -90,11 +90,19 @@ function hashPasswordSync(password) {
 
 async function verifyPassword(password, hash) {
     try {
+        if (!isBcryptHash(hash)) {
+            return false;
+        }
+
         return await bcrypt.compare(password, hash);
     } catch (error) {
         console.error('❌ Error verifying password:', error);
         return false;
     }
+}
+
+function isBcryptHash(value) {
+    return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
 }
 
 // ==================== 3. EMAIL ENCRYPTION FUNCTIONS ====================
@@ -251,11 +259,33 @@ function loginUser(username, password, callback) {
         }
         
         try {
-            // Verify password using bcrypt
-            const passwordMatch = await verifyPassword(password, row.password_hash);
+            // Verify password using bcrypt. Fresh schema imports store the seed
+            // admin password in plain text until the migration script runs, so
+            // accept that once and immediately upgrade it to bcrypt.
+            let passwordMatch = await verifyPassword(password, row.password_hash);
+            let upgradedPlainTextPassword = false;
+
+            if (!passwordMatch && !isBcryptHash(row.password_hash) && password === row.password_hash) {
+                const hashedPassword = await hashPassword(password);
+                upgradedPlainTextPassword = true;
+
+                await new Promise((resolve, reject) => {
+                    db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hashedPassword, row.id], (updateErr) => {
+                        if (updateErr) {
+                            return reject(updateErr);
+                        }
+                        resolve();
+                    });
+                });
+
+                passwordMatch = true;
+            }
             
             if (passwordMatch) {
                 console.log('✅ Login successful:', username);
+                if (upgradedPlainTextPassword) {
+                    console.log('✅ Upgraded plain-text password hash for:', username);
+                }
                 
                 // Update last login time
                 db.run('UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [row.id], (updateErr) => {

@@ -46,6 +46,18 @@
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// - Tree now supports a custom leaf image uploaded via the admin panel
+//   and an adjustable display scale controlled by admin parameters.
+//   Uploaded leaf assets are saved to ./assets/Tree/leaf and applied to
+//   the visual tree when configured. (Done by Yu Kang)
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // TREE.JS - TABLE OF CONTENTS
 // ============================================================
@@ -92,6 +104,7 @@ class TreeManager {
         this.treeImageLeaves = document.getElementById('treeImageLeaves');
         this.leavesContainer = document.getElementById('leavesContainer');
         this.loadingMessage = document.getElementById('loadingMessage');
+        this.treeTitleBox = document.querySelector('.tree-title');
         this.treeTitle = document.getElementById('treeTitle');
         this.treeSubtitle = document.getElementById('treeSubtitle');
         this.yearReviewToggle = document.getElementById('yearReviewToggle');
@@ -190,6 +203,9 @@ class TreeManager {
         this.leafFallThreshold = 15;
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
+        this.treeStage = 0;
+        this.showTitleBox = true;
+        this.activeCampaign = null;
         this.leafFallStarted = false;
         this.leafGreenified = false;
         this.leafGreenTimer = null;
@@ -244,6 +260,7 @@ class TreeManager {
 
             const tree = data.parameters?.treeParameters || {};
             const assets = data.parameters?.visualAssets || {};
+            const campaign = data.parameters?.campaignSettings || {};
 
             this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
             this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
@@ -254,6 +271,12 @@ class TreeManager {
             this.leafFallThreshold = Number(tree.leafFallThreshold) || this.leafFallThreshold;
             this.leafFallDuration = Number(tree.leafFallDuration) || this.leafFallDuration;
             this.leafGreenResetTime = this.normalizeResetTime(tree.leafGreenResetTime) || this.leafGreenResetTime;
+            this.treeStage = this.normalizeTreeStage(tree.treeStage);
+            this.showTitleBox = tree.showTitleBox !== false;
+            this.activeCampaign = campaign.enabled === true ? campaign : null;
+            this.applyTitleBoxVisibility();
+
+            this.applyTreeStageAssets(this.treeStage);
 
             if (this.demoFallEnabled) {
                 this.leafFallThreshold = this.demoFallLeafCount || this.leafFallThreshold;
@@ -263,38 +286,108 @@ class TreeManager {
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
+            // Leaf override image and display scale
+            this.leafDisplayScale = Number(tree.leafDisplayScale) || 1;
+            this.leafOverrideImage = assets.leafImage
+                ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
+                : null;
         } catch (error) {
             console.warn('Tree parameter config unavailable:', error);
         }
     }
 
+    applyTitleBoxVisibility() {
+        if (this.treeTitleBox) {
+            this.treeTitleBox.style.display = this.showTitleBox ? 'block' : 'none';
+        }
+    }
+
+    normalizeTreeStage(rawStage) {
+        const parsed = Number(rawStage);
+        if (!Number.isInteger(parsed)) {
+            return 0;
+        }
+        return Math.max(0, Math.min(4, parsed));
+    }
+
+    stageHasLeaves() {
+        return this.normalizeTreeStage(this.treeStage) > 0;
+    }
+
+    applyTreeStageAssets(stageNumber) {
+        const stage = this.normalizeTreeStage(stageNumber);
+        this.treeStage = stage;
+
+        if (this.treeImage) {
+            this.treeImage.src = `/assets/Tree/stage${stage}.png`;
+        }
+
+        if (this.treeImageLeaves) {
+            this.treeImageLeaves.src = `/assets/Tree/stage${stage}leaves.png`;
+        }
+
+        this.updateStageLeavesVisibility();
+    }
+
     loadTreeImage() {
         return new Promise((resolve) => {
-            let loaded = 0;
-            const done = () => {
-                loaded += 1;
-                if (loaded >= 2) resolve();
+            const stage = this.normalizeTreeStage(this.treeStage);
+            const trunkSources = [
+                `/assets/Tree/stage/stage${stage}.png`,
+                `/assets/Tree/stage${stage}.png`,
+                '/assets/Tree/stage0.png'
+            ];
+            const leavesSources = [
+                `/assets/Tree/stage/stage${stage}leaves.png`,
+                `/assets/Tree/stage${stage}leaves.png`,
+                '/assets/Tree/stage/stage4leaves.png',
+                '/assets/Tree/stage4leaves.png'
+            ];
+
+            const leavesPromise = this.stageHasLeaves()
+                ? this.loadImageWithFallback(this.treeImageLeaves, leavesSources)
+                : Promise.resolve(true);
+
+            Promise.all([
+                this.loadImageWithFallback(this.treeImage, trunkSources),
+                leavesPromise
+            ]).finally(resolve);
+        });
+    }
+
+        loadImageWithFallback(imageEl, sourceCandidates) {
+            return new Promise((resolve) => {
+                if (!imageEl || !Array.isArray(sourceCandidates) || sourceCandidates.length === 0) {
+                    resolve(false);
+                    return;
+                }
+
+            let index = 0;
+            const tryNext = () => {
+                if (index >= sourceCandidates.length) {
+                    imageEl.onload = null;
+                    imageEl.onerror = null;
+                    resolve(false);
+                    return;
+                }
+
+                const source = sourceCandidates[index];
+                index += 1;
+
+                imageEl.onload = () => {
+                    imageEl.onload = null;
+                    imageEl.onerror = null;
+                    resolve(true);
+                };
+
+                imageEl.onerror = () => {
+                    tryNext();
+                };
+
+                imageEl.src = source;
             };
 
-            // trunk
-            if (this.treeImage && this.treeImage.complete) {
-                done();
-            } else if (this.treeImage) {
-                this.treeImage.onload = done;
-                this.treeImage.onerror = done;
-            } else {
-                done();
-            }
-
-            // leaves mask image
-            if (this.treeImageLeaves && this.treeImageLeaves.complete) {
-                done();
-            } else if (this.treeImageLeaves) {
-                this.treeImageLeaves.onload = done;
-                this.treeImageLeaves.onerror = done;
-            } else {
-                done();
-            }
+            tryNext();
         });
     }
 
@@ -669,7 +762,7 @@ class TreeManager {
         if (this.treeSubtitle) {
             this.treeSubtitle.textContent = this.isReviewMode
                 ? `Completed yearly tree with ${this.visitors.length} contribution${this.visitors.length === 1 ? '' : 's'}`
-                : `Growing with every visitor's contribution in ${this.currentYear}`;
+                : (this.activeCampaign?.treeSubtitle || `Growing with every visitor's contribution in ${this.currentYear}`);
         }
     }
 
@@ -765,6 +858,9 @@ class TreeManager {
     createLeaves() {
         this.leavesContainer.innerHTML = '';
         this.closeLeafDetail();
+        if (!this.stageHasLeaves()) {
+            return;
+        }
         const leafCycle = this.getLeafCycleState();
 
         const treeRect = this.treeImage.getBoundingClientRect();
@@ -889,6 +985,10 @@ class TreeManager {
     // ==================== MASK ====================
 
     buildMaskCanvas() {
+        if (!this.stageHasLeaves()) {
+            return null;
+        }
+
         if (!this.treeImageLeaves) {
             console.warn('treeImageLeaves not found - mask disabled');
             return null;
@@ -1028,7 +1128,11 @@ class TreeManager {
                     : 'Old' + side;
         }
 
-        leaf.style.backgroundImage = `url('/assets/Tree/${finalLeafImage}')`;
+        if (this.leafOverrideImage) {
+            leaf.style.backgroundImage = `url('${this.leafOverrideImage}')`;
+        } else {
+            leaf.style.backgroundImage = `url('/assets/Tree/leaf/${finalLeafImage}')`;
+        }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
         leaf.style.animationDuration = `${this.leafAnimationDuration}ms`;
@@ -1042,7 +1146,9 @@ class TreeManager {
         leaf.style.setProperty('--leaf-fall-rotation', `${(seededRandom() - 0.5) * 360}deg`);
         leaf.style.setProperty('--leaf-fall-tilt', `${(seededRandom() - 0.5) * 46}deg`);
 
-        const leafSize = 80 + ((visitor.visit_count || 1) * 5);
+        const baseLeafSize = 80 + ((visitor.visit_count || 1) * 5);
+        const scale = typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1;
+        const leafSize = Math.max(8, Math.round(baseLeafSize * scale));
         leaf.style.width = `${leafSize}px`;
         leaf.style.height = `${leafSize}px`;
 
@@ -1148,10 +1254,25 @@ class TreeManager {
 
     updateLeavesTransparency() {
         if (this.treeImageLeaves) {
-            this.treeImageLeaves.style.display = 'block';
-            this.treeImageLeaves.style.opacity = '0';
+            /*this.treeImageLeaves.style.display = 'block';
+            this.treeImageLeaves.style.opacity = '0';*/
             this.treeImageLeaves.style.pointerEvents = 'none';
         }
+
+        this.updateStageLeavesVisibility();
+    }
+
+    updateStageLeavesVisibility() {
+        if (!this.treeImageLeaves) {
+            return;
+        }
+
+        if (!this.stageHasLeaves()) {
+            this.treeImageLeaves.style.display = 'none';
+            return;
+        }
+
+        this.treeImageLeaves.style.display = 'block';
     }
 
     refreshTree() {

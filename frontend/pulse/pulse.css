@@ -351,6 +351,15 @@ h2 {
     gap: 10px;
 }
 
+.topic-row.campaign-emphasis .topic-name {
+    color: #fef3c7;
+    font-weight: 800;
+}
+
+.topic-row.campaign-emphasis .topic-fill {
+    background: #f59e0b;
+}
+
 .topic-track {
     height: 10px;
     overflow: hidden;

@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const scripts = ['backend/server.js', 'backend/db.js', 'backend/kioskServer.js'];
+const scripts = ['backend/server.js', 'backend/kioskServer.js'];
 const children = [];
 
 function startScript(scriptName) {
