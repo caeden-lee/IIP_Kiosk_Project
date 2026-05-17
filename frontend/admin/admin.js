@@ -5339,6 +5339,7 @@ function showAddOverlayModal() {
                         <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
                             Recommended: 1920x1080px PNG or animated GIF
                         </div>
+                        <div id="desktop-overlay-preview" class="overlay-upload-preview" style="display: none;"></div>
                     </div>
                     
                     <!-- Mobile Image -->
@@ -5353,6 +5354,7 @@ function showAddOverlayModal() {
                         <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
                             Recommended: 1080x1920px PNG or animated GIF
                         </div>
+                        <div id="mobile-overlay-preview" class="overlay-upload-preview" style="display: none;"></div>
                     </div>
                 </div>
                 
@@ -5399,6 +5401,76 @@ function showAddOverlayModal() {
     `;
     
     document.body.appendChild(modal);
+    initializeOverlayUploadPreviews();
+}
+
+function initializeOverlayUploadPreviews() {
+    const desktopInput = document.getElementById('desktop-overlay-image');
+    const mobileInput = document.getElementById('mobile-overlay-image');
+
+    if (desktopInput) {
+        desktopInput.addEventListener('change', () => {
+            showOverlayUploadPreview('desktop-overlay-image', 'desktop-overlay-preview');
+        });
+    }
+
+    if (mobileInput) {
+        mobileInput.addEventListener('change', () => {
+            showOverlayUploadPreview('mobile-overlay-image', 'mobile-overlay-preview');
+        });
+    }
+}
+
+function showOverlayUploadPreview(inputId, previewId) {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    if (!input || !preview) return;
+
+    const file = input.files && input.files[0];
+    if (!file) {
+        clearOverlayUploadPreview(inputId, previewId);
+        return;
+    }
+
+    if (!['image/png', 'image/gif'].includes(file.type)) {
+        preview.innerHTML = `
+            <div class="overlay-upload-preview-error">
+                Please choose a PNG or animated GIF file.
+            </div>
+        `;
+        preview.style.display = 'block';
+        return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    preview.dataset.previewUrl = previewUrl;
+    preview.innerHTML = `
+        <div class="overlay-upload-preview-frame">
+            <button type="button" class="overlay-upload-remove" aria-label="Remove selected overlay"
+                onclick="clearOverlayUploadPreview('${inputId}', '${previewId}')">×</button>
+            <img src="${previewUrl}" alt="${file.name} preview">
+        </div>
+        <div class="overlay-upload-preview-name">${escapeHtmlSafe(file.name)}</div>
+    `;
+    preview.style.display = 'block';
+}
+
+function clearOverlayUploadPreview(inputId, previewId) {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+
+    if (input) {
+        input.value = '';
+    }
+
+    if (preview) {
+        if (preview.dataset.previewUrl) {
+            URL.revokeObjectURL(preview.dataset.previewUrl);
+            delete preview.dataset.previewUrl;
+        }
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+    }
 }
 
 // Close add overlay modal
