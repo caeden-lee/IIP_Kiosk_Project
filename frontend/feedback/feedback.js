@@ -175,6 +175,7 @@ let selectedTheme = 'nature';
 let userData = {};
 let stream = null;
 let photoData = null;
+// Boomerang capture state - changes made by nick
 let captureMode = 'photo';
 let boomerangFrames = [];
 let boomerangPreviewInterval = null;
@@ -242,6 +243,7 @@ function showLandingPages() {
 }
 
 function showFlowPage(pageId) {
+    // Stop boomerang animation when leaving the style preview - changes made by nick
     if (pageId !== 'style-page') {
         stopBoomerangPreview();
     }
@@ -647,6 +649,7 @@ function stayOnForm() {
 // Return to landing page when timeout reached
 function returnToLandingPage() {
     console.log('Inactivity timeout reached - returning to landing page');
+    // Reset boomerang state on kiosk timeout - changes made by nick
     stopBoomerangPreview();
     
     // Stop camera stream if active
@@ -1295,6 +1298,7 @@ async function handlePhotoUpload(event) {
         // Apply the local beauty filter to uploaded mobile photos.
         const uploadedImage = await loadImageElement(dataUrl);
         photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
+        // Uploaded mobile photos are treated as normal photos - changes made by nick
         userData.captureMode = 'photo';
         boomerangFrames = [];
 
@@ -1342,6 +1346,7 @@ function retakePhotoFromUpload() {
     document.getElementById('upload-continue-btn').disabled = true;
     updateFaceDetectionStatus('Upload a photo to run face detection.', 'info', 'upload-face-detection-status');
     photoData = null;
+    // Clear boomerang preview frames when retaking an uploaded photo - changes made by nick
     boomerangFrames = [];
 
     // Trigger click on file input again
@@ -1514,6 +1519,7 @@ function createBeautyFilteredPhotoDataUrl(image, faceDetection = null) {
     return canvas.toDataURL('image/png');
 }
 
+// Update photo/boomerang selector buttons - changes made by nick
 function updateCaptureModeButtons() {
     const photoModeBtn = document.getElementById('photo-mode-btn');
     const boomerangModeBtn = document.getElementById('boomerang-mode-btn');
@@ -1536,6 +1542,7 @@ function updateCaptureModeButtons() {
     }
 }
 
+// Select normal photo or boomerang mode - changes made by nick
 function selectCaptureMode(mode) {
     if (!['photo', 'boomerang'].includes(mode)) {
         return;
@@ -1547,6 +1554,7 @@ function selectCaptureMode(mode) {
     resetInactivityTimer();
 }
 
+// Stop looping boomerang preview animation - changes made by nick
 function stopBoomerangPreview() {
     if (boomerangPreviewInterval) {
         clearInterval(boomerangPreviewInterval);
@@ -1554,6 +1562,7 @@ function stopBoomerangPreview() {
     }
 }
 
+// Capture one current camera frame for photo or boomerang - changes made by nick
 function captureVideoFrameDataUrl(faceDetection = null) {
     const video = document.getElementById('video');
     const canvas = document.getElementById('photo-canvas');
@@ -1573,10 +1582,12 @@ function captureVideoFrameDataUrl(faceDetection = null) {
     return canvas.toDataURL('image/png');
 }
 
+// Small delay helper for boomerang frame capture - changes made by nick
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Capture a short forward/backward boomerang sequence - changes made by nick
 async function captureBoomerangIfFaceDetected() {
     try {
         updateFaceDetectionStatus('Checking for face...', 'loading');
@@ -1738,6 +1749,7 @@ async function capturePhoto() {
             return;
         }
 
+        // Use selected capture mode after countdown finishes - changes made by nick
         const runSelectedCapture = () => {
             return captureMode === 'boomerang'
                 ? captureBoomerangIfFaceDetected()
@@ -1796,6 +1808,7 @@ async function capturePhoto() {
 
 // Take photo from camera stream (desktop)
 async function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
+    // Normal photo capture shares frame drawing with boomerang - changes made by nick
     photoData = captureVideoFrameDataUrl(faceDetection);
     userData.captureMode = 'photo';
     boomerangFrames = [];
@@ -2075,6 +2088,7 @@ function updateThemePreview() {
     updatePreviewWithCutout();
 }
 
+// Render one photo or boomerang frame into the overlay cutout - changes made by nick
 function renderPreviewPhotoFrame(frameDataUrl, previewPhoto) {
     return new Promise((resolve) => {
     const previewCanvas = document.createElement('canvas');
@@ -2141,6 +2155,7 @@ function renderPreviewPhotoFrame(frameDataUrl, previewPhoto) {
     });
 }
 
+// Loop boomerang frames on the style preview page - changes made by nick
 async function startBoomerangPreview(previewPhoto) {
     stopBoomerangPreview();
 
@@ -2164,6 +2179,7 @@ function updatePreviewWithCutout() {
     
     if (!previewPhoto || !overlayImage || !photoData) return;
 
+    // Animate the preview when the visitor captured a boomerang - changes made by nick
     if (userData.captureMode === 'boomerang' && boomerangFrames.length) {
         startBoomerangPreview(previewPhoto);
         return;
@@ -2731,6 +2747,7 @@ function setupSocialShare(data) {
 
 // Reset everything and return to landing page for new submission
 function submitAnother() {
+    // Clear boomerang state before starting another submission - changes made by nick
     stopBoomerangPreview();
     // Stop camera stream if still active
     if (stream) {
@@ -2784,6 +2801,7 @@ function goBackToDetails() {
 
 // Home button reset from feedback form done by nick
 function goHomeFromFeedbackForm() {
+    // Clear boomerang state when returning home - changes made by nick
     stopBoomerangPreview();
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -2820,6 +2838,7 @@ function goBackToFeedback() {
 
 // From Photo/Upload to Pledge
 function goBackToPledge() {
+    // Stop boomerang preview when leaving photo flow - changes made by nick
     stopBoomerangPreview();
 
     // Stop camera stream if active (for desktop)

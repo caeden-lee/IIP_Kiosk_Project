@@ -804,7 +804,7 @@ textarea::placeholder {
     box-shadow: 0 12px 26px rgba(139, 92, 246, 0.22) !important;
 }
 
-/* Photo or boomerang capture selector done by nick */
+/* Photo or boomerang capture selector - changes made by nick */
 .capture-mode-selector {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -852,6 +852,7 @@ textarea::placeholder {
     box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
 }
 
+/* Boomerang recording animation - changes made by nick */
 .camera-view.boomerang-capturing video {
     animation: boomerangPulse 0.7s ease-in-out infinite alternate;
 }
@@ -1400,6 +1401,7 @@ textarea::placeholder {
     }
 }
 
+/* Boomerang recording pulse - changes made by nick */
 @keyframes boomerangPulse {
     from {
         filter: saturate(1);
