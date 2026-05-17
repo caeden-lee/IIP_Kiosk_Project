@@ -2966,14 +2966,53 @@ function getTemporaryRetentionLabel() {
     return formatRetentionDays(getTemporaryRetentionDays());
 }
 
+function clampLayoutNumber(value, min, max, fallback) {
+    const number = Number(value);
+    const safeNumber = Number.isFinite(number) ? number : fallback;
+    return Math.min(max, Math.max(min, safeNumber));
+}
+
+function applyLandingLayoutSettings(layout = {}) {
+    const root = document.documentElement;
+    const textScale = clampLayoutNumber(layout.landingTextScale, 0.75, 1.4, 1);
+    const panelX = clampLayoutNumber(layout.landingPanelOffsetX, -360, 360, 0);
+    const panelY = clampLayoutNumber(layout.landingPanelOffsetY, -220, 220, 0);
+    const buttonX = clampLayoutNumber(layout.startButtonOffsetX, -220, 220, 0);
+    const buttonY = clampLayoutNumber(layout.startButtonOffsetY, -160, 160, 0);
+    const buttonWidth = clampLayoutNumber(layout.startButtonWidth, 180, 600, 280);
+    const buttonHeight = clampLayoutNumber(layout.startButtonHeight, 44, 120, 64);
+
+    root.style.setProperty('--landing-text-scale', textScale);
+    root.style.setProperty('--landing-title-size', `${Math.round(48 * textScale)}px`);
+    root.style.setProperty('--landing-mobile-title-size', `${Math.round(28 * textScale)}px`);
+    root.style.setProperty('--landing-subtitle-size', `${Math.round(18 * textScale)}px`);
+    root.style.setProperty('--landing-brand-size', `${Math.round(16 * textScale)}px`);
+    root.style.setProperty('--landing-control-size', `${Math.round(14 * textScale)}px`);
+    root.style.setProperty('--landing-button-size', `${Math.round(16 * textScale)}px`);
+    root.style.setProperty('--landing-panel-x', `${panelX}px`);
+    root.style.setProperty('--landing-panel-y', `${panelY}px`);
+    root.style.setProperty('--landing-panel-mobile-x', `${Math.round(panelX * 0.45)}px`);
+    root.style.setProperty('--landing-panel-mobile-y', `${Math.round(panelY * 0.45)}px`);
+    root.style.setProperty('--start-button-x', `${buttonX}px`);
+    root.style.setProperty('--start-button-y', `${buttonY}px`);
+    root.style.setProperty('--start-button-width', `${buttonWidth}px`);
+    root.style.setProperty('--start-button-height', `${buttonHeight}px`);
+    root.style.setProperty('--start-button-mobile-width', `${Math.round(buttonWidth * 0.75)}px`);
+    root.style.setProperty('--start-button-mobile-height', `${Math.round(buttonHeight * 0.85)}px`);
+}
+
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
     const content = kioskParameters.contentSettings || {};
+    const campaign = kioskParameters.campaignSettings || {};
     const assets = kioskParameters.visualAssets || {};
+    const layout = kioskParameters.layoutSettings || {};
     const flags = getFeatureFlags();
     const rules = getValidationRules();
     const retentionDays = getTemporaryRetentionDays();
     const retentionLabel = formatRetentionDays(retentionDays);
+
+    applyLandingLayoutSettings(layout);
 
     if (assets.feedbackBackground) {
         document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
@@ -3008,10 +3047,19 @@ function applyParameterOverrides() {
         setText('details-description', messages.detailsPrompt);
         setText('feedback-description', messages.feedbackPrompt);
         setText('pledge-description', messages.pledgePrompt);
-        const examples = Array.isArray(content.pledgeExamples) ? content.pledgeExamples : [];
+        const campaignExamples = campaign.enabled === true && Array.isArray(campaign.pledgeExamples)
+            ? campaign.pledgeExamples
+            : [];
+        const examples = campaignExamples.length > 0
+            ? campaignExamples
+            : (Array.isArray(content.pledgeExamples) ? content.pledgeExamples : []);
+        const campaignPrefix = campaign.enabled === true && campaign.title ? `${campaign.title}: ` : '';
         setText('pledge-example-1', examples[0] || 'Carry a reusable bottle and cutlery every day');
         setText('pledge-example-2', examples[1] || 'Sort waste properly and recycle whenever possible');
         setText('pledge-example-3', examples[2] || 'Reduce food waste by taking only what I can finish');
+        if (campaignPrefix) {
+            setText('pledge-examples-header', `${campaignPrefix}Pledge Examples:`);
+        }
         setText('thankyou-title', messages.thankYouTitle);
         setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
         setText('thankyou-footer-text', messages.thankYouFooter);

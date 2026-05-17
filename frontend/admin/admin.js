@@ -1,4 +1,12 @@
 // ============================================================
+// YU KANG — Feedback Analysis Options & LocalGPT (Done by Yu Kang)
+// - Feedback analysis modes available in the admin UI:
+//   * rule-based: server-side heuristic rules
+//   * xenova: Xenova transformer integration (remote or local)
+//   * localgpt: on-prem LocalGPT fallback for private/offline inference
+// - LocalGPT note: LocalGPT runs models locally/offline to avoid external API calls
+//   and preserve visitor data privacy when required.
+// ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
 //
@@ -27,8 +35,14 @@
 //
 // 6. DAILY LEAVES AND PLEDGES DASHBOARD
 //    loadDailyLeafPledgeData          - Fetch last 6 days of leaf and pledge counts from admin API (DONE BY XY)
-//    createDailyLeafPledgeChart       - Render bar chart comparing leaves and pledges per day (DONE BY XY)
+//    createDailyLeafPledgeChart       - Render bar/line chart comparing leaves and pledges per day (DONE BY XY)
+//    setDailyLeafPledgeChartType      - Switch Daily Leaves & Pledges between bar and line chart (DONE BY XY)
 //    updateDailyLeafPledgeSummary     - Render totals and daily handover summary cards (DONE BY XY)
+//
+// 7. PLEDGE MODERATION UI
+//    renderPledgeModerationButtons    - Add Approve, Reject and Pending admin controls (DONE BY XY)
+//    updatePledgeModerationStatus     - Save pledge moderation status from admin page (DONE BY XY)
+//
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -46,9 +60,58 @@
 //    function runConfiguredArchiveNow - Run configurable feedback auto-archive update from admin UI (Done by Caeden)
 //    function toggleDailyOperation    - One-button End Day / Start Day kiosk control (Done by Caeden)
 //
+// 2. DASHBOARD INTERVENTION ALERTS
+//    function loadInterventionAlerts  - Fetch food waste, pledge, negative feedback and upload risk alerts for dashboard (DONE BY CAEDEN)
+//    function renderInterventionAlerts - Render severity, metric and suggested staff action cards (DONE BY CAEDEN)
+//    loadDashboardData                - Load chart data and intervention alerts together on dashboard refresh (DONE BY CAEDEN)
+//
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// NICK CHANGE SUMMARY (DONE BY NICK)
+// ============================================================
+//
+// 1. ESG JOURNEY PASSPORT
+//    function loadJourneyPassport     - Fetch visitor milestone passports for repeat engagement tracking (DONE BY NICK)
+//    function renderJourneyPassport   - Render passport summary, stamps, topic badges and top visitor journeys (DONE BY NICK)
+//
+// FIND COMMAND
+//    rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
+// ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// 1. TREE BACKGROUND IMAGE SELECTION
+//    loadAvailableTreeBackgrounds()   - Fetch and display all tree background images from ./assets/Tree/background (DONE BY YU KANG)
+//    selectTreeBackground()           - Apply selected tree background and persist to visualAssets.treeBackground (DONE BY YU KANG)
+//    window.selectedTreeBackground    - Global state for currently selected background image (DONE BY YU KANG)
+//    param-treeBackgroundList         - UI grid picker for browsing available tree background images (DONE BY YU KANG)
+//    treeBackgroundPreview            - Live preview display of selected/current tree background (DONE BY YU KANG)
+//
+// 2. TREE LEAF MANAGEMENT
+//    uploadLeafImage()                - Upload custom leaf image to ./assets/Tree/leaf (DONE BY YU KANG)
+//    adjustLeafScale()                - Adjust displayed leaf size on /tree page with scale slider (DONE BY YU KANG)
+//    revertLeafImage()                - Restore previous leaf image with one-click revert button (DONE BY YU KANG)
+//    loadAvailableLeafImages()        - Fetch existing leaf images from ./assets/Tree/leaf directory (DONE BY YU KANG)
+//    selectExistingLeaf()             - Browse and apply existing leaf images without re-uploading (DONE BY YU KANG)
+//
+// 3. TREE STAGES
+//    loadTreeStageSelection()          - Load tree stage dropdown for admin control (DONE BY YU KANG)
+//    param-treeStage                  - UI selector for tree growth stage progression (DONE BY YU KANG)
+//
+// 4. AI FEEDBACK ANALYSIS
+//    loadAIInsightSummary()            - Fetch AI-powered feedback analysis and insights (DONE BY YU KANG)
+//    renderAIInsights()               - Display top concerns, compliments, weekly summary and admin actions (DONE BY YU KANG)
+//
+// 5. LOCAL AI PLEDGE SENTIMENT
+//    pledge auto-approval             - Auto-approve positive and neutral pledges (DONE BY Yu Kang)
+//    local transformer fallback       - Use local @xenova/transformers AI when rules are unclear (DONE BY Yu Kang)
+//
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // ============================================================
 // ADMIN.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
@@ -1453,6 +1516,8 @@ async function downloadAuditExcel() {
 let visitorTrendsChart = null;
 let feedbackDistributionChart = null;
 let dailyLeafPledgeChart = null;
+let dailyLeafPledgeChartType = 'bar';
+let dailyLeafPledgeChartData = { labels: [], leafData: [], pledgeData: [] };
 let currentChartRange = 'week';
 
 // ==================== ENHANCED DASHBOARD DATA LOADING ====================
@@ -1475,7 +1540,11 @@ async function loadDashboardData() {
             
             preti_startDashboardKioskMonitoring();
             
-            await loadChartData(); // Load chart data separately
+            await Promise.all([
+                loadChartData(), // Load chart data separately
+                loadInterventionAlerts(),
+                loadJourneyPassport()
+            ]);
             updateLastUpdated();
         } else {
             console.error('[PRETI] Failed to load dashboard data:', data.error);
@@ -1584,6 +1653,229 @@ async function updateSystemStatus(activity) {
     }
     
     console.log('✅ System status check complete:', statusMessages);
+}
+
+function getInterventionAlertIcon(severity) {
+    if (severity === 'high') return '!';
+    if (severity === 'medium') return 'i';
+    return 'OK';
+}
+
+function formatInterventionSeverity(severity) {
+    const normalized = String(severity || 'low').toLowerCase();
+    if (normalized === 'high') return 'High';
+    if (normalized === 'medium') return 'Medium';
+    return 'Low';
+}
+
+function renderInterventionAlerts(alerts) {
+    const list = document.getElementById('intervention-alerts-list');
+    const count = document.getElementById('intervention-alerts-count');
+    if (!list) return;
+
+    const safeAlerts = Array.isArray(alerts) ? alerts : [];
+    const actionableAlerts = safeAlerts.filter(alert => alert.severity !== 'low' || alert.id !== 'monitoring-normal');
+
+    if (count) {
+        count.textContent = actionableAlerts.length > 0
+            ? `${actionableAlerts.length} active`
+            : 'No urgent alerts';
+        count.className = actionableAlerts.some(alert => alert.severity === 'high')
+            ? 'intervention-alerts-count severity-high'
+            : (actionableAlerts.length > 0 ? 'intervention-alerts-count severity-medium' : 'intervention-alerts-count severity-low');
+    }
+
+    if (safeAlerts.length === 0) {
+        list.innerHTML = '<p class="intervention-alert-empty">No intervention alerts available yet.</p>';
+        return;
+    }
+
+    list.innerHTML = safeAlerts.map(alert => {
+        const severity = String(alert.severity || 'low').toLowerCase();
+        const severityLabel = formatInterventionSeverity(severity);
+        return `
+            <article class="intervention-alert intervention-alert--${escapeHtmlSafe(severity)}">
+                <div class="intervention-alert-icon" aria-hidden="true">${escapeHtmlSafe(getInterventionAlertIcon(severity))}</div>
+                <div class="intervention-alert-body">
+                    <div class="intervention-alert-topline">
+                        <h4>${escapeHtmlSafe(alert.title || 'Intervention alert')}</h4>
+                        <span class="intervention-alert-severity">${severityLabel}</span>
+                    </div>
+                    <p class="intervention-alert-message">${escapeHtmlSafe(alert.message || '')}</p>
+                    <p class="intervention-alert-action">${escapeHtmlSafe(alert.suggestedAction || '')}</p>
+                </div>
+                <div class="intervention-alert-metric">${escapeHtmlSafe(alert.metric || '')}</div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadInterventionAlerts() {
+    const list = document.getElementById('intervention-alerts-list');
+    const count = document.getElementById('intervention-alerts-count');
+
+    try {
+        if (count) {
+            count.textContent = 'Checking...';
+            count.className = 'intervention-alerts-count';
+        }
+
+        const response = await fetch('/api/admin/intervention-alerts', {
+            credentials: 'include',
+            cache: 'no-store'
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : { success: false, error: 'Intervention alerts endpoint is not available. Restart the backend server to load the new route.' };
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load intervention alerts');
+        }
+
+        renderInterventionAlerts(data.alerts || []);
+    } catch (error) {
+        console.error('Error loading intervention alerts:', error);
+        if (count) {
+            count.textContent = 'Unavailable';
+            count.className = 'intervention-alerts-count severity-high';
+        }
+        if (list) {
+            list.innerHTML = `<p class="intervention-alert-empty intervention-alert-error">${escapeHtmlSafe(error.message || 'Unable to load intervention alerts. Check server logs if this repeats.')}</p>`;
+        }
+    }
+}
+
+function setPassportStatus(text, className = '') {
+    const status = document.getElementById('journey-passport-status');
+    if (!status) return;
+    status.textContent = text;
+    status.className = `journey-passport-status ${className}`.trim();
+}
+
+function updatePassportMetric(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function renderJourneyPassport(passport) {
+    const list = document.getElementById('journey-passport-list');
+    const breakdown = document.getElementById('journey-passport-breakdown');
+    if (!list) return;
+
+    const summary = passport?.summary || {};
+    const topPassports = Array.isArray(passport?.topPassports) ? passport.topPassports : [];
+    const stampBreakdown = Array.isArray(passport?.stampBreakdown) ? passport.stampBreakdown : [];
+    const topicBreakdown = Array.isArray(passport?.topicBreakdown) ? passport.topicBreakdown : [];
+
+    updatePassportMetric('passport-holder-count', summary.passportHolders || 0);
+    updatePassportMetric('passport-repeat-count', summary.repeatVisitors || 0);
+    updatePassportMetric('passport-stamp-count', summary.totalStamps || 0);
+    updatePassportMetric('passport-average-count', summary.averageStamps || 0);
+
+    setPassportStatus(topPassports.length > 0 ? `${topPassports.length} shown` : 'No passports yet', topPassports.length > 0 ? 'is-ready' : '');
+
+    if (breakdown) {
+        const activeStamps = stampBreakdown.filter(stamp => Number(stamp.count || 0) > 0);
+        const activeTopics = topicBreakdown.filter(topic => Number(topic.count || 0) > 0);
+        if (activeStamps.length === 0 && activeTopics.length === 0) {
+            breakdown.innerHTML = '<p class="journey-passport-empty">Passport stamp breakdown will appear after visitor milestones are earned.</p>';
+        } else {
+            const stampHtml = activeStamps.map(stamp => `
+                <span class="journey-breakdown-chip">
+                    ${escapeHtmlSafe(stamp.label || 'Stamp')}
+                    <strong>${escapeHtmlSafe(String(stamp.count || 0))}</strong>
+                </span>
+            `).join('');
+            const topicHtml = activeTopics.map(topic => `
+                <span class="journey-breakdown-chip journey-breakdown-topic">
+                    ${escapeHtmlSafe(topic.label || 'Topic')}
+                    <strong>${escapeHtmlSafe(String(topic.count || 0))}</strong>
+                </span>
+            `).join('');
+            breakdown.innerHTML = `
+                <div class="journey-breakdown-group" aria-label="Milestone stamp totals">${stampHtml}</div>
+                ${topicHtml ? `<div class="journey-breakdown-group" aria-label="Topic badge totals">${topicHtml}</div>` : ''}
+            `;
+        }
+    }
+
+    if (topPassports.length === 0) {
+        list.innerHTML = '<p class="journey-passport-empty">No visitor passport milestones available yet.</p>';
+        return;
+    }
+
+    list.innerHTML = topPassports.map(visitor => {
+        const stamps = Array.isArray(visitor.stamps) ? visitor.stamps : [];
+        const topicBadges = Array.isArray(visitor.topicBadges) ? visitor.topicBadges : [];
+        const lastSeen = visitor.lastSeen ? new Date(visitor.lastSeen).toLocaleDateString() : 'No date';
+        const stampHtml = stamps.map(stamp => `
+            <span class="journey-stamp" title="${escapeHtmlSafe(stamp.detail || '')}">
+                ${escapeHtmlSafe(stamp.label || 'Stamp')}
+            </span>
+        `).join('');
+        const topicHtml = topicBadges.map(badge => `
+            <span class="journey-stamp journey-stamp-topic">
+                ${escapeHtmlSafe(badge.label || 'Topic Badge')}
+            </span>
+        `).join('');
+
+        return `
+            <article class="journey-passport-item">
+                <div class="journey-passport-avatar" aria-hidden="true">${escapeHtmlSafe(String(visitor.name || 'V').trim().charAt(0).toUpperCase() || 'V')}</div>
+                <div class="journey-passport-body">
+                    <div class="journey-passport-topline">
+                        <h4>${escapeHtmlSafe(visitor.name || 'Anonymous Visitor')}</h4>
+                        <span>${escapeHtmlSafe(String(visitor.stampCount || 0))} stamp${Number(visitor.stampCount || 0) === 1 ? '' : 's'}</span>
+                    </div>
+                    <div class="journey-passport-meta">
+                        ${escapeHtmlSafe(String(visitor.feedbackCount || 0))} feedback &bull;
+                        ${escapeHtmlSafe(String(visitor.pledgeCount || 0))} pledge${Number(visitor.pledgeCount || 0) === 1 ? '' : 's'} &bull;
+                        ${escapeHtmlSafe(String(visitor.likedPledgeCount || 0))} like${Number(visitor.likedPledgeCount || 0) === 1 ? '' : 's'} &bull;
+                        Last seen ${escapeHtmlSafe(lastSeen)}
+                    </div>
+                    <div class="journey-passport-progress" aria-label="Passport completion">
+                        <span style="width:${Math.max(0, Math.min(100, Number(visitor.progressPercent || 0)))}%"></span>
+                    </div>
+                    <div class="journey-passport-stamps">
+                        ${stampHtml || '<span class="journey-stamp journey-stamp-muted">First milestone pending</span>'}
+                        ${topicHtml}
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadJourneyPassport() {
+    try {
+        setPassportStatus('Loading...');
+        const response = await fetch('/api/admin/journey-passport', {
+            credentials: 'include',
+            cache: 'no-store'
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : { success: false, error: 'Journey passport endpoint is not available. Restart the backend server to load the new route.' };
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load journey passport');
+        }
+
+        renderJourneyPassport(data.passport || {});
+    } catch (error) {
+        console.error('Error loading journey passport:', error);
+        setPassportStatus('Unavailable', 'is-error');
+        const list = document.getElementById('journey-passport-list');
+        const breakdown = document.getElementById('journey-passport-breakdown');
+        if (list) {
+            list.innerHTML = `<p class="journey-passport-empty journey-passport-error">${escapeHtmlSafe(error.message || 'Unable to load journey passport data.')}</p>`;
+        }
+        if (breakdown) {
+            breakdown.innerHTML = '';
+        }
+    }
 }
 
 // Update kiosk server status on dashboard
@@ -1821,6 +2113,11 @@ async function loadDailyLeafPledgeData() {
 
         const data = await response.json();
         if (data.success && data.data) {
+            dailyLeafPledgeChartData = {
+                labels: data.data.labels || [],
+                leafData: data.data.leafData || [],
+                pledgeData: data.data.pledgeData || []
+            };
             createDailyLeafPledgeChart(data.data.labels, data.data.leafData, data.data.pledgeData);
             updateDailyLeafPledgeSummary(data.data);
             return;
@@ -1829,6 +2126,7 @@ async function loadDailyLeafPledgeData() {
         throw new Error(data.error || 'Invalid daily leaf and pledge data');
     } catch (error) {
         console.error('Error loading daily leaf and pledge counts:', error);
+        dailyLeafPledgeChartData = { labels: [], leafData: [], pledgeData: [] };
         createDailyLeafPledgeChart([], [], []);
         updateDailyLeafPledgeSummary({ labels: [], leafData: [], pledgeData: [], totalLeaves: 0, totalPledges: 0 });
     }
@@ -2065,6 +2363,51 @@ function createFeedbackDistributionChart(stats) {
     console.log('✅ Feedback distribution chart created with REAL data');
 }
 
+// Switch Daily Leaves & Pledges between bar and line chart (DONE BY XY)
+function setDailyLeafPledgeChartType(type) {
+    if (!['bar', 'line'].includes(type)) return;
+
+    dailyLeafPledgeChartType = type;
+
+    document.getElementById('daily-leaf-bar-btn')?.classList.toggle('active', type === 'bar');
+    document.getElementById('daily-leaf-line-btn')?.classList.toggle('active', type === 'line');
+
+    createDailyLeafPledgeChart(
+        dailyLeafPledgeChartData.labels,
+        dailyLeafPledgeChartData.leafData,
+        dailyLeafPledgeChartData.pledgeData
+    );
+}
+
+// Build the correct dataset style for bar or line chart display (DONE BY XY)
+function createDailyLeafPledgeDataset(label, data, color, fillColor) {
+    if (dailyLeafPledgeChartType === 'line') {
+        return {
+            label,
+            data,
+            borderColor: color,
+            backgroundColor: fillColor,
+            borderWidth: 3,
+            fill: false,
+            tension: 0.35,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        };
+    }
+
+    return {
+        label,
+        data,
+        backgroundColor: fillColor,
+        borderColor: color,
+        borderWidth: 1,
+        borderRadius: 8
+    };
+}
+
 function createDailyLeafPledgeChart(labels, leafData, pledgeData) {
     const ctx = document.getElementById('dailyLeafPledgeChart');
     if (!ctx) {
@@ -2077,26 +2420,12 @@ function createDailyLeafPledgeChart(labels, leafData, pledgeData) {
     }
 
     dailyLeafPledgeChart = new Chart(ctx, {
-        type: 'bar',
+        type: dailyLeafPledgeChartType,
         data: {
             labels,
             datasets: [
-                {
-                    label: 'Leaves',
-                    data: leafData,
-                    backgroundColor: 'rgba(34, 197, 94, 0.72)',
-                    borderColor: 'rgb(22, 163, 74)',
-                    borderWidth: 1,
-                    borderRadius: 8
-                },
-                {
-                    label: 'Pledges',
-                    data: pledgeData,
-                    backgroundColor: 'rgba(14, 165, 233, 0.72)',
-                    borderColor: 'rgb(2, 132, 199)',
-                    borderWidth: 1,
-                    borderRadius: 8
-                }
+                createDailyLeafPledgeDataset('Leaves', leafData, 'rgb(22, 163, 74)', 'rgba(34, 197, 94, 0.72)'),
+                createDailyLeafPledgeDataset('Pledges', pledgeData, 'rgb(2, 132, 199)', 'rgba(14, 165, 233, 0.72)')
             ]
         },
         options: {
@@ -3784,9 +4113,12 @@ function closeQAPopup() {
         popup.remove();
     }
 }
+
+// ==================== Feedback Sentiment Analysis ====================
+
 // Done by Yu Kang
 // Analyze and display all feedback answer values
-async function analyzeFeedbackData() {
+async function analyzeFeedbackDataLegacy() {
     const resultsContainer = document.getElementById('feedback-analysis-results');
     const output = document.getElementById('feedback-analysis-output');
 
@@ -3802,7 +4134,7 @@ async function analyzeFeedbackData() {
     `;
 
     try {
-        const response = await fetch('/api/admin/feedback-sentiment-analysis', {
+        const response = await fetch('/api/admin/feedback-insight-summary', {
             headers: {
                 'x-username': sessionStorage.getItem('loggedUser')
             }
@@ -3819,7 +4151,7 @@ async function analyzeFeedbackData() {
         }
 
         const { positive, neutral, negative, total } = data.sentiment;
-
+        
         output.innerHTML = `
             <div style="display: flex; gap: 30px; align-items: center;">
                 <div style="flex: 1; position: relative; height: 300px;">
@@ -3851,6 +4183,136 @@ async function analyzeFeedbackData() {
         output.innerHTML = `
             <div style="padding: 20px; color: #ef4444; text-align: center;">
                 Error analyzing feedback sentiment<br>
+                <small>${escapeHtml(error.message)}</small>
+            </div>
+        `;
+    }
+}
+
+// Render AI Insight Summary category cards (Done by Yu Kang)
+function renderInsightPanel(title, items, accentColor, emptyText) {
+    const content = items.length
+        ? items.map(item => `
+            <div style="padding: 12px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
+                    <strong style="color: #0f172a;">${escapeHtml(item.label)}</strong>
+                    <span style="color: ${accentColor}; font-weight: 800;">${Number(item.count || 0)}</span>
+                </div>
+                ${(item.examples || []).map(example => `
+                    <blockquote style="margin: 8px 0 0; padding-left: 10px; border-left: 3px solid ${accentColor}; color: #475569; font-size: 13px; line-height: 1.5;">
+                        ${escapeHtml(example.text)}
+                    </blockquote>
+                `).join('')}
+            </div>
+        `).join('')
+        : `<p style="margin: 12px 0 0; color: #64748b;">${escapeHtml(emptyText)}</p>`;
+
+    return `
+        <section style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h4 style="margin: 0; color: ${accentColor};">${escapeHtml(title)}</h4>
+            ${content}
+        </section>
+    `;
+}
+
+// Render AI Insight Summary suggested admin action cards (Done by Yu Kang)
+function renderActionPanel(title, items) {
+    const content = items.length
+        ? items.map(item => `
+            <div style="padding: 12px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+                    <strong style="color: #0f172a;">${escapeHtml(item.title)}</strong>
+                    <span style="font-size: 12px; color: #1d4ed8; font-weight: 800;">${escapeHtml(item.priority || 'Medium')}</span>
+                </div>
+                <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5;">${escapeHtml(item.action)}</p>
+            </div>
+        `).join('')
+        : '<p style="margin: 12px 0 0; color: #64748b;">No action needed yet.</p>';
+
+    return `
+        <section style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h4 style="margin: 0; color: #1d4ed8;">${escapeHtml(title)}</h4>
+            ${content}
+        </section>
+    `;
+}
+
+// Analyze feedback into AI Insight Summary (Done by Yu Kang)
+async function analyzeFeedbackData() {
+    const resultsContainer = document.getElementById('feedback-analysis-results');
+    const output = document.getElementById('feedback-analysis-output');
+
+    if (!resultsContainer || !output) return;
+
+    resultsContainer.style.display = 'block';
+    output.innerHTML = '<div style="padding: 20px; color: #64748b; text-align: center;">Analyzing feedback insights...</div>';
+
+    try {
+        const analysisMode = document.getElementById('analysis-mode')?.value || 'rule-based';
+
+        const response = await fetch(`/api/admin/feedback-insight-summary?mode=${encodeURIComponent(analysisMode)}`, {
+            credentials: 'include',
+            headers: {
+                'x-username': sessionStorage.getItem('loggedUser')
+            }
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to analyze feedback');
+        }
+
+        const { positive = 0, neutral = 0, negative = 0, total = 0 } = data.sentiment || {};
+        const insights = data.insights || {};
+        const weeklySummary = insights.weeklySummary || {};
+
+        output.innerHTML = `
+            <div style="display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap: 22px; align-items: stretch;">
+                <div style="position: relative; min-height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
+                    <!--<div style=" 
+                        display: inline-block;
+                        margin-bottom: 12px;
+                        padding: 6px 10px;
+                        background: #e2e8f0;
+                        border-radius: 999px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #334155;
+                    ">
+                        Analysis Engine: ${escapeHtml((data.mode || 'rule-based').toUpperCase())}
+                    </div> -->
+
+                    <p style="margin: 0 0 16px; color: #475569; line-height: 1.6;">${escapeHtml(weeklySummary.summaryText || 'No summary available yet.')}</p>
+                    <div style="margin-bottom: 15px; font-size: 14px;">
+                        <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #10b981;">Positive:</strong> ${positive} (${total > 0 ? ((positive / total) * 100).toFixed(1) : 0}%)</div>
+                        <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #f59e0b;">Neutral:</strong> ${neutral} (${total > 0 ? ((neutral / total) * 100).toFixed(1) : 0}%)</div>
+                        <div style="color: #475569;"><strong style="color: #ef4444;">Negative:</strong> ${negative} (${total > 0 ? ((negative / total) * 100).toFixed(1) : 0}%)</div>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
+                        <strong>Total text responses analyzed:</strong> ${total}<br>
+                        <strong>Window:</strong> ${escapeHtml(weeklySummary.responseWindow || 'last 7 days')}<br>
+                        <strong>Pledge mentions:</strong> ${Number(weeklySummary.pledgeMentions || 0)}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 18px;">
+                ${renderInsightPanel('Top Concerns', insights.topConcerns || [], '#ef4444', 'No repeated concern detected.')}
+                ${renderInsightPanel('Top Compliments', insights.topCompliments || [], '#10b981', 'No repeated compliment detected.')}
+                ${renderActionPanel('Suggested Admin Actions', insights.suggestedActions || [])}
+            </div>
+        `;
+
+        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+    } catch (error) {
+        console.error('Error analyzing feedback insights:', error);
+        output.innerHTML = `
+            <div style="padding: 20px; color: #ef4444; text-align: center;">
+                Error analyzing feedback insights<br>
                 <small>${escapeHtml(error.message)}</small>
             </div>
         `;
@@ -7340,6 +7802,8 @@ function initializeArchivePage() {
 async function loadDigitalTreeData() {
     try {
         console.log('🌳 Loading digital tree data...');
+        await loadTreeStageSelection();
+        await loadAvailableTreeBackgrounds();
         const response = await fetch('/api/tree');
         
         if (!response.ok) {
@@ -7355,6 +7819,224 @@ async function loadDigitalTreeData() {
         console.error('Error loading tree data:', error);
         updateDigitalTreeTable([]);
         alert('Error loading tree data: ' + error.message);
+    }
+}
+
+async function loadTreeStageSelection() {
+    const stageSelect = document.getElementById('param-treeStage');
+    const stageStatus = document.getElementById('tree-stage-status');
+    if (!stageSelect) return;
+
+    try {
+        const response = await fetch('/api/admin/parameters/treeParameters', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load tree stage');
+        }
+
+        const treeParameters = data.parameters || {};
+        const rawStage = Number(treeParameters.treeStage);
+        const normalizedStage = Number.isInteger(rawStage) ? Math.max(0, Math.min(4, rawStage)) : 0;
+        stageSelect.value = String(normalizedStage);
+        if (stageStatus) {
+            stageStatus.textContent = `Current: stage ${normalizedStage}. Shown on /tree after apply.`;
+        }
+    } catch (error) {
+        console.error('Error loading tree stage selection:', error);
+        stageSelect.value = '0';
+        if (stageStatus) {
+            stageStatus.textContent = 'Unable to load saved stage. Using stage 0.';
+        }
+    }
+}
+
+async function saveTreeStageSelection() {
+    const stageSelect = document.getElementById('param-treeStage');
+    const stageStatus = document.getElementById('tree-stage-status');
+    if (!stageSelect) return;
+
+    const selectedStage = Math.max(0, Math.min(4, Number(stageSelect.value) || 0));
+
+    try {
+        if (stageStatus) {
+            stageStatus.textContent = `Applying stage ${selectedStage}...`;
+        }
+        const response = await fetch('/api/admin/parameters/treeParameters', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ treeStage: selectedStage })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to save tree stage');
+        }
+
+        if (stageStatus) {
+            stageStatus.textContent = `Saved: stage ${selectedStage}. /tree now uses this stage.`;
+        }
+        showNotification(`Tree stage updated to stage ${selectedStage}.`, 'success');
+    } catch (error) {
+        console.error('Error saving tree stage selection:', error);
+        if (stageStatus) {
+            stageStatus.textContent = 'Failed to apply stage. Please try again.';
+        }
+        showNotification(error.message || 'Failed to save tree stage.', 'error');
+    }
+}
+
+async function loadAvailableTreeBackgrounds() {
+    try {
+        const response = await fetch('/api/admin/parameters/tree-background/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        console.log('🎨 Tree backgrounds API response:', { response: { ok: response.ok, status: response.status }, data });
+
+        const picker = document.getElementById('param-treeBackgroundList');
+        const preview = document.getElementById('treeBackgroundPreview');
+        const status = document.getElementById('tree-background-status');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedTreeBackground = '';
+
+        if (!response.ok || !data.success) {
+            const errorMsg = data.error || 'Failed to load tree backgrounds';
+            console.error('❌ Tree backgrounds load failed:', errorMsg);
+            throw new Error(errorMsg);
+        }
+
+        const currentTreeBackground = data.currentTreeBackground || '';
+        if (preview && currentTreeBackground) {
+            preview.style.backgroundImage = `url('${currentTreeBackground}')`;
+        }
+
+        const backgrounds = Array.isArray(data.backgroundImages) ? data.backgroundImages : [];
+        console.log(`📂 Available tree backgrounds: ${backgrounds.length} images found`);
+        
+        if (backgrounds.length === 0) {
+            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No background images found in /assets/Tree/background. Please add .png, .jpg, or .webp files to that directory.</div>';
+            if (status) {
+                status.textContent = 'No selectable tree backgrounds found. Add images to /assets/Tree/background/';
+            }
+            return;
+        }
+
+        backgrounds.forEach((background) => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.dataset.backgroundFilename = background.filename;
+            tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+            const thumb = document.createElement('div');
+            thumb.style.cssText = `width:100%;height:84px;border-radius:6px;background:url('${background.path}') center/cover no-repeat;border:1px solid #e2e8f0;`;
+
+            const label = document.createElement('span');
+            label.textContent = background.name;
+            label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+            tile.appendChild(thumb);
+            tile.appendChild(label);
+
+            tile.onclick = () => {
+                picker.querySelectorAll('[data-selected="true"]').forEach((el) => {
+                    el.dataset.selected = 'false';
+                    el.style.borderColor = '#d7dbe3';
+                    el.style.background = '#f8fafc';
+                    el.style.boxShadow = 'none';
+                });
+
+                tile.dataset.selected = 'true';
+                tile.style.borderColor = '#2563eb';
+                tile.style.background = '#eff6ff';
+                tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                window.selectedTreeBackground = background.filename;
+
+                if (preview) {
+                    preview.style.backgroundImage = `url('${background.path}')`;
+                }
+                if (status) {
+                    status.textContent = `Selected: ${background.name}. Click Apply Background to save.`;
+                }
+                console.log('🎯 Selected background:', background.filename);
+            };
+
+            if (currentTreeBackground && currentTreeBackground.endsWith('/' + background.filename)) {
+                tile.dataset.selected = 'true';
+                tile.style.borderColor = '#2563eb';
+                tile.style.background = '#eff6ff';
+                tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                window.selectedTreeBackground = background.filename;
+                if (status) {
+                    status.textContent = `Current: ${background.name}.`;
+                }
+            }
+
+            picker.appendChild(tile);
+        });
+    } catch (error) {
+        console.error('❌ Error loading available tree backgrounds:', error);
+        const status = document.getElementById('tree-background-status');
+        if (status) {
+            status.textContent = `Error: ${error.message || 'Failed to load tree backgrounds.'}`;
+        }
+    }
+}
+
+async function selectTreeBackground() {
+    const selectedBackground = window.selectedTreeBackground;
+    const status = document.getElementById('tree-background-status');
+
+    if (!selectedBackground) {
+        if (status) {
+            status.textContent = 'Choose a background tile first.';
+        }
+        showNotification('Choose a tree background before applying.', 'error');
+        console.warn('⚠️  No background selected');
+        return;
+    }
+
+    try {
+        if (status) {
+            status.textContent = `Applying ${selectedBackground}...`;
+        }
+        console.log('🎨 Applying tree background:', selectedBackground);
+
+        const response = await fetch('/api/admin/parameters/tree-background/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ treeBackground: selectedBackground })
+        });
+
+        const data = await response.json();
+        console.log('📡 Tree background response:', { ok: response.ok, status: response.status, data });
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply tree background');
+        }
+
+        const applied = data.assetPath || '';
+        const preview = document.getElementById('treeBackgroundPreview');
+        if (preview && applied) {
+            preview.style.backgroundImage = `url('${applied}')`;
+        }
+        if (status) {
+            status.textContent = `✅ Applied: ${selectedBackground}. /tree now uses this background.`;
+        }
+
+        console.log('✅ Tree background applied successfully:', applied);
+        showNotification('Tree background updated successfully.', 'success');
+    } catch (error) {
+        console.error('❌ Error applying tree background:', error);
+        if (status) {
+            status.textContent = `Error: ${error.message || 'Failed to apply tree background.'}`;
+        }
+        showNotification(error.message || 'Failed to apply tree background.', 'error');
     }
 }
 
@@ -10457,7 +11139,7 @@ function refreshArchiveData() {
 // Load pledgeboard data from API
 async function loadAdminPledgeboard() {
     try {
-        const response = await fetch('/api/pledgeboard/pledges');
+        const response = await fetch('/api/pledgeboard/admin/pledges?status=all');
         const data = await response.json();
         
         if (data.success) {
@@ -10517,7 +11199,7 @@ function renderPledgeboardPage() {
     if (filteredPledgeboardData.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
+                <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
                     No pledges found
                 </td>
             </tr>
@@ -10535,6 +11217,8 @@ function renderPledgeboardPage() {
     tableBody.innerHTML = pageData.map((pledge, pageIndex) => {
         const date = new Date(pledge.created_at).toLocaleDateString();
         const actualRank = startIndex + pageIndex + 1; // Rank across all pages
+        const status = pledge.moderation_status || 'approved';
+        const sentiment = pledge.metadata?.pledgeSentiment || 'neutral';
         
         // Add medal for top 3 (only on first page)
         let rankDisplay = `<span style="font-size: 14px;">#${actualRank}</span>`;
@@ -10552,12 +11236,82 @@ function renderPledgeboardPage() {
                 <td style="font-weight: 600; color: #6366F1; text-align: center;">
                     ❤️ ${pledge.like_count || 0}
                 </td>
+                <td>
+                    <span class="pledge-status-badge pledge-status-${escapeHtml(status)}">${escapeHtml(status)}</span>
+                    <small class="pledge-sentiment-label">${escapeHtml(sentiment)}</small>
+                </td>
                 <td>${date}</td>
+                <td>${renderPledgeModerationButtons(pledge.id, status, sentiment)}</td>
             </tr>
         `;
     }).join('');
     
     updatePledgeboardPaginationControls();
+}
+
+// Pledge moderation controls for negative/admin-reviewed pledges (DONE BY XY)
+function renderPledgeModerationButtons(feedbackId, currentStatus, sentiment) {
+    if (sentiment !== 'negative' && currentStatus === 'approved') {
+        return '<span class="pledge-auto-approved">Auto-approved</span>';
+    }
+
+    const statuses = [
+        { value: 'approved', label: 'Approve' },
+        { value: 'rejected', label: 'Reject' },
+        { value: 'pending', label: 'Pending' }
+    ];
+
+    return `
+        <div class="pledge-moderation-actions">
+            ${statuses.map(status => `
+                <button
+                    type="button"
+                    class="pledge-moderation-btn pledge-moderation-${status.value}"
+                    onclick="updatePledgeModerationStatus(${Number(feedbackId)}, '${status.value}')"
+                    ${currentStatus === status.value ? 'disabled' : ''}
+                >${status.label}</button>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Save pledge moderation status from admin page (DONE BY XY)
+async function updatePledgeModerationStatus(feedbackId, status) {
+    try {
+        const response = await fetch(`/api/pledgeboard/admin/pledges/${feedbackId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                status,
+                username: sessionStorage.getItem('loggedUser') || 'admin'
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to update pledge status');
+        }
+
+        const updateRow = pledge => (
+            Number(pledge.id) === Number(feedbackId)
+                ? {
+                    ...pledge,
+                    moderation_status: status,
+                    metadata: {
+                        ...(pledge.metadata || {}),
+                        pledgeStatus: status
+                    }
+                }
+                : pledge
+        );
+
+        allPledgeboardData = allPledgeboardData.map(updateRow);
+        filteredPledgeboardData = filteredPledgeboardData.map(updateRow);
+        renderPledgeboardPage();
+    } catch (error) {
+        console.error('Error updating pledge moderation status:', error);
+        alert('Error updating pledge status: ' + error.message);
+    }
 }
 
 // Update pledgeboard pagination controls
@@ -11105,6 +11859,16 @@ async function saveBadgeEmailTemplates() {
 
 // ==================== PARAMETER ADJUSTMENT MANAGEMENT ====================
 
+const DEFAULT_LANDING_LAYOUT_SETTINGS = {
+    landingTextScale: 1,
+    landingPanelOffsetX: 0,
+    landingPanelOffsetY: 0,
+    startButtonOffsetX: 0,
+    startButtonOffsetY: 0,
+    startButtonWidth: 280,
+    startButtonHeight: 64
+};
+
 function switchParameterTab(tabId) {
     document.querySelectorAll('#parameter-adjustment-page .param-tab').forEach(tab => {
         tab.classList.toggle('active', tab.getAttribute('onclick')?.includes(tabId));
@@ -11177,9 +11941,92 @@ function getNumberValue(id, fallback) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function clampNumber(value, min, max, fallback) {
+    const number = Number(value);
+    const safeNumber = Number.isFinite(number) ? number : fallback;
+    return Math.min(max, Math.max(min, safeNumber));
+}
+
+function getLandingLayoutValues() {
+    return {
+        landingTextScale: clampNumber(getInputValue('layout-landingTextScale'), 0.75, 1.4, 1),
+        landingPanelOffsetX: clampNumber(getInputValue('layout-landingPanelOffsetX'), -360, 360, 0),
+        landingPanelOffsetY: clampNumber(getInputValue('layout-landingPanelOffsetY'), -220, 220, 0),
+        startButtonOffsetX: clampNumber(getInputValue('layout-startButtonOffsetX'), -220, 220, 0),
+        startButtonOffsetY: clampNumber(getInputValue('layout-startButtonOffsetY'), -160, 160, 0),
+        startButtonWidth: clampNumber(getInputValue('layout-startButtonWidth'), 180, 600, 280),
+        startButtonHeight: clampNumber(getInputValue('layout-startButtonHeight'), 44, 120, 64)
+    };
+}
+
+function withLandingLayoutDefaults(config = {}) {
+    return {
+        ...config,
+        layoutSettings: {
+            ...DEFAULT_LANDING_LAYOUT_SETTINGS,
+            ...(config.layoutSettings || {})
+        }
+    };
+}
+
+function updateLandingLayoutPreview() {
+    const layout = getLandingLayoutValues();
+    const scaleOutput = document.getElementById('layout-landingTextScaleValue');
+    const previewStage = document.querySelector('.landing-preview-stage');
+
+    if (scaleOutput) {
+        scaleOutput.textContent = `${layout.landingTextScale.toFixed(2)}x`;
+    }
+
+    if (previewStage) {
+        previewStage.style.setProperty('--preview-text-scale', layout.landingTextScale);
+        previewStage.style.setProperty('--preview-brand-size', `${Math.round(14 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-language-size', `${Math.round(11 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-title-size', `${Math.round(30 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-subtitle-size', `${Math.round(14 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-button-size', `${Math.round(13 * layout.landingTextScale)}px`);
+        previewStage.style.setProperty('--preview-panel-x', `${Math.round(layout.landingPanelOffsetX * 0.45)}px`);
+        previewStage.style.setProperty('--preview-panel-y', `${Math.round(layout.landingPanelOffsetY * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-x', `${Math.round(layout.startButtonOffsetX * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-y', `${Math.round(layout.startButtonOffsetY * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-width', `${Math.round(layout.startButtonWidth * 0.45)}px`);
+        previewStage.style.setProperty('--preview-button-height', `${Math.round(layout.startButtonHeight * 0.45)}px`);
+    }
+}
+
+function resetLandingLayoutPreview() {
+    setInputValue('layout-landingTextScale', 1);
+    setInputValue('layout-landingPanelOffsetX', 0);
+    setInputValue('layout-landingPanelOffsetY', 0);
+    setInputValue('layout-startButtonOffsetX', 0);
+    setInputValue('layout-startButtonOffsetY', 0);
+    setInputValue('layout-startButtonWidth', 280);
+    setInputValue('layout-startButtonHeight', 64);
+    updateLandingLayoutPreview();
+}
+
+function bindLandingLayoutPreview() {
+    [
+        'layout-landingTextScale',
+        'layout-landingPanelOffsetX',
+        'layout-landingPanelOffsetY',
+        'layout-startButtonOffsetX',
+        'layout-startButtonOffsetY',
+        'layout-startButtonWidth',
+        'layout-startButtonHeight'
+    ].forEach(id => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.previewBound) {
+            input.addEventListener('input', updateLandingLayoutPreview);
+            input.dataset.previewBound = 'true';
+        }
+    });
+}
+
 function populateParameterForm(config) {
     const feedback = config.feedbackMessages || {};
     const content = config.contentSettings || {};
+    const campaign = config.campaignSettings || {};
     const email = config.emailContent || {};
     // Feature flags and centralized validation rules loaded into admin controls (DONE BY CAEDEN)
     const flags = config.featureFlags || {};
@@ -11188,6 +12035,7 @@ function populateParameterForm(config) {
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
     const assets = config.visualAssets || {};
+    const layout = { ...DEFAULT_LANDING_LAYOUT_SETTINGS, ...(config.layoutSettings || {}) };
     const archive = config.archiveSettings || {}; // Auto-archive settings loaded into admin controls (Done by Caeden)
 
     setInputValue('param-thankYouTitle', feedback.thankYouTitle);
@@ -11204,6 +12052,18 @@ function populateParameterForm(config) {
     setInputValue('param-pledgeExample1', pledgeExamples[0] || 'Carry a reusable bottle and cutlery every day');
     setInputValue('param-pledgeExample2', pledgeExamples[1] || 'Sort waste properly and recycle whenever possible');
     setInputValue('param-pledgeExample3', pledgeExamples[2] || 'Reduce food waste by taking only what I can finish');
+
+    const campaignExamples = Array.isArray(campaign.pledgeExamples) ? campaign.pledgeExamples : [];
+    setCheckedValue('campaign-enabled', campaign.enabled === true);
+    setInputValue('campaign-title', campaign.title || 'Food Waste Week');
+    setInputValue('campaign-cadence', campaign.cadence || 'weekly');
+    setInputValue('campaign-treeSubtitle', campaign.treeSubtitle || "This week's focus: reduce food waste through mindful choices.");
+    setInputValue('campaign-pulseGoal', campaign.pulseGoal || 100);
+    setInputValue('campaign-badgeEmphasis', campaign.badgeEmphasis || 'sustainable-living');
+    setInputValue('campaign-focusKeywords', (campaign.focusKeywords || []).join(','));
+    setInputValue('campaign-pledgeExample1', campaignExamples[0] || 'Take only what I can finish during meals');
+    setInputValue('campaign-pledgeExample2', campaignExamples[1] || 'Share food waste tips with one friend this week');
+    setInputValue('campaign-pledgeExample3', campaignExamples[2] || 'Choose reusable containers for takeaway food');
 
     setInputValue('param-thankYouSubject', email.thankYouSubject);
     setInputValue('param-thankYouIntro', email.thankYouIntro);
@@ -11241,6 +12101,23 @@ function populateParameterForm(config) {
     setInputValue('param-leafFallThreshold', tree.leafFallThreshold);
     setInputValue('param-leafFallDuration', tree.leafFallDuration);
     setInputValue('param-leafGreenResetTime', tree.leafGreenResetTime || '00:00');
+    const normalizedTreeStage = Number.isInteger(Number(tree.treeStage))
+        ? Math.max(0, Math.min(4, Number(tree.treeStage)))
+        : 0;
+    setInputValue('param-treeStage', normalizedTreeStage);
+    const treeStageStatus = document.getElementById('tree-stage-status');
+    if (treeStageStatus) {
+        treeStageStatus.textContent = `Current: stage ${normalizedTreeStage}. Shown on /tree after apply.`;
+    }
+    setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
+    // Leaf display scale (new) - Done by Yu Kang
+    const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
+    const leafScaleEl = document.getElementById('param-leafDisplayScale');
+    if (leafScaleEl) {
+        leafScaleEl.value = leafScale;
+        const valEl = document.getElementById('param-leafDisplayScaleValue');
+        if (valEl) valEl.textContent = String(leafScale);
+    }
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
@@ -11250,6 +12127,37 @@ function populateParameterForm(config) {
     setInputValue('param-feedbackBackground', assets.feedbackBackground);
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
+    setInputValue('layout-landingTextScale', layout.landingTextScale ?? 1);
+    setInputValue('layout-landingPanelOffsetX', layout.landingPanelOffsetX ?? 0);
+    setInputValue('layout-landingPanelOffsetY', layout.landingPanelOffsetY ?? 0);
+    setInputValue('layout-startButtonOffsetX', layout.startButtonOffsetX ?? 0);
+    setInputValue('layout-startButtonOffsetY', layout.startButtonOffsetY ?? 0);
+    setInputValue('layout-startButtonWidth', layout.startButtonWidth ?? 280);
+    setInputValue('layout-startButtonHeight', layout.startButtonHeight ?? 64);
+    bindLandingLayoutPreview();
+    updateLandingLayoutPreview();
+    // Leaf image preview - Done by Yu Kang
+    const previewBox = document.getElementById('previewLeafBox');
+    if (previewBox) {
+        if (assets.leafImage) {
+            const leafPreviewPath = assets.leafImage.startsWith('/')
+                ? assets.leafImage
+                : `/assets/Tree/leaf/${assets.leafImage}`;
+            previewBox.style.backgroundImage = `url('${leafPreviewPath}')`;
+        } else {
+            previewBox.style.backgroundImage = '';
+        }
+        // apply scale to preview
+        previewBox.style.transform = `scale(${leafScale})`;
+    }
+    // Show/hide revert button based on previous leaf image - Done by Yu Kang
+    const revertBtn = document.getElementById('revert-leaf-btn');
+    if (revertBtn) {
+        revertBtn.style.display = assets.previousLeafImage ? 'block' : 'none';
+    }
+    // Load available leaf images from server - Done by Yu Kang
+    window.currentLeafImagePath = assets.leafImage || '';
+    loadAvailableLeafImages(window.currentLeafImagePath);
     setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
     setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
 }
@@ -11272,6 +12180,20 @@ function collectParameterForm() {
                 getInputValue('param-pledgeExample1'),
                 getInputValue('param-pledgeExample2'),
                 getInputValue('param-pledgeExample3')
+            ].filter(Boolean)
+        },
+        campaignSettings: {
+            enabled: getCheckedValue('campaign-enabled'),
+            title: getInputValue('campaign-title') || 'ESG Campaign',
+            cadence: getInputValue('campaign-cadence') || 'weekly',
+            treeSubtitle: getInputValue('campaign-treeSubtitle'),
+            pulseGoal: Number(getInputValue('campaign-pulseGoal')) || 100,
+            badgeEmphasis: getInputValue('campaign-badgeEmphasis') || 'sustainable-living',
+            focusKeywords: getInputValue('campaign-focusKeywords').split(',').map(keyword => keyword.trim()).filter(Boolean),
+            pledgeExamples: [
+                getInputValue('campaign-pledgeExample1'),
+                getInputValue('campaign-pledgeExample2'),
+                getInputValue('campaign-pledgeExample3')
             ].filter(Boolean)
         },
         emailContent: {
@@ -11316,7 +12238,10 @@ function collectParameterForm() {
             leafAnimationDuration: getNumberValue('param-leafAnimationDuration', 500),
             leafFallThreshold: getNumberValue('param-leafFallThreshold', 15),
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
-            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00'
+            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
+            treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
+            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1,
+            showTitleBox: getCheckedValue('param-showTitleBox')
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
@@ -11334,6 +12259,7 @@ function collectParameterForm() {
             treeBackground: getInputValue('param-treeBackground'),
             defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
         },
+        layoutSettings: getLandingLayoutValues(),
         archiveSettings: {
             autoArchiveEnabled: getCheckedValue('archive-autoArchiveEnabled'),
             archiveAfterDays: Number(getInputValue('archive-archiveAfterDays')) || 90
@@ -11408,19 +12334,202 @@ async function uploadParameterBackground() {
     }
 }
 
+async function uploadParameterLeaf() {
+    const fileInput = document.getElementById('param-leafUpload');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        setParameterStatus('Choose a leaf image first.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Uploading leaf image...', 'info');
+        const formData = new FormData();
+        formData.append('leaf', file);
+
+        const response = await fetch('/api/admin/parameters/leaf', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        if (fileInput) fileInput.value = '';
+        setParameterStatus(data.message || 'Leaf image uploaded.', 'success');
+    } catch (error) {
+        console.error('Error uploading parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to upload leaf image.', 'error');
+    }
+}
+
+async function revertParameterLeaf() {
+    try {
+        setParameterStatus('Reverting to previous leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/leaf/revert', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to revert leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Leaf image reverted.', 'success');
+    } catch (error) {
+        console.error('Error reverting parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to revert leaf image.', 'error');
+    }
+}
+
+async function loadAvailableLeafImages(currentLeafImagePath = '') {
+    try {
+        console.log('📂 Loading available leaf images...');
+        const response = await fetch('/api/admin/parameters/leaf/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error('Failed to load leaf images:', data.error);
+            return;
+        }
+
+        const picker = document.getElementById('param-existingLeafList');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedLeafImage = '';
+
+        // Add leaf images as thumbnail tiles
+        if (data.leafImages && data.leafImages.length > 0) {
+            console.log(`✅ Found ${data.leafImages.length} leaf images`);
+            data.leafImages.forEach(leaf => {
+                const tile = document.createElement('button');
+                tile.type = 'button';
+                tile.dataset.leafFilename = leaf.filename;
+                tile.dataset.leafPath = leaf.path;
+                tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+                const img = document.createElement('img');
+                img.src = leaf.path;
+                img.alt = leaf.name;
+                img.style.cssText = 'width:64px;height:64px;object-fit:contain;display:block;';
+
+                const label = document.createElement('span');
+                label.textContent = leaf.name;
+                label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+                tile.appendChild(img);
+                tile.appendChild(label);
+
+                tile.onclick = () => {
+                    picker.querySelectorAll('[data-selected="true"]').forEach(el => {
+                        el.dataset.selected = 'false';
+                        el.style.borderColor = '#d7dbe3';
+                        el.style.background = '#f8fafc';
+                        el.style.boxShadow = 'none';
+                    });
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedLeafImage = leaf.filename;
+                };
+
+                if (currentLeafImagePath && (currentLeafImagePath.endsWith('/' + leaf.filename) || currentLeafImagePath.endsWith(leaf.filename))) {
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedLeafImage = leaf.filename;
+                }
+
+                picker.appendChild(tile);
+            });
+        } else {
+            picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No existing leaf images found.</div>';
+        }
+    } catch (error) {
+        console.error('Error loading available leaf images:', error);
+    }
+}
+
+async function selectParameterLeaf() {
+    const leafImage = window.selectedLeafImage;
+
+    if (!leafImage) {
+        setParameterStatus('Choose a leaf image tile to apply.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Applying leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/leaf/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ leafImage })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply leaf image');
+        }
+
+        // Update preview and parameter form
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'Leaf image applied.', 'success');
+    } catch (error) {
+        console.error('Error selecting parameter leaf image:', error);
+        setParameterStatus(error.message || 'Failed to apply leaf image.', 'error');
+    }
+}
+
 async function saveParameters() {
     try {
         setParameterStatus('Saving parameters...', 'info');
+        const payload = collectParameterForm();
         const response = await fetch('/api/admin/parameters', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(collectParameterForm())
+            body: JSON.stringify(payload)
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Failed to save parameters');
-        populateParameterForm(data.parameters || {});
-        setParameterStatus(data.message || 'Parameters saved successfully.', 'success');
+
+        // Save the layout category explicitly so newer layout controls persist even
+        // if the running main save endpoint has not been restarted yet.
+        const layoutResponse = await fetch('/api/admin/parameters/layoutSettings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload.layoutSettings)
+        });
+        const layoutData = await layoutResponse.json();
+        if (!layoutResponse.ok || !layoutData.success) {
+            if (layoutResponse.status === 404 && String(layoutData.error || '').includes('layoutSettings')) {
+                populateParameterForm(withLandingLayoutDefaults({
+                    ...(data.parameters || {}),
+                    layoutSettings: payload.layoutSettings
+                }));
+                setParameterStatus('Parameters saved. Restart the Node server once so start screen layout can persist after resets.', 'info');
+                return;
+            }
+            throw new Error(layoutData.error || 'Failed to save start screen layout');
+        }
+
+        populateParameterForm(withLandingLayoutDefaults(layoutData.parameters || data.parameters || {}));
+        setParameterStatus('Parameters and start screen layout saved successfully.', 'success');
     } catch (error) {
         console.error('Error saving parameters:', error);
         setParameterStatus(error.message || 'Failed to save parameters.', 'error');
@@ -11434,7 +12543,7 @@ async function resetParametersToDefaults() {
         const response = await fetch('/api/admin/parameters/reset', { method: 'POST', credentials: 'include' });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Failed to reset parameters');
-        populateParameterForm(data.parameters || {});
+        populateParameterForm(withLandingLayoutDefaults(data.parameters || {}));
         setParameterStatus(data.message || 'Parameters reset to defaults.', 'success');
     } catch (error) {
         console.error('Error resetting parameters:', error);

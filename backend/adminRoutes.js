@@ -1,4 +1,11 @@
 // ============================================================
+// YU KANG — Feedback Analysis Options & LocalGPT (Done by Yu Kang)
+// - Feedback analysis modes handled by admin endpoints:
+//   * rule-based: server-side heuristic analysis
+//   * xenova: transformer-based processing (Xenova)
+//   * localgpt: on-prem LocalGPT inference for offline/private processing
+// - LocalGPT note: Use local models to avoid external API calls and protect data privacy.
+// ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
 //
@@ -44,9 +51,41 @@
 //    POST /translate                  - Translate visitor feedback text to English from admin popups (Done by Caeden)
 //    archiveSettings                  - Configure auto-archive timing without changing the stored procedure (Done by Caeden)
 //
+// 2. ADMIN INTERVENTION ALERTS
+//    GET /intervention-alerts         - Return dashboard alerts for food waste, low pledge rate, negative feedback and upload risk (DONE BY CAEDEN)
+//    getInterventionAlertsFromRows    - Build severity-ranked staff action alerts from recent feedback, pledges and health checks (DONE BY CAEDEN)
+//    resolveHealthDetails fallback    - Keep alerts route available even when camera/storage health checks fail (DONE BY CAEDEN)
+//
 // FIND COMMAND
 //    rg -n "DONE BY CAEDEN|CAEDEN CHANGE SUMMARY" frontend backend
 // ============================================================
+// NICK CHANGE SUMMARY (DONE BY NICK)
+// ============================================================
+//
+// 1. ESG JOURNEY PASSPORT
+//    GET /journey-passport            - Return visitor passport milestones for repeat engagement tracking (DONE BY NICK)
+//    buildJourneyPassport             - Derive feedback, pledge, keepsake, liked pledge, repeat visit and topic stamps (DONE BY NICK)
+//
+// FIND COMMAND
+//    rg -n "DONE BY NICK|NICK CHANGE SUMMARY" frontend backend
+// ============================================================
+// YU KANG CHANGE SUMMARY (DONE BY YU KANG)
+// ============================================================
+//
+// - Added backend route to accept custom leaf image uploads and store
+//   the asset path in parameters config. Uploaded files are saved to
+//   ./assets/Tree/leaf and used by the frontend tree when active. (Done by Yu Kang)
+// - Added leaf image revert endpoint that swaps current and previous images,
+//   allowing users to revert to prior leaf image with one click. (Done by Yu Kang)
+// - Added endpoints to list available leaf images and select from existing images
+//   in ./assets/Tree/leaf without re-uploading. (Done by Yu Kang)
+// - Added AI Insight Summary endpoint for top concerns, top compliments,
+//   weekly summary and suggested admin actions. (Done by Yu Kang)
+//
+// FIND COMMAND
+//    rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
+// ============================================================
+
 
 // ============================================================
 // ADMINROUTES.JS - TABLE OF CONTENTS (CTRL+F SEARCHABLE)
@@ -203,6 +242,7 @@
 
 
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const auth = require('./auth');
 const db = require('./db');
@@ -220,6 +260,7 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 //AI for sentiment analysis testing (Done by Yu Kang)
 const { pipeline } = require('@xenova/transformers');
+const { stdout } = require('process');
 
 let classifier;
 
@@ -342,6 +383,50 @@ const uploadParameterBackground = multer({
         if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
             cb(null, true);
         } else {
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024
+    }
+});
+
+// Storage for custom leaf image uploads
+const leafStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/Tree/leaf');
+        console.log('📂 Destination folder:', destFolder);
+        try {
+            if (!fs.existsSync(destFolder)) {
+                console.log('📁 Creating directory:', destFolder);
+                fs.mkdirSync(destFolder, { recursive: true });
+                console.log('✅ Directory created successfully');
+            } else {
+                console.log('✅ Directory already exists');
+            }
+        } catch (err) {
+            console.error('❌ Failed to create directory:', err.message);
+            return cb(err);
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        const filename = `CustomLeaf${ext}`;
+        console.log(`📁 Leaf filename: ${filename}`);
+        cb(null, filename);
+    }
+});
+
+const uploadParameterLeaf = multer({
+    storage: leafStorage,
+    fileFilter: (req, file, cb) => {
+        console.log('🔍 Checking file type:', file.mimetype, 'name:', file.originalname);
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            console.log('✅ File type accepted');
+            cb(null, true);
+        } else {
+            console.error('❌ File type rejected:', file.mimetype);
             cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
         }
     },
@@ -1113,159 +1198,760 @@ router.delete('/feedback/:id', async (req, res) => {
     }); // Close db.get callback
 });
 
-/*
-// Get question answers for specific feedback
-router.get('/feedback/:id/questions', (req, res) => {
-    const { id } = req.params;
-    
-    console.log(`📋 Fetching question answers for feedback ID: ${id}`);
-    
-    const query = `
-        SELECT 
-            fa.id,
-            fa.question_id,
-            fa.answer_value,
-            fa.created_at,
-            q.question_text,
-            q.question_type,
-            qo.option_label
-        FROM feedback_answers fa
-        JOIN questions q ON fa.question_id = q.id
-        LEFT JOIN question_options qo ON (
-            q.question_type = 'choice' 
-            AND fa.answer_value = qo.id
-        )
-        WHERE fa.feedback_id = ?
-        ORDER BY q.display_order ASC
-    `;
-    
-    db.all(query, [id], (err, answers) => {
-        if (err) {
-            console.error('❌ Error fetching question answers:', err);
-            return res.status(500).json({ 
-                success: false,
-                error: 'Database error: ' + err.message 
+
+// ==================== 6. FEEDBACK SENTIMENT ANALYSIS (Done by Yu Kang) ====================
+
+//AI analysis modes
+const analysis_modes = {
+    RULE_BASED: 'rule-based',
+    XENOVA: 'xenova',
+    LOCALGPT: 'localgpt'
+}
+
+const INSIGHT_POSITIVE_KEYWORDS = [
+    'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
+    'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
+    'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant', 'nice',
+    'helpful', 'clear', 'easy', 'friendly', 'interesting', 'fun', 'smooth'
+];
+
+const INSIGHT_NEGATIVE_KEYWORDS = [
+    'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
+    'disappointing', 'disappointed', 'useless', 'waste', 'angry', 'frustrated',
+    'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic', 'mediocre',
+    'negative', 'concerning', 'problem', 'issue', 'difficult', 'confusing',
+    'slow', 'broken', 'error', 'unclear', 'boring', 'hard', 'cannot', "can't"
+];
+
+const INSIGHT_CONCERN_CATEGORIES = [
+    {
+        label: 'Usability or navigation confusion',
+        keywords: ['confusing', 'unclear', 'hard', 'difficult', 'cannot', "can't", 'lost', 'complicated', 'navigation', 'button', 'form'],
+        action: 'Review the visitor flow and simplify labels, button placement, and instructions on the affected pages.'
+    },
+    {
+        label: 'Performance or technical reliability',
+        keywords: ['slow', 'lag', 'loading', 'hang', 'broken', 'error', 'crash', 'bug', 'camera', 'photo', 'qr', 'upload'],
+        action: 'Check kiosk logs and test the camera, QR, upload, and network paths during peak visitor usage.'
+    },
+    {
+        label: 'Content clarity',
+        keywords: ['unclear', 'explain', 'information', 'more info', 'details', 'understand', 'meaning', 'question'],
+        action: 'Rewrite unclear prompts and add short examples for questions visitors struggle to answer.'
+    },
+    {
+        label: 'Experience engagement',
+        keywords: ['boring', 'plain', 'not fun', 'dull', 'uninteresting', 'long', 'too much', 'tired'],
+        action: 'Add more visual feedback, shorter steps, and clearer progress cues in the visitor journey.'
+    },
+    {
+        label: 'Facilities or service feedback',
+        keywords: ['staff', 'service', 'facility', 'place', 'room', 'queue', 'waiting', 'clean', 'noise'],
+        action: 'Share these comments with the responsible operations team and track whether the issue repeats next week.'
+    }
+];
+
+const INSIGHT_COMPLIMENT_CATEGORIES = [
+    { label: 'Positive visitor experience', keywords: ['good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fun', 'interesting', 'enjoy'] },
+    { label: 'Clear and useful content', keywords: ['clear', 'helpful', 'informative', 'useful', 'understand', 'learn', 'knowledge'] },
+    { label: 'Smooth kiosk interaction', keywords: ['easy', 'smooth', 'fast', 'simple', 'convenient', 'nice', 'friendly'] },
+    { label: 'Sustainability motivation', keywords: ['sustainability', 'green', 'recycle', 'environment', 'pledge', 'inspired', 'aware'] }
+];
+
+function normalizeInsightText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isUsefulInsightText(text) {
+    if (!text || text.length < 4) return false;
+    if (/^[0-9.\-/]+$/.test(text)) return false;
+    if (/^(yes|no|true|false|n\/a)$/i.test(text)) return false;
+    return true;
+}
+
+function countKeywordHits(text, keywords) {
+    const lower = text.toLowerCase();
+    return keywords.reduce((count, keyword) => count + (lower.includes(keyword) ? 1 : 0), 0);
+}
+
+function classifyRuleBasedSentiment(text) {
+    const positiveScore = countKeywordHits(text, INSIGHT_POSITIVE_KEYWORDS);
+    const negativeScore = countKeywordHits(text, INSIGHT_NEGATIVE_KEYWORDS);
+
+    if (positiveScore > negativeScore) return 'positive';
+    if (negativeScore > positiveScore) return 'negative';
+    return 'neutral';
+}
+
+// Xenova Analysis Engine
+async function analyzeWithXenova(text) {
+    try {
+        const model = await getModel();
+        const result = await model(text);
+        const label =
+            result[0]?.label || '';
+        if (
+            label.includes('5')
+            || label.toLowerCase() === 'positive'
+        ) {
+            return 'positive';
+        }
+        if (
+            label.includes('1')
+            || label.toLowerCase() === 'negative'
+        ) {
+            return 'negative';
+        }
+        return 'neutral';
+    } catch (error) {
+        console.error(
+            '❌ Xenova analysis error:',
+            error
+        );
+        return 'neutral';
+    }
+}
+
+// LocalGPT Analysis Engine
+async function analyzeWithLocalGPT(text) {
+    try {
+        const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
+
+        const response = await axios.post(
+            'http://localhost:11434/api/generate',
+            { model: 'phi3', prompt, stream: false }
+        );
+
+        const result = String(response.data.response || '').trim().toLowerCase();
+        if (result.includes('positive')) {
+            return 'positive';
+        }
+        if (result.includes('negative')) {
+            return 'negative';
+        }
+        return 'neutral';
+
+    } catch (error) {
+        console.error('❌ LocalGPT analysis error:', error);
+        return 'neutral';
+    }
+}
+
+// Master Classifier
+async function classifySentiment(text, mode) {
+    switch (mode) {
+        case analysis_modes.XENOVA: return await analyzeWithXenova(text);
+
+        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+
+        case analysis_modes.RULE_BASED:
+        default: return classifyRuleBasedSentiment(text);
+    }
+}
+
+
+
+function buildInsightCategories(items, categories, sentimentFilter) {
+    return categories.map(category => {
+        const matches = items.filter(item => {
+            if (sentimentFilter && item.sentiment !== sentimentFilter) return false;
+            return countKeywordHits(item.text, category.keywords) > 0;
+        });
+
+        return {
+            label: category.label,
+            count: matches.length,
+            action: category.action,
+            examples: matches
+                .slice()
+                .sort((a, b) => b.text.length - a.text.length)
+                .slice(0, 2)
+                .map(item => ({
+                    text: item.text,
+                    question: item.question || item.source,
+                    date: item.date
+                }))
+        };
+    })
+        .filter(row => row.count > 0)
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+        .slice(0, 5);
+}
+
+function buildSuggestedActions(concerns, sentiment) {
+    const total = sentiment.total || 0;
+    const actions = concerns
+        .filter(concern => concern.action)
+        .slice(0, 4)
+        .map(concern => ({
+            title: concern.label,
+            action: concern.action,
+            priority: concern.count >= 3 ? 'High' : 'Medium'
+        }));
+
+    if (total > 0 && sentiment.negative / total >= 0.35) {
+        actions.unshift({
+            title: 'Negative feedback above normal',
+            action: 'Run a quick review of recent visitor comments and fix the most repeated issue before the next kiosk session.',
+            priority: 'High'
+        });
+    }
+
+    if (actions.length === 0) {
+        actions.push({
+            title: 'Maintain current visitor experience',
+            action: 'No repeated concern was detected. Continue monitoring next week and collect more free-text responses.',
+            priority: 'Low'
+        });
+    }
+
+    return actions.slice(0, 5);
+}
+
+function buildWeeklySummary(items, sentiment, concerns, compliments) {
+    const total = sentiment.total || 0;
+    const dominantSentiment = [
+        ['positive', sentiment.positive],
+        ['neutral', sentiment.neutral],
+        ['negative', sentiment.negative]
+    ].sort((a, b) => b[1] - a[1])[0][0];
+    const topConcern = concerns[0]?.label || 'No repeated concern detected';
+    const topCompliment = compliments[0]?.label || 'No repeated compliment detected';
+    const pledgeCount = items.filter(item => item.source === 'Pledge').length;
+
+    return {
+        responseWindow: 'last 7 days',
+        totalResponses: total,
+        pledgeMentions: pledgeCount,
+        dominantSentiment,
+        topConcern,
+        topCompliment,
+        summaryText: total === 0
+            ? 'No visitor comments were available for analysis in the last 7 days.'
+            : `In the last 7 days, ${total} visitor text response(s) were analyzed. The overall tone is ${dominantSentiment}. The most repeated concern is ${topConcern.toLowerCase()}, while the strongest positive signal is ${topCompliment.toLowerCase()}.`
+    };
+}
+
+function formatSgtDateKey(date) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const lookup = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
+
+function getSgtDateKey(value) {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return '';
+    return formatSgtDateKey(date);
+}
+
+function getSgtWeekStartKey(daysAgo = 0) {
+    const now = new Date();
+    const sgtNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+    sgtNow.setDate(sgtNow.getDate() - daysAgo);
+    const day = sgtNow.getDay();
+    const mondayOffset = day === 0 ? 6 : day - 1;
+    sgtNow.setDate(sgtNow.getDate() - mondayOffset);
+    return formatSgtDateKey(sgtNow);
+}
+
+function parseAlertMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function buildInterventionAlert(id, severity, title, message, suggestedAction, metric) {
+    return {
+        id,
+        severity,
+        title,
+        message,
+        suggestedAction,
+        metric
+    };
+}
+
+function getAlertSeverityRank(severity) {
+    return { high: 3, medium: 2, low: 1 }[severity] || 0;
+}
+
+function getActiveCampaignSettings() {
+    const config = parametersConfigStore.readParametersConfig();
+    const campaign = config.campaignSettings || {};
+    return campaign.enabled === true ? campaign : null;
+}
+
+function getCampaignKeywordList(campaign) {
+    const keywords = Array.isArray(campaign?.focusKeywords) ? campaign.focusKeywords : [];
+    return keywords.map(keyword => normalizeInsightText(keyword).toLowerCase()).filter(Boolean);
+}
+
+function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaign = null) {
+    const todayKey = getSgtDateKey();
+    const thisWeekStart = getSgtWeekStartKey(0);
+    const previousWeekStart = getSgtWeekStartKey(7);
+    const textItems = [];
+
+    (feedbackRows || []).forEach(row => {
+        const metadata = parseAlertMetadata(row.metadata);
+        const dateKey = getSgtDateKey(row.created_at);
+        const pledge = normalizeInsightText(row.comment);
+        if (isUsefulInsightText(pledge)) {
+            textItems.push({
+                text: pledge,
+                dateKey,
+                created_at: row.created_at,
+                source: 'Pledge'
             });
         }
-        
-        console.log(`✅ Found ${answers.length} answers for feedback ${id}`);
-        
-        res.json({
-            success: true,
-            answers: answers || []
+        row._alertMetadata = metadata;
+        row._alertDateKey = dateKey;
+    });
+
+    (answerRows || []).forEach(row => {
+        const text = normalizeInsightText(row.text);
+        if (isUsefulInsightText(text)) {
+            textItems.push({
+                text,
+                dateKey: getSgtDateKey(row.created_at),
+                created_at: row.created_at,
+                source: 'Answer'
+            });
+        }
+    });
+
+    const todayFeedback = (feedbackRows || []).filter(row => row._alertDateKey === todayKey);
+    const todayPledges = todayFeedback.filter(row => normalizeInsightText(row.comment).length > 0);
+    const todayPhotos = todayFeedback.filter(row => row.photo_path || row.processed_photo_path);
+    const pledgeRate = todayFeedback.length > 0 ? todayPledges.length / todayFeedback.length : 1;
+    const photoRate = todayFeedback.length > 0 ? todayPhotos.length / todayFeedback.length : 1;
+
+    const thisWeekItems = textItems.filter(item => item.dateKey >= thisWeekStart);
+    const previousWeekItems = textItems.filter(item => item.dateKey >= previousWeekStart && item.dateKey < thisWeekStart);
+    const negativeThisWeek = thisWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    const negativePreviousWeek = previousWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    const negativeRate = thisWeekItems.length > 0 ? negativeThisWeek.length / thisWeekItems.length : 0;
+
+    const foodWasteKeywords = ['food waste', 'food', 'meal', 'leftover', 'leftovers', 'canteen', 'waste food', 'throw food'];
+    const campaignKeywords = getCampaignKeywordList(campaign);
+    const focusKeywords = campaignKeywords.length > 0 ? campaignKeywords : foodWasteKeywords;
+    const focusThisWeek = thisWeekItems.filter(item => countKeywordHits(item.text, focusKeywords) > 0);
+    const focusPreviousWeek = previousWeekItems.filter(item => countKeywordHits(item.text, focusKeywords) > 0);
+    const pendingPledges = (feedbackRows || []).filter(row => {
+        const metadata = row._alertMetadata || {};
+        return normalizeInsightText(row.comment) && metadata.pledgeStatus === 'pending';
+    });
+
+    const alerts = [];
+
+    if (focusThisWeek.length >= 2 && focusThisWeek.length >= Math.max(2, Math.ceil(focusPreviousWeek.length * 1.5))) {
+        const focusTitle = campaign?.title ? `${campaign.title} comments increased this week` : 'Food waste comments increased this week';
+        alerts.push(buildInterventionAlert(
+            campaign?.title ? 'campaign-focus-comments' : 'food-waste-complaints',
+            focusThisWeek.length >= 4 ? 'high' : 'medium',
+            focusTitle,
+            `${focusThisWeek.length} campaign-related concern(s) were detected this week, compared with ${focusPreviousWeek.length} last week.`,
+            campaign?.title
+                ? 'Review recent feedback against the active campaign focus and update pledge examples if the same issue repeats.'
+                : 'Review recent free-text feedback for food waste patterns and share the repeated issue with the sustainability or operations lead.',
+            `${focusThisWeek.length} this week`
+        ));
+    }
+
+    if (todayFeedback.length >= 3 && pledgeRate < 0.4) {
+        alerts.push(buildInterventionAlert(
+            'low-pledge-rate-today',
+            pledgeRate < 0.2 ? 'high' : 'medium',
+            'Low pledge rate today',
+            `${todayPledges.length} of ${todayFeedback.length} visitor(s) submitted a pledge today.`,
+            campaign?.title
+                ? `Check whether the pledge step is visible and whether the ${campaign.title} examples are clear enough for visitors.`
+                : 'Check whether the pledge step is enabled, visible, and easy to complete. Consider refreshing the pledge examples for the current campaign.',
+            `${Math.round(pledgeRate * 100)}% pledge rate`
+        ));
+    }
+
+    if ((negativeThisWeek.length >= 3 && negativeRate >= 0.3) || pendingPledges.length >= 2) {
+        alerts.push(buildInterventionAlert(
+            'negative-feedback-spike',
+            negativeThisWeek.length >= 5 || pendingPledges.length >= 4 ? 'high' : 'medium',
+            'Negative feedback needs review',
+            `${negativeThisWeek.length} negative text response(s) and ${pendingPledges.length} pending pledge(s) were detected in the active feedback set.`,
+            'Open the feedback insight summary and pledge moderation table, then resolve the repeated concern before the next kiosk session.',
+            `${negativeThisWeek.length} negative`
+        ));
+    }
+
+    const storageIssue = health?.storage && health.storage.ok === false;
+    const cameraIssue = health?.camera && health.camera.ok === false;
+    if (storageIssue || cameraIssue || (todayFeedback.length >= 3 && photoRate < 0.25)) {
+        const severity = storageIssue || cameraIssue ? 'high' : 'medium';
+        alerts.push(buildInterventionAlert(
+            'camera-upload-risk',
+            severity,
+            'Camera or upload flow may need attention',
+            storageIssue
+                ? health.storage.message
+                : (cameraIssue ? health.camera.message : `${todayPhotos.length} of ${todayFeedback.length} visitor(s) submitted a photo today.`),
+            'Check kiosk camera permissions, upload folders, and the photo feature flags before the next visitor group arrives.',
+            storageIssue ? `${health.storage.failing} folder issue(s)` : `${Math.round(photoRate * 100)}% photo rate`
+        ));
+    }
+
+    if (alerts.length === 0 && todayFeedback.length > 0) {
+        alerts.push(buildInterventionAlert(
+            'monitoring-normal',
+            'low',
+            'No urgent intervention detected',
+            'Today\'s kiosk activity does not show repeated concerns, low pledge engagement, or upload risk.',
+            'Continue monitoring the dashboard after the next visitor group.',
+            `${todayFeedback.length} feedback today`
+        ));
+    }
+
+    return alerts
+        .sort((a, b) => getAlertSeverityRank(b.severity) - getAlertSeverityRank(a.severity))
+        .slice(0, 5);
+}
+
+const PASSPORT_TOPIC_LABELS = {
+    'climate-change': 'Climate Champion',
+    'renewable-energy': 'Renewable Innovator',
+    'sustainable-living': 'Sustainable Living Advocate',
+    'ocean-conservation': 'Ocean Guardian',
+    'ethical-governance': 'Governance Guardian',
+    'community-impact': 'Social Champion'
+};
+
+const PASSPORT_STAMP_LABELS = {
+    firstFeedback: 'First Feedback',
+    firstPledge: 'First Pledge',
+    photoKeepsake: 'Photo Keepsake',
+    likedPledge: 'Community Liked',
+    repeatVisitor: 'Repeat Visitor',
+    topicExplorer: 'Topic Explorer'
+};
+
+function parsePassportMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function addPassportStamp(visitor, key, label, detail) {
+    if (visitor._stampKeys.has(key)) return;
+    visitor._stampKeys.add(key);
+    visitor.stamps.push({ key, label, detail });
+}
+
+function buildJourneyPassport(rows) {
+    const visitorsById = new Map();
+
+    (rows || []).forEach(row => {
+        if (!visitorsById.has(row.user_id)) {
+            visitorsById.set(row.user_id, {
+                id: row.user_id,
+                name: row.name || 'Anonymous Visitor',
+                visitCount: Number(row.visit_count || 0),
+                firstSeen: row.user_created_at,
+                lastSeen: row.last_visit || row.feedback_created_at,
+                feedbackCount: 0,
+                pledgeCount: 0,
+                photoCount: 0,
+                likedPledgeCount: 0,
+                keepsakeCount: 0,
+                topics: new Set(),
+                stamps: [],
+                _stampKeys: new Set()
+            });
+        }
+
+        const visitor = visitorsById.get(row.user_id);
+        if (!row.feedback_id) return;
+
+        const metadata = parsePassportMetadata(row.metadata);
+        const pledgeText = normalizeInsightText(row.comment);
+        const topic = metadata.pledgeTopic || '';
+        visitor.feedbackCount += 1;
+        visitor.pledgeCount += pledgeText ? 1 : 0;
+        visitor.photoCount += row.photo_path || row.processed_photo_path ? 1 : 0;
+        visitor.keepsakeCount += Number(row.email_sent || 0) > 0 || row.processed_photo_path ? 1 : 0;
+        visitor.likedPledgeCount += Number(row.like_count || 0);
+        if (topic && PASSPORT_TOPIC_LABELS[topic]) visitor.topics.add(topic);
+        if (!visitor.lastSeen || new Date(row.feedback_created_at) > new Date(visitor.lastSeen)) {
+            visitor.lastSeen = row.feedback_created_at;
+        }
+    });
+
+    const stampBreakdown = Object.fromEntries(
+        Object.keys(PASSPORT_STAMP_LABELS).map(key => [key, { label: PASSPORT_STAMP_LABELS[key], count: 0 }])
+    );
+
+    const passports = Array.from(visitorsById.values()).map(visitor => {
+        if (visitor.feedbackCount > 0) {
+            addPassportStamp(visitor, 'firstFeedback', PASSPORT_STAMP_LABELS.firstFeedback, `${visitor.feedbackCount} feedback submission${visitor.feedbackCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.pledgeCount > 0) {
+            addPassportStamp(visitor, 'firstPledge', PASSPORT_STAMP_LABELS.firstPledge, `${visitor.pledgeCount} pledge${visitor.pledgeCount === 1 ? '' : 's'} shared`);
+        }
+        if (visitor.keepsakeCount > 0 || visitor.photoCount > 0) {
+            addPassportStamp(visitor, 'photoKeepsake', PASSPORT_STAMP_LABELS.photoKeepsake, `${Math.max(visitor.keepsakeCount, visitor.photoCount)} keepsake moment${Math.max(visitor.keepsakeCount, visitor.photoCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.likedPledgeCount > 0) {
+            addPassportStamp(visitor, 'likedPledge', PASSPORT_STAMP_LABELS.likedPledge, `${visitor.likedPledgeCount} pledge like${visitor.likedPledgeCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.visitCount >= 2 || visitor.feedbackCount >= 2) {
+            addPassportStamp(visitor, 'repeatVisitor', PASSPORT_STAMP_LABELS.repeatVisitor, `${Math.max(visitor.visitCount, visitor.feedbackCount)} recorded visit${Math.max(visitor.visitCount, visitor.feedbackCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.topics.size >= 2) {
+            addPassportStamp(visitor, 'topicExplorer', PASSPORT_STAMP_LABELS.topicExplorer, `${visitor.topics.size} pledge topics explored`);
+        }
+
+        const topicBadges = Array.from(visitor.topics)
+            .map(topic => ({ topic, label: PASSPORT_TOPIC_LABELS[topic] }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        visitor.stamps.forEach(stamp => {
+            if (stampBreakdown[stamp.key]) stampBreakdown[stamp.key].count += 1;
+        });
+
+        const stampCount = visitor.stamps.length + topicBadges.length;
+
+        return {
+            id: visitor.id,
+            name: visitor.name,
+            visitCount: visitor.visitCount,
+            feedbackCount: visitor.feedbackCount,
+            pledgeCount: visitor.pledgeCount,
+            photoCount: visitor.photoCount,
+            likedPledgeCount: visitor.likedPledgeCount,
+            firstSeen: visitor.firstSeen,
+            lastSeen: visitor.lastSeen,
+            stampCount,
+            progressPercent: Math.min(100, Math.round((stampCount / 12) * 100)),
+            stamps: visitor.stamps,
+            topicBadges
+        };
+    })
+        .filter(visitor => visitor.feedbackCount > 0)
+        .sort((a, b) => b.stampCount - a.stampCount || b.feedbackCount - a.feedbackCount || new Date(b.lastSeen) - new Date(a.lastSeen));
+
+    const totalStamps = passports.reduce((sum, visitor) => sum + visitor.stampCount, 0);
+    const repeatVisitors = passports.filter(visitor => visitor.visitCount >= 2 || visitor.feedbackCount >= 2).length;
+    const topicBreakdown = Object.entries(passports.reduce((counts, visitor) => {
+        (visitor.topicBadges || []).forEach(badge => {
+            counts[badge.label] = (counts[badge.label] || 0) + 1;
+        });
+        return counts;
+    }, {}))
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    return {
+        summary: {
+            passportHolders: passports.length,
+            repeatVisitors,
+            totalStamps,
+            averageStamps: passports.length ? Number((totalStamps / passports.length).toFixed(1)) : 0,
+            repeatRate: passports.length ? Math.round((repeatVisitors / passports.length) * 100) : 0
+        },
+        stampBreakdown: Object.values(stampBreakdown),
+        topicBreakdown,
+        topPassports: passports.slice(0, 6)
+    };
+}
+
+// Dashboard intervention alerts for staff action.
+router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
+    const activeCampaign = getActiveCampaignSettings();
+    const feedbackQuery = `
+        SELECT id, comment, metadata, photo_path, processed_photo_path, created_at
+        FROM feedback
+        WHERE is_active = 1
+          AND archive_status = 'not_archived'
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY created_at DESC
+        LIMIT 800
+    `;
+
+    const answersQuery = `
+        SELECT fa.answer_value AS text, fa.created_at
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY fa.created_at DESC
+        LIMIT 800
+    `;
+
+    db.all(feedbackQuery, [], (feedbackErr, feedbackRows) => {
+        if (feedbackErr) {
+            console.error('Error loading intervention feedback data:', feedbackErr);
+            return res.status(500).json({ success: false, error: feedbackErr.message });
+        }
+
+        db.all(answersQuery, [], (answersErr, answerRows) => {
+            if (answersErr) {
+                console.error('Error loading intervention answer data:', answersErr);
+                return res.status(500).json({ success: false, error: answersErr.message });
+            }
+
+            let health = null;
+            try {
+                health = resolveHealthDetails();
+            } catch (healthError) {
+                console.warn('Intervention alert health check unavailable:', healthError.message);
+            }
+
+            const alerts = getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
+            res.json({
+                success: true,
+                generatedAt: new Date().toISOString(),
+                activeCampaign,
+                alerts
+            });
         });
     });
 });
-*/
 
-// Get all feedback answers for analysis (Done by Yu Kang)
-// Get all feedback answer values for analysis
-router.get('/feedback-answers', (req, res) => {
-    console.log('📋 Fetching all feedback answer values...');
-
+// ESG Journey Passport dashboard summary for repeat engagement tracking.
+router.get('/journey-passport', auth.requireAuth, (req, res) => {
     const query = `
         SELECT
-            answer_value
-        FROM feedback_answers
-        ORDER BY created_at DESC, id DESC
+            u.id AS user_id,
+            u.name,
+            u.visit_count,
+            u.created_at AS user_created_at,
+            u.last_visit,
+            f.id AS feedback_id,
+            f.comment,
+            f.metadata,
+            f.photo_path,
+            f.processed_photo_path,
+            f.email_sent,
+            f.created_at AS feedback_created_at,
+            COALESCE(pl.like_count, 0) AS like_count
+        FROM users u
+        LEFT JOIN feedback f
+            ON f.user_id = u.id
+           AND f.is_active = 1
+           AND f.archive_status = 'not_archived'
+        LEFT JOIN (
+            SELECT feedback_id, COUNT(*) AS like_count
+            FROM pledge_likes
+            GROUP BY feedback_id
+        ) pl ON pl.feedback_id = f.id
+        ORDER BY u.last_visit DESC, f.created_at DESC
+        LIMIT 1200
     `;
 
-    db.all(query, [], (err, answers) => {
+    db.all(query, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching feedback answer values:', err);
-            return res.status(500).json({
-                success: false,
-                error: 'Database error: ' + err.message
-            });
+            console.error('Error loading journey passport data:', err);
+            return res.status(500).json({ success: false, error: err.message });
         }
-
-        console.log(`✅ Found ${answers.length} feedback answer rows`);
 
         res.json({
             success: true,
-            answers: answers || []
+            generatedAt: new Date().toISOString(),
+            passport: buildJourneyPassport(rows || [])
         });
     });
 });
 
-/*
-// Rule-based sentiment analysis of feedback answers (added by Yu Kang)
-router.get('/feedback-sentiment-analysis', (req, res) => {
-    console.log('🧠 Performing sentiment analysis on feedback answers...');
-
+// AI Insight Summary for admin feedback analysis (Done by Yu Kang)
+router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
+    const mode = req.query.mode || analysis_modes.RULE_BASED;
+    console.log(`🧠 Generating feedback insights using mode: ${mode}`);
     const query = `
-        SELECT answer_value
-        FROM feedback_answers
-        WHERE answer_value IS NOT NULL AND answer_value != ''
+        SELECT
+            fa.answer_value AS text,
+            q.question_text AS question,
+            'Answer' AS source,
+            fa.created_at AS created_at
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        LEFT JOIN questions q ON fa.question_id = q.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        UNION ALL
+        SELECT
+            f.comment AS text,
+            'Visitor pledge' AS question,
+            'Pledge' AS source,
+            f.created_at AS created_at
+        FROM feedback f
+        WHERE f.comment IS NOT NULL
+          AND TRIM(f.comment) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ORDER BY created_at DESC
+        LIMIT 2;
     `;
 
-    db.all(query, [], (err, answers) => {
+    db.all(query, [], async (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching answers for sentiment analysis:', err);
-            return res.status(500).json({
-                success: false,
-                error: 'Database error: ' + err.message
-            });
+            console.error('Error loading feedback insight data:', err);
+            return res.status(500).json({ success: false, error: err.message });
         }
 
-        // Simple keyword-based sentiment analysis
-        const positiveKeywords = [
-            'good', 'great', 'excellent', 'amazing', 'awesome', 'wonderful', 'fantastic',
-            'love', 'best', 'perfect', 'beautiful', 'happy', 'enjoy', 'impressed',
-            'satisfied', 'recommend', 'superb', 'outstanding', 'brilliant',
-            'nice', 'delighted', 'thrilled', 'enjoyed', 'liked', 'helpful'
-        ];
+        const rawItems = (rows || []).map(row => ({
+            text: normalizeInsightText(row.text),
+            question: row.question || row.source || 'Feedback',
+            source: row.source || 'Feedback',
+            date: row.created_at
+            }))
+            .filter(item => isUsefulInsightText(item.text));
 
-        const negativeKeywords = [
-            'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'poor',
-            'disappointing', 'disappointed', 'useless', 'waste', 'angry',
-            'frustrated', 'annoyed', 'unhappy', 'dislike', 'rubbish', 'pathetic',
-            'mediocre', 'negative', 'concerning', 'problem', 'issue', 'difficult'
-        ];
+        const items = await Promise.all(rawItems.map(async (item) => {
+            const sentiment = await classifySentiment(item.text, mode);
+            return { ...item, sentiment };
+        }));
 
-        let positive = 0, neutral = 0, negative = 0;
+        
 
-        answers.forEach(answer => {
-            const text = (answer.answer_value || '').toLowerCase().trim();
-            
-            if (!text) {
-                neutral++;
-                return;
-            }
+        const sentiment = items.reduce((counts, item) => {
+            counts[item.sentiment]++;
+            counts.total++;
+            return counts;
+        }, { positive: 0, neutral: 0, negative: 0, total: 0 });
 
-            let hasPositive = false, hasNegative = false;
-
-            positiveKeywords.forEach(keyword => {
-                if (text.includes(keyword)) hasPositive = true;
-            });
-
-            negativeKeywords.forEach(keyword => {
-                if (text.includes(keyword)) hasNegative = true;
-            });
-
-            if (hasPositive && !hasNegative) {
-                positive++;
-            } else if (hasNegative && !hasPositive) {
-                negative++;
-            } else {
-                neutral++;
-            }
-        });
-
-        console.log(`✅ Sentiment analysis complete: Positive: ${positive}, Neutral: ${neutral}, Negative: ${negative}`);
+        const topConcerns = buildInsightCategories(items, INSIGHT_CONCERN_CATEGORIES, 'negative');
+        const topCompliments = buildInsightCategories(items, INSIGHT_COMPLIMENT_CATEGORIES, 'positive');
+        const suggestedActions = buildSuggestedActions(topConcerns, sentiment);
+        const weeklySummary = buildWeeklySummary(items, sentiment, topConcerns, topCompliments);
 
         res.json({
             success: true,
-            sentiment: {
-                positive,
-                neutral,
-                negative,
-                total: answers.length
+            sentiment,
+            insights: {
+                weeklySummary,
+                topConcerns,
+                topCompliments,
+                suggestedActions,
+                analyzedAt: new Date().toISOString()
             }
         });
     });
-}); 
-*/
+});
 
 // Sentiment AI analysis of feedback answers (added by Yu Kang)
 router.get('/feedback-sentiment-analysis', async (req, res) => {
@@ -1315,7 +2001,7 @@ router.get('/feedback-sentiment-analysis', async (req, res) => {
     });
 });
 
-// ==================== 6. ARCHIVE MANAGEMENT ROUTES ====================
+// ==================== 7. ARCHIVE MANAGEMENT ROUTES ====================
 
 // Get archived feedback (older than 3 months)
 router.get('/archive', (req, res) => {
@@ -1658,7 +2344,7 @@ router.get('/download-file/:filename', async (req, res) => {
     }
 });
 
-// ==================== 7. ARCHIVE DELETION ROUTES (System Admin Only) ====================
+// ==================== 8. ARCHIVE DELETION ROUTES (System Admin Only) ====================
 
 
 // Preview deletion count before executing
@@ -2028,7 +2714,7 @@ router.post('/archive/delete-by-date', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 8. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
+// ==================== 9. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
 
 // Verify system admin password for photo access
 router.post('/verify-photo-access', (req, res) => {
@@ -2156,7 +2842,7 @@ router.post('/decrypt-email', (req, res) => {
     });
 });
 
-// ==================== 9. ADMIN USER MANAGEMENT ROUTES  ====================
+// ==================== 10. ADMIN USER MANAGEMENT ROUTES  ====================
 
 // Get all ACTIVE admin users (excludes soft-deleted users)
 router.get('/users', (req, res) => {
@@ -2823,7 +3509,7 @@ router.put('/users/:id', async (req, res) => {
     });
 });
 
-// ==================== 10. DATA EXPORT MANAGEMENT ROUTES ====================
+// ==================== 11. DATA EXPORT MANAGEMENT ROUTES ====================
 
 // Unlock data export with password verification (System Admin only)
 router.post('/data-export/unlock', (req, res) => {
@@ -2921,7 +3607,7 @@ router.post('/data-export/unlock', (req, res) => {
     });
 });
 
-// ==================== 11. EXPORT/IMPORT ROUTES ====================
+// ==================== 12. EXPORT/IMPORT ROUTES ====================
 
 // Excel download endpoint with email decryption
 router.get('/download-excel', (req, res) => {
@@ -3188,7 +3874,7 @@ router.get('/download-photos', async (req, res) => {
     }
 });
 
-// ==================== 12. OVERLAY MANAGEMENT ROUTES ====================
+// ==================== 13. OVERLAY MANAGEMENT ROUTES ====================
 
 // Overlay list route
 router.get('/overlays', (req, res) => {
@@ -3562,7 +4248,7 @@ router.delete('/overlays/:id', (req, res) => {
     });
 });
 
-// ==================== 13. QUESTION MANAGEMENT ROUTES ====================
+// ==================== 14. QUESTION MANAGEMENT ROUTES ====================
 
 // Get all active questions with their options
 router.get('/questions', (req, res) => {
@@ -3999,7 +4685,7 @@ router.put('/questions/:id', (req, res) => {
     });
 });
 
-// ==================== 14. AUDIT LOGS ROUTES ====================
+// ==================== 15. AUDIT LOGS ROUTES ====================
 
 // Get audit logs
 router.get('/audit-logs', (req, res) => {
@@ -4034,7 +4720,7 @@ router.get('/audit-logs', (req, res) => {
     });
 });
 
-// ==================== 15. HELPER FUNCTIONS ====================
+// ==================== 16. HELPER FUNCTIONS ====================
 
 // Helper function to delete user photos from filesystem
 function deleteUserPhotos(feedback, callback) {
@@ -4287,7 +4973,7 @@ function convertToCSV(data) {
     return [headers, ...rows].join('\n');
 }
 
-// ==================== 16. SAVED THEMES ROUTES ====================
+// ==================== 17. SAVED THEMES ROUTES ====================
 
 
 // GET /api/admin/saved-themes
@@ -4658,7 +5344,7 @@ router.get('/saved-themes/active', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 17. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
+// ==================== 18. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
 
 // Get VIP list (Active only)
 // GET /vips
@@ -4782,7 +5468,7 @@ router.delete('/vips/:name', (req, res) => {
 });
 
 
-// ==================== 18. FORM UI CONFIGURATION ====================
+// ==================== 19. FORM UI CONFIGURATION ====================
 // Read + write feedback form UI settings 
 
 const FORM_UI_CONFIG_PATH = path.join(__dirname, 'config', 'form-ui.json');
@@ -4916,6 +5602,32 @@ function normalizeArchiveSettings(archiveSettings) {
 
     normalized.archiveAfterDays = days;
   }
+
+  return normalized;
+}
+
+function normalizeCampaignSettings(campaignSettings) {
+  if (!campaignSettings || typeof campaignSettings !== 'object') {
+    return campaignSettings;
+  }
+
+  const normalized = { ...campaignSettings };
+  normalized.enabled = normalized.enabled === true;
+  normalized.title = String(normalized.title || '').trim().slice(0, 80) || 'ESG Campaign';
+  normalized.cadence = ['weekly', 'monthly'].includes(String(normalized.cadence)) ? normalized.cadence : 'weekly';
+  normalized.treeSubtitle = String(normalized.treeSubtitle || '').trim().slice(0, 180);
+  normalized.badgeEmphasis = String(normalized.badgeEmphasis || '').trim().slice(0, 80);
+
+  const goal = Number(normalized.pulseGoal);
+  normalized.pulseGoal = Number.isFinite(goal) ? Math.max(1, Math.min(10000, Math.round(goal))) : 100;
+
+  normalized.focusKeywords = Array.isArray(normalized.focusKeywords)
+    ? normalized.focusKeywords.map(keyword => String(keyword || '').trim()).filter(Boolean).slice(0, 10)
+    : [];
+
+  normalized.pledgeExamples = Array.isArray(normalized.pledgeExamples)
+    ? normalized.pledgeExamples.map(example => String(example || '').trim()).filter(Boolean).slice(0, 3)
+    : [];
 
   return normalized;
 }
@@ -5099,6 +5811,274 @@ router.post('/parameters/background', auth.requireAdmin, uploadParameterBackgrou
   }
 });
 
+// POST /api/admin/parameters/leaf - Upload a custom leaf image and activate it
+router.post('/parameters/leaf', auth.requireAdmin, uploadParameterLeaf.single('leaf'), (req, res) => {
+    try {
+        console.log('🍃 Leaf upload endpoint hit');
+        console.log('📦 Received file:', req.file);
+        
+        if (!req.file) {
+            console.error('❌ No file received in request');
+            return res.status(400).json({ success: false, error: 'No leaf file uploaded' });
+        }
+
+        const assetPath = `/assets/Tree/leaf/${req.file.filename}`;
+        console.log('✅ File saved to:', req.file.path);
+        console.log('🔗 Asset path:', assetPath);
+
+        const config = parametersConfigStore.readParametersConfig();
+        // Save current leaf image as previous before uploading new one
+        if (config.visualAssets?.leafImage) {
+            config.visualAssets.previousLeafImage = config.visualAssets.leafImage;
+            console.log('💾 Previous leaf image saved:', config.visualAssets.previousLeafImage);
+        }
+        config.visualAssets = { ...config.visualAssets, leafImage: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to save leaf image setting' });
+        }
+        
+        console.log('💾 Parameters config saved successfully');
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_UPLOADED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        console.log('✅ Leaf upload completed successfully');
+        res.json({ success: true, message: 'Leaf image uploaded successfully', assetPath, parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error uploading parameter leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to upload leaf image' });
+    }
+});
+
+// POST /api/admin/parameters/leaf/revert - Revert to previous leaf image
+router.post('/parameters/leaf/revert', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('🔄 Leaf revert endpoint hit');
+        
+        const config = parametersConfigStore.readParametersConfig();
+        const assets = config.visualAssets || {};
+        
+        if (!assets.previousLeafImage) {
+            console.log('❌ No previous leaf image to revert to');
+            return res.status(400).json({ success: false, error: 'No previous leaf image to revert to' });
+        }
+        
+        // Swap current and previous
+        const currentLeafImage = assets.leafImage;
+        config.visualAssets.leafImage = assets.previousLeafImage;
+        config.visualAssets.previousLeafImage = currentLeafImage;
+        
+        console.log('🔄 Reverting leaf - current:', currentLeafImage, 'previous:', config.visualAssets.leafImage);
+        
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to revert leaf image' });
+        }
+        
+        console.log('✅ Leaf reverted successfully');
+        
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_REVERTED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+        
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        res.json({ success: true, message: 'Leaf image reverted successfully', parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error reverting parameter leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to revert leaf image' });
+    }
+});
+
+// GET /api/admin/parameters/leaf/list - List available leaf images (Done by Yu Kang)
+router.get('/parameters/leaf/list', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('📂 Listing available leaf images');
+        
+        const leafDir = path.join(__dirname, '../assets/Tree/leaf');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const leafImages = [];
+        
+        // Check if directory exists
+        if (!fs.existsSync(leafDir)) {
+            console.log('📁 Leaf directory does not exist');
+            return res.json({ success: true, leafImages: [] });
+        }
+        
+        // Read directory
+        const files = fs.readdirSync(leafDir);
+        
+        files.forEach(file => {
+            const ext = path.extname(file).toLowerCase();
+            if (imageExtensions.includes(ext)) {
+                leafImages.push({
+                    filename: file,
+                    path: `/assets/Tree/leaf/${file}`,
+                    name: path.parse(file).name // filename without extension
+                });
+            }
+        });
+        
+        console.log(`✅ Found ${leafImages.length} leaf images`);
+        res.json({ success: true, leafImages });
+    } catch (error) {
+        console.error('❌ Error listing leaf images:', error.message);
+        res.status(500).json({ success: false, error: error.message || 'Failed to list leaf images' });
+    }
+});
+
+// POST /api/admin/parameters/leaf/select - Select an existing leaf image
+router.post('/parameters/leaf/select', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('🍃 Leaf select endpoint hit');
+        const { leafImage } = req.body;
+        
+        if (!leafImage) {
+            console.error('❌ No leaf image path provided');
+            return res.status(400).json({ success: false, error: 'Leaf image path is required' });
+        }
+        
+        // Validate path to prevent directory traversal
+        const leafDir = path.join(__dirname, '../assets/Tree/leaf');
+        const fullPath = path.join(leafDir, path.basename(leafImage));
+        
+        if (!fullPath.startsWith(leafDir)) {
+            console.error('❌ Invalid leaf image path (directory traversal attempt)');
+            return res.status(400).json({ success: false, error: 'Invalid leaf image path' });
+        }
+        
+        // Verify file exists
+        if (!fs.existsSync(fullPath)) {
+            console.error('❌ Leaf image file does not exist:', fullPath);
+            return res.status(400).json({ success: false, error: 'Leaf image file does not exist' });
+        }
+        
+        console.log('✅ Leaf image verified:', leafImage);
+        const assetPath = `/assets/Tree/leaf/${path.basename(leafImage)}`;
+        
+        const config = parametersConfigStore.readParametersConfig();
+        // Save current as previous before switching
+        if (config.visualAssets?.leafImage) {
+            config.visualAssets.previousLeafImage = config.visualAssets.leafImage;
+            console.log('💾 Previous leaf image saved:', config.visualAssets.previousLeafImage);
+        }
+
+        config.visualAssets = { ...config.visualAssets, leafImage: assetPath };
+        
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to select leaf image' });
+        }
+        
+        console.log('✅ Leaf image selected successfully:', assetPath);
+        
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_LEAF_SELECTED', req.session.user.username, 'config', 'visualAssets.leafImage', req);
+        }
+        
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        res.json({ success: true, message: 'Leaf image selected successfully', parameters: finalConfig });
+    } catch (error) {
+        console.error('❌ Error selecting leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to select leaf image' });
+    }
+});
+
+// GET /api/admin/parameters/tree-background/list - List available tree background images
+router.get('/parameters/tree-background/list', auth.requireAdmin, (req, res) => {
+    try {
+        const backgroundDir = path.join(__dirname, '../assets/Tree/background');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const backgroundImages = [];
+
+        console.log('📂 Looking for tree backgrounds in:', backgroundDir);
+
+        if (!fs.existsSync(backgroundDir)) {
+            console.warn('⚠️  Tree background directory does not exist:', backgroundDir);
+            return res.json({ success: true, backgroundImages: [], currentTreeBackground: '' });
+        }
+
+        const files = fs.readdirSync(backgroundDir);
+        console.log('📄 Files found in background directory:', files);
+
+        files.forEach((file) => {
+            const ext = path.extname(file).toLowerCase();
+            if (imageExtensions.includes(ext)) {
+                backgroundImages.push({
+                    filename: file,
+                    path: `/assets/Tree/background/${file}`,
+                    name: path.parse(file).name
+                });
+                console.log(`✅ Added background: ${file}`);
+            } else {
+                console.log(`⏭️  Skipped non-image file: ${file} (ext: ${ext})`);
+            }
+        });
+
+        const config = parametersConfigStore.readParametersConfig();
+        const currentTreeBackground = config?.visualAssets?.treeBackground || '';
+
+        console.log(`🖼️  Current tree background: ${currentTreeBackground}`);
+        console.log(`✨ Found ${backgroundImages.length} background images`);
+
+        return res.json({ success: true, backgroundImages, currentTreeBackground });
+    } catch (error) {
+        console.error('❌ Error listing tree backgrounds:', error.message, error.stack);
+        return res.status(500).json({ success: false, error: error.message || 'Failed to list tree backgrounds' });
+    }
+});
+
+// POST /api/admin/parameters/tree-background/select - Select existing tree background image
+router.post('/parameters/tree-background/select', auth.requireAdmin, (req, res) => {
+    try {
+        const { treeBackground } = req.body;
+        if (!treeBackground) {
+            return res.status(400).json({ success: false, error: 'Tree background is required' });
+        }
+
+        const backgroundDir = path.join(__dirname, '../assets/Tree/background');
+        const safeFilename = path.basename(treeBackground);
+        const fullPath = path.join(backgroundDir, safeFilename);
+
+        if (!fullPath.startsWith(backgroundDir)) {
+            return res.status(400).json({ success: false, error: 'Invalid tree background path' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(400).json({ success: false, error: 'Tree background file does not exist' });
+        }
+
+        const assetPath = `/assets/Tree/background/${safeFilename}`;
+        const config = parametersConfigStore.readParametersConfig();
+        config.visualAssets = { ...config.visualAssets, treeBackground: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            return res.status(500).json({ success: false, error: 'Failed to save tree background' });
+        }
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_TREE_BACKGROUND_SELECTED', req.session.user.username, 'config', 'visualAssets.treeBackground', req);
+        }
+
+        return res.json({
+            success: true,
+            message: 'Tree background selected successfully',
+            assetPath,
+            parameters: parametersConfigStore.readParametersConfig()
+        });
+    } catch (error) {
+        console.error('❌ Error selecting tree background:', error.message, error.stack);
+        return res.status(500).json({ success: false, error: error.message || 'Failed to select tree background' });
+    }
+});
+
 // GET /api/admin/parameters/:category
 // Load parameters for specific category
 router.get('/parameters/:category', auth.requireAuth, (req, res) => {
@@ -5122,7 +6102,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, contentSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings } = req.body;
+    const { feedbackMessages, contentSettings, campaignSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -5130,6 +6110,9 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     }
     if (contentSettings && typeof contentSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid contentSettings format' });
+    }
+    if (campaignSettings && typeof campaignSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid campaignSettings format' });
     }
     if (treeParameters && typeof treeParameters !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid treeParameters format' });
@@ -5152,10 +6135,14 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (visualAssets && typeof visualAssets !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid visualAssets format' });
     }
+    if (layoutSettings && typeof layoutSettings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid layoutSettings format' });
+    }
     if (archiveSettings && typeof archiveSettings !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid archiveSettings format' });
     }
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
+    const normalizedCampaignSettings = normalizeCampaignSettings(campaignSettings);
     const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
 
     // Read current config
@@ -5164,6 +6151,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     // Update only provided categories
     if (feedbackMessages) config.feedbackMessages = { ...config.feedbackMessages, ...feedbackMessages };
     if (normalizedContentSettings) config.contentSettings = { ...config.contentSettings, ...normalizedContentSettings };
+    if (normalizedCampaignSettings) config.campaignSettings = { ...config.campaignSettings, ...normalizedCampaignSettings };
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
@@ -5171,6 +6159,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
     if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
+    if (layoutSettings) config.layoutSettings = { ...config.layoutSettings, ...layoutSettings };
     if (normalizedArchiveSettings) config.archiveSettings = { ...config.archiveSettings, ...normalizedArchiveSettings };
 
     // Save updated config
@@ -5206,15 +6195,33 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid parameter updates format' });
     }
     
-    // Validate category exists
+    // Validate category exists. Missing categories can occur after older reset
+    // logic writes an older defaults file, so known default-backed categories
+    // are allowed to be recreated by updateCategory().
     const config = parametersConfigStore.readParametersConfig();
-    if (!config[category]) {
+    const defaultBackedCategories = [
+      'feedbackMessages',
+      'contentSettings',
+      'campaignSettings',
+      'emailContent',
+      'featureFlags',
+      'validationRules',
+      'treeParameters',
+      'photoSettings',
+      'overlaySettings',
+      'visualAssets',
+      'archiveSettings',
+      'layoutSettings'
+    ];
+    if (!config[category] && !defaultBackedCategories.includes(category)) {
       return res.status(404).json({ success: false, error: `Category '${category}' not found` });
     }
     
     let normalizedUpdates = updates;
     if (category === 'contentSettings') {
       normalizedUpdates = normalizeContentSettings(updates);
+    } else if (category === 'campaignSettings') {
+      normalizedUpdates = normalizeCampaignSettings(updates);
     } else if (category === 'archiveSettings') {
       normalizedUpdates = normalizeArchiveSettings(updates);
     }
@@ -5286,7 +6293,7 @@ router.post('/retention-cleanup/run', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 19. EMAIL MANAGEMENT ====================
+// ==================== 20. EMAIL MANAGEMENT ====================
 // Get/Update SMTP config (Gmail / Outlook / Custom) without restarting server
 
 router.get('/email-config', auth.requireAuth, (req, res) => {
@@ -5400,7 +6407,7 @@ router.put('/badge-email-templates', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 20. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 21. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
  // GET /api/admin/countdown-management
  // Returns: { success: true, countdown_seconds: number }
@@ -5488,7 +6495,7 @@ router.put('/countdown-management', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 21. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 22. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
 // SERVER SCHEDULE MANAGEMENT (Config File Based)
 
@@ -6183,13 +7190,40 @@ router.post('/server/start', auth.requireAuth, (req, res) => {
     });
 });
 
-// POST /api/admin/server/stop
+
+// POST /api/admin/server/stop (Done by Yu Kang)
 // Manually stop the kiosk service
 router.post('/server/stop', auth.requireAuth, (req, res) => {
     const { exec } = require('child_process');
 
     console.log('⏹️  Manual server stop requested');
 
+    res.json({
+        success: true,
+        message: 'Computer entering hibernate mode. Please wait...'
+    });
+
+    setTimeout(() => { 
+        const batFile = path.join(__dirname, '../hibernate.bat');
+        console.log('💤 Running hibernate BAT file...', batFile);
+
+        exec(`cmd.exe /c "${batFile}"`, (err, stdout, stderr) => {
+            if (err) {
+                console.error('❌ Failed to execute hibernate BAT:', err);
+                return;
+            }
+
+            if (stderr) {
+                console.error('❌ Hibernate BAT error output:', stderr);
+            }
+
+            console.log ('✅ BAT executed');
+            console.log(stdout);
+        });
+    }, 3000);
+});
+
+    /*
     if (process.platform === 'win32') {
         const pid = readWindowsKioskPid();
 
@@ -6217,8 +7251,76 @@ router.post('/server/stop', auth.requireAuth, (req, res) => {
         });
         return;
     }
+    */
 
-    exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
+    /*if (process.platform === 'win32') {
+        const path = require('path');
+        const fs = require('fs');
+        const { spawn } = require('child_process');
+        const pid = readWindowsKioskPid();
+
+        const runHibernate = () => {
+
+            // Send response FIRST
+            res.json({
+                success: true,
+                message: 'Kiosk stopped. Computer entering hibernate mode.',
+                platform: 'windows'
+            });
+
+            // Wait for frontend to receive response
+            setTimeout(() => {
+                const batFile = path.join(__dirname, '../hibernate.bat');
+                console.log('💤 Running hibernate BAT file...', batFile);
+
+                if (!fs.existsSync(batFile)) {
+                    console.error('❌ Hibernate BAT file not found:', batFile);
+                    return;
+                }
+
+                const child = spawn('cmd.exe', ['/c', batFile], {
+                    cwd: __dirname,
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                });
+
+                child.on('error', (error) => {
+                    console.error('❌ Failed to start hibernate BAT:', error);
+                });
+
+                child.unref();
+                console.log('💤 Hibernate command executed');
+
+            }, 1500);
+        };
+
+        // Stop kiosk using PID
+        if (pid) {
+            exec(`taskkill /PID ${pid} /F`, (err) => {
+                if (err) {
+                    console.error('❌ Failed to stop kiosk process:', err);
+                }
+
+                runHibernate();
+                clearWindowsKioskPid();
+            });
+            return;
+        }
+
+    // Fallback process scan
+    exec(
+        'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \\"*kioskServer.js*\\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
+        () => {
+            runHibernate();
+            clearWindowsKioskPid();
+        }
+);
+    return;
+}*/
+
+
+    /*exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
         if (err) {
             console.error('❌ Failed to stop server:', stderr);
             return res.status(500).json({
@@ -6234,7 +7336,7 @@ router.post('/server/stop', auth.requireAuth, (req, res) => {
             platform: 'linux'
         });
     });
-});
+});*/
 
 // ==================== SERVER CONTROL MODE ROUTES ====================
 

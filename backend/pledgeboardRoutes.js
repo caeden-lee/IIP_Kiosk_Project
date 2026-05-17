@@ -16,6 +16,8 @@
 //
 // 5. ADMIN: GET PLEDGEBOARD WITH SORTING
 //    router.get('/admin/pledges'              - Admin endpoint to get pledges with sorting options for pledgeboard (DONE BY PRETI)
+//    detectPledgeSentiment                    - Infer pledge tone for moderation queue fallback (DONE BY XY)
+//    router.put('/admin/pledges/:feedbackId/status' - Update admin pledge moderation status (DONE BY XY)
 //
 // 6. ROOT ENDPOINT 
 //    router.get('/'                           - API status and endpoint information (DONE BY PRETI)
@@ -25,6 +27,7 @@ const router = express.Router();
 const db = require('./db');
 const fs = require('fs');
 const path = require('path');
+const { detectPledgeSentimentRule } = require('./pledgeSentiment');
 
 const pledgeTopicsPath = path.join(__dirname, 'config', 'pledge-topics.json');
 const DEFAULT_PLEDGE_TOPICS = [
@@ -47,11 +50,23 @@ function parseMetadata(metadata) {
 
 function formatPledgeRow(row) {
     const metadata = parseMetadata(row.metadata);
+    const detectedSentiment = detectPledgeSentimentRule(row.pledge).sentiment;
+    const pledgeSentiment = metadata.pledgeSentiment === 'negative'
+        ? 'negative'
+        : (detectedSentiment !== 'neutral' ? detectedSentiment : (metadata.pledgeSentiment || 'neutral'));
+    const moderationStatus = metadata.pledgeStatus
+        ? (pledgeSentiment === 'negative' ? metadata.pledgeStatus : 'approved')
+        : (pledgeSentiment === 'negative' ? 'pending' : 'approved');
+
     return {
         ...row,
-        metadata,
+        metadata: {
+            ...metadata,
+            pledgeSentiment,
+            pledgeStatus: moderationStatus
+        },
         pledge_topic: metadata.pledgeTopic || '',
-        moderation_status: metadata.pledgeStatus || 'approved',
+        moderation_status: moderationStatus,
         moderated_at: metadata.moderatedAt || null,
         moderated_by: metadata.moderatedBy || null
     };
@@ -359,7 +374,7 @@ router.get('/admin/pledges', (req, res) => {
     });
 });
 
-// Update pledge moderation status from the admin pledgeboard queue.
+// Update pledge moderation status from the admin pledgeboard queue. (DONE BY XY)
 router.put('/admin/pledges/:feedbackId/status', (req, res) => {
     const { feedbackId } = req.params;
     const { status, username = 'admin' } = req.body;

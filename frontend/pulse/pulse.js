@@ -23,10 +23,10 @@ if (new URLSearchParams(window.location.search).get('embed') === 'admin') {
 }
 
 const leafImages = [
-    '/assets/Tree/NewLeftLeaf.png',
-    '/assets/Tree/NewRightLeaf.png',
-    '/assets/Tree/OldLeftLeaf.png',
-    '/assets/Tree/OldRightLeaf.png'
+    '/assets/Tree/leaf/NewLeftLeaf.png',
+    '/assets/Tree/leaf/NewRightLeaf.png',
+    '/assets/Tree/leaf/OldLeftLeaf.png',
+    '/assets/Tree/leaf/OldRightLeaf.png'
 ];
 
 const leafPositions = Array.from({ length: MAX_TREE_LEAVES }, (_, index) => {
@@ -84,12 +84,16 @@ function updateClock() {
     }));
 }
 
-function renderMetrics(stats) {
+function renderMetrics(stats, activeCampaign = null) {
     setText('pledges-today', formatNumber(stats.pledgesToday));
     setText('pledges-month', formatNumber(stats.pledgesThisMonth));
     setText('tree-leaves', formatNumber(stats.treeLeaves));
     setText('total-pledges', formatNumber(stats.totalPledges));
     setText('campaign-percent', `${stats.progressPercent}%`);
+    const campaignTitle = activeCampaign?.title
+        ? `${activeCampaign.title} goal`
+        : 'Monthly pledge goal';
+    setText('campaign-title', campaignTitle);
     setText('campaign-copy', `${formatNumber(stats.pledgesThisMonth)} of ${formatNumber(stats.campaignGoal)} pledges reached`);
 
     const bar = $('campaign-bar');
@@ -148,7 +152,7 @@ function renderBadgeBreakdown(items) {
     container.innerHTML = items.slice(0, 5).map((item) => {
         const width = Math.max(8, Math.round(((Number(item.count) || 0) / max) * 100));
         return `
-            <div class="topic-row">
+            <div class="topic-row${item.emphasized ? ' campaign-emphasis' : ''}">
                 <div class="topic-name">${escapeHtml(item.badge)}</div>
                 <div class="topic-track"><div class="topic-fill" style="width: ${width}%"></div></div>
                 <div class="topic-count">${formatNumber(item.count)}</div>
@@ -194,7 +198,7 @@ async function loadPulse() {
             throw new Error(data.error || 'Unable to load pulse data');
         }
 
-        renderMetrics(data.stats || {});
+        renderMetrics(data.stats || {}, data.activeCampaign || null);
         renderPledges(data.newestPledges || []);
         renderBadgeEarners(data.topBadgeEarners || []);
         renderBadgeBreakdown(data.badgeBreakdown || []);
