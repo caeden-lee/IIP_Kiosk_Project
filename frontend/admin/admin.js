@@ -4915,6 +4915,8 @@ function updateOverlayTable(overlays) {
     overlays.forEach(overlay => {
         const overlayCard = document.createElement('div');
         overlayCard.className = 'overlay-card';
+        const desktopFileType = getOverlayFileTypeLabel(overlay.desktop_filename);
+        const mobileFileType = getOverlayFileTypeLabel(overlay.mobile_filename);
         
         overlayCard.innerHTML = `
             <div class="overlay-card-content">
@@ -4937,6 +4939,10 @@ function updateOverlayTable(overlays) {
                 <div class="overlay-info-row">
                     <span class="overlay-label">Mobile File:</span>
                     <span class="overlay-value" style="font-size: 12px; word-break: break-all;">${overlay.mobile_filename}</span>
+                </div>
+                <div class="overlay-info-row">
+                    <span class="overlay-label">File Type:</span>
+                    <span class="overlay-value">${desktopFileType === mobileFileType ? desktopFileType : `Desktop ${desktopFileType} / Mobile ${mobileFileType}`}</span>
                 </div>
                 <div class="overlay-info-row">
                     <span class="overlay-label">Display Order:</span>
@@ -5212,6 +5218,11 @@ function getOverlayFileExtension(imagePath) {
     const cleanPath = String(imagePath || '').split('?')[0];
     const match = cleanPath.match(/\.[a-z0-9]+$/i);
     return match ? match[0].toLowerCase() : '.png';
+}
+
+function getOverlayFileTypeLabel(imagePath) {
+    const extension = getOverlayFileExtension(imagePath).replace('.', '');
+    return extension ? extension.toUpperCase() : 'UNKNOWN';
 }
 
 // Download overlay
