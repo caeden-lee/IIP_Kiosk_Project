@@ -2482,6 +2482,19 @@ body {
     border-color: #667eea;
 }
 
+.add-overlay-form input[type="text"],
+.add-overlay-form input[type="number"] {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    -webkit-text-fill-color: #1e293b;
+    caret-color: #1e293b;
+}
+
+.add-overlay-form input[type="number"]::-webkit-inner-spin-button,
+.add-overlay-form input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
 /* ==================== QUESTION MANAGEMENT PAGE STYLES ==================== */
 
 /* Questions page container */

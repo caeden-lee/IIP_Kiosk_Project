@@ -334,12 +334,13 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const themeId = req.body.theme_id;
+        const extension = path.extname(file.originalname).toLowerCase();
         let filename;
         
         if (file.fieldname === 'desktop_file') {
-            filename = `${themeId}ThemeDesktop.png`;
+            filename = `${themeId}ThemeDesktop${extension}`;
         } else if (file.fieldname === 'mobile_file') {
-            filename = `${themeId}ThemeMobile.png`;
+            filename = `${themeId}ThemeMobile${extension}`;
         } else {
             return cb(new Error('Invalid file type'));
         }
@@ -352,16 +353,32 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'image/png') {
+        const allowedTypes = ['image/png', 'image/gif'];
+        const allowedExtensions = ['.png', '.gif'];
+        const extension = path.extname(file.originalname).toLowerCase();
+
+        if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(extension)) {
             cb(null, true);
         } else {
-            cb(new Error('Only PNG files are allowed'), false);
+            cb(new Error('Only PNG and animated GIF overlay files are allowed'), false);
         }
     },
     limits: {
         fileSize: 10 * 1024 * 1024 // 10MB limit
     }
 });
+
+function handleOverlayUploadErrors(err, req, res, next) {
+    if (!err) {
+        return next();
+    }
+
+    console.error('❌ Overlay upload failed:', err.message);
+    return res.status(400).json({
+        success: false,
+        error: err.message || 'Overlay upload failed'
+    });
+}
 
 const parameterBackgroundStorage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -3943,7 +3960,7 @@ router.get('/overlays', (req, res) => {
 router.post('/overlays', upload.fields([
     { name: 'desktop_file', maxCount: 1 },
     { name: 'mobile_file', maxCount: 1 }
-]), (req, res) => {
+]), handleOverlayUploadErrors, (req, res) => {
     const { display_name, theme_id } = req.body;
     const username = req.headers['x-username'] || 'systemadmin';
 
@@ -4045,19 +4062,6 @@ router.post('/overlays', upload.fields([
                     return res.status(500).json({ error: 'Database error: ' + err.message });
                 }
                 
-                // Enforce 6 overlay limit
-                if (result.count >= 6) {
-                    // Clean up files
-                    Object.values(req.files).forEach(files => {
-                        files.forEach(file => {
-                            if (fs.existsSync(file.path)) {
-                                fs.unlinkSync(file.path);
-                            }
-                        });
-                    });
-                    return res.status(400).json({ error: 'Maximum limit of 6 overlays reached. Cannot add more.' });
-                }
-                
                 // Validate input
                 if (!display_name || !theme_id) {
                     // Clean up files
@@ -4113,9 +4117,9 @@ router.post('/overlays', upload.fields([
                         return res.status(400).json({ error: 'Theme ID already exists. Please choose a different one.' });
                     }
                     
-                    // Generate filenames
-                    const desktop_filename = `/assets/overlays/DesktopOverlay/${theme_id}ThemeDesktop.png`;
-                    const mobile_filename = `/assets/overlays/MobileOverlay/${theme_id}ThemeMobile.png`;
+                    // Generate filenames from the saved upload names so PNG and GIF overlays are both supported.
+                    const desktop_filename = `/assets/overlays/DesktopOverlay/${req.files.desktop_file[0].filename}`;
+                    const mobile_filename = `/assets/overlays/MobileOverlay/${req.files.mobile_file[0].filename}`;
                     
                     // Get next display order
                     const maxOrderQuery = 'SELECT MAX(display_order) as max_order FROM overlays';

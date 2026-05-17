@@ -1031,9 +1031,17 @@ async function loadAuditLogs() {
     try {
         console.log('📋 Loading audit logs...');
         const response = await fetch(`/api/admin/audit-logs?limit=10000&offset=0`);
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            throw new Error(response.ok
+                ? 'Server returned an invalid upload response.'
+                : `Server returned an HTML error page (${response.status}). Please check the backend console.`);
+        }
         
-        if (data.success) {
+        if (response.ok && data.success) {
             allAuditLogs = data.logs || [];
             console.log(`✅ Loaded ${allAuditLogs.length} audit logs`);
             
@@ -4960,6 +4968,9 @@ function updateOverlayTable(overlays) {
 // View overlay function shows both desktop and mobile
 function viewOverlay(desktopImagePath, mobileImagePath, title, themeId) {
     console.log('Viewing overlay:', title);
+    const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+    const desktopExtension = getOverlayFileExtension(desktopImagePath);
+    const mobileExtension = getOverlayFileExtension(mobileImagePath);
     
     const overlayPopup = document.createElement('div');
     overlayPopup.className = 'overlay-preview-popup';
@@ -5048,7 +5059,7 @@ function viewOverlay(desktopImagePath, mobileImagePath, title, themeId) {
                         ${desktopImagePath}
                     </div>
                     
-                    <button onclick="downloadOverlay('${desktopImagePath}', '${title.replace(/[^a-zA-Z0-9]/g, '_')}_desktop.png')" 
+                    <button onclick="downloadOverlay('${desktopImagePath}', '${safeTitle}_desktop${desktopExtension}')" 
                             style="
                                 margin-top: 15px;
                                 padding: 8px 16px;
@@ -5105,7 +5116,7 @@ function viewOverlay(desktopImagePath, mobileImagePath, title, themeId) {
                         ${mobileImagePath}
                     </div>
                     
-                    <button onclick="downloadOverlay('${mobileImagePath}', '${title.replace(/[^a-zA-Z0-9]/g, '_')}_mobile.png')" 
+                    <button onclick="downloadOverlay('${mobileImagePath}', '${safeTitle}_mobile${mobileExtension}')" 
                             style="
                                 margin-top: 15px;
                                 padding: 8px 16px;
@@ -5195,6 +5206,12 @@ function handleOverlayImageError(imgElement, title) {
             </div>
         </div>
     `;
+}
+
+function getOverlayFileExtension(imagePath) {
+    const cleanPath = String(imagePath || '').split('?')[0];
+    const match = cleanPath.match(/\.[a-z0-9]+$/i);
+    return match ? match[0].toLowerCase() : '.png';
 }
 
 // Download overlay
@@ -5316,11 +5333,11 @@ function showAddOverlayModal() {
                             Desktop Image *
                         </label>
                         <input type="file" id="desktop-overlay-image" 
-                            accept=".png,.jpg,.jpeg,.webp"
+                            accept=".png,.gif,image/png,image/gif"
                             style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px;"
                             required>
                         <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
-                            Recommended: 1920x1080px PNG
+                            Recommended: 1920x1080px PNG or animated GIF
                         </div>
                     </div>
                     
@@ -5330,11 +5347,11 @@ function showAddOverlayModal() {
                             Mobile Image *
                         </label>
                         <input type="file" id="mobile-overlay-image" 
-                            accept=".png,.jpg,.jpeg,.webp"
+                            accept=".png,.gif,image/png,image/gif"
                             style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px;"
                             required>
                         <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
-                            Recommended: 1080x1920px PNG
+                            Recommended: 1080x1920px PNG or animated GIF
                         </div>
                     </div>
                 </div>
@@ -5417,6 +5434,14 @@ async function handleAddOverlay(event) {
     
     if (!desktopFileInput.files[0] || !mobileFileInput.files[0]) {
         errorDiv.textContent = 'Both desktop and mobile images are required';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    const allowedOverlayTypes = ['image/png', 'image/gif'];
+    const uploadedOverlayFiles = [desktopFileInput.files[0], mobileFileInput.files[0]];
+    if (!uploadedOverlayFiles.every(file => allowedOverlayTypes.includes(file.type))) {
+        errorDiv.textContent = 'Overlay files must be PNG or animated GIF format.';
         errorDiv.style.display = 'block';
         return;
     }
