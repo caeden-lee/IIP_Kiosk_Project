@@ -260,6 +260,7 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 //AI for sentiment analysis testing (Done by Yu Kang)
 const { pipeline } = require('@xenova/transformers');
+const { stdout } = require('process');
 
 let classifier;
 
@@ -1535,8 +1536,8 @@ function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaig
 
     const thisWeekItems = textItems.filter(item => item.dateKey >= thisWeekStart);
     const previousWeekItems = textItems.filter(item => item.dateKey >= previousWeekStart && item.dateKey < thisWeekStart);
-    const negativeThisWeek = thisWeekItems.filter(item => classifyInsightSentiment(item.text) === 'negative');
-    const negativePreviousWeek = previousWeekItems.filter(item => classifyInsightSentiment(item.text) === 'negative');
+    const negativeThisWeek = thisWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    const negativePreviousWeek = previousWeekItems.filter(item => classifySentiment(item.text) === 'negative');
     const negativeRate = thisWeekItems.length > 0 ? negativeThisWeek.length / thisWeekItems.length : 0;
 
     const foodWasteKeywords = ['food waste', 'food', 'meal', 'leftover', 'leftovers', 'canteen', 'waste food', 'throw food'];
@@ -7189,13 +7190,40 @@ router.post('/server/start', auth.requireAuth, (req, res) => {
     });
 });
 
-// POST /api/admin/server/stop
+
+// POST /api/admin/server/stop (Done by Yu Kang)
 // Manually stop the kiosk service
 router.post('/server/stop', auth.requireAuth, (req, res) => {
     const { exec } = require('child_process');
 
     console.log('⏹️  Manual server stop requested');
 
+    res.json({
+        success: true,
+        message: 'Computer entering hibernate mode. Please wait...'
+    });
+
+    setTimeout(() => { 
+        const batFile = path.join(__dirname, '../hibernate.bat');
+        console.log('💤 Running hibernate BAT file...', batFile);
+
+        exec(`cmd.exe /c "${batFile}"`, (err, stdout, stderr) => {
+            if (err) {
+                console.error('❌ Failed to execute hibernate BAT:', err);
+                return;
+            }
+
+            if (stderr) {
+                console.error('❌ Hibernate BAT error output:', stderr);
+            }
+
+            console.log ('✅ BAT executed');
+            console.log(stdout);
+        });
+    }, 3000);
+});
+
+    /*
     if (process.platform === 'win32') {
         const pid = readWindowsKioskPid();
 
@@ -7223,8 +7251,76 @@ router.post('/server/stop', auth.requireAuth, (req, res) => {
         });
         return;
     }
+    */
 
-    exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
+    /*if (process.platform === 'win32') {
+        const path = require('path');
+        const fs = require('fs');
+        const { spawn } = require('child_process');
+        const pid = readWindowsKioskPid();
+
+        const runHibernate = () => {
+
+            // Send response FIRST
+            res.json({
+                success: true,
+                message: 'Kiosk stopped. Computer entering hibernate mode.',
+                platform: 'windows'
+            });
+
+            // Wait for frontend to receive response
+            setTimeout(() => {
+                const batFile = path.join(__dirname, '../hibernate.bat');
+                console.log('💤 Running hibernate BAT file...', batFile);
+
+                if (!fs.existsSync(batFile)) {
+                    console.error('❌ Hibernate BAT file not found:', batFile);
+                    return;
+                }
+
+                const child = spawn('cmd.exe', ['/c', batFile], {
+                    cwd: __dirname,
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                });
+
+                child.on('error', (error) => {
+                    console.error('❌ Failed to start hibernate BAT:', error);
+                });
+
+                child.unref();
+                console.log('💤 Hibernate command executed');
+
+            }, 1500);
+        };
+
+        // Stop kiosk using PID
+        if (pid) {
+            exec(`taskkill /PID ${pid} /F`, (err) => {
+                if (err) {
+                    console.error('❌ Failed to stop kiosk process:', err);
+                }
+
+                runHibernate();
+                clearWindowsKioskPid();
+            });
+            return;
+        }
+
+    // Fallback process scan
+    exec(
+        'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \\"*kioskServer.js*\\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
+        () => {
+            runHibernate();
+            clearWindowsKioskPid();
+        }
+);
+    return;
+}*/
+
+
+    /*exec('sudo systemctl stop kiosk.service', (err, stdout, stderr) => {
         if (err) {
             console.error('❌ Failed to stop server:', stderr);
             return res.status(500).json({
@@ -7240,7 +7336,7 @@ router.post('/server/stop', auth.requireAuth, (req, res) => {
             platform: 'linux'
         });
     });
-});
+});*/
 
 // ==================== SERVER CONTROL MODE ROUTES ====================
 
