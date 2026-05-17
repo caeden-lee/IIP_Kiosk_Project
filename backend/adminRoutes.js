@@ -334,6 +334,7 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const themeId = req.body.theme_id;
+        // Preserve PNG/GIF extension for animated overlay uploads - changes made by nick
         const extension = path.extname(file.originalname).toLowerCase();
         let filename;
         
@@ -353,6 +354,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
+        // Allow static PNG and animated GIF overlay files - changes made by nick
         const allowedTypes = ['image/png', 'image/gif'];
         const allowedExtensions = ['.png', '.gif'];
         const extension = path.extname(file.originalname).toLowerCase();
@@ -368,6 +370,7 @@ const upload = multer({
     }
 });
 
+// Return upload validation errors as JSON instead of an HTML error page - changes made by nick
 function handleOverlayUploadErrors(err, req, res, next) {
     if (!err) {
         return next();

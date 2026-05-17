@@ -4915,6 +4915,7 @@ function updateOverlayTable(overlays) {
     overlays.forEach(overlay => {
         const overlayCard = document.createElement('div');
         overlayCard.className = 'overlay-card';
+        // Display saved overlay file type on each overlay card - changes made by nick
         const desktopFileType = getOverlayFileTypeLabel(overlay.desktop_filename);
         const mobileFileType = getOverlayFileTypeLabel(overlay.mobile_filename);
         
@@ -5220,6 +5221,7 @@ function getOverlayFileExtension(imagePath) {
     return match ? match[0].toLowerCase() : '.png';
 }
 
+// Convert overlay path extension into a readable file type label - changes made by nick
 function getOverlayFileTypeLabel(imagePath) {
     const extension = getOverlayFileExtension(imagePath).replace('.', '');
     return extension ? extension.toUpperCase() : 'UNKNOWN';
@@ -5337,6 +5339,7 @@ function showAddOverlayModal() {
                     </div>
                 </div>
                 
+                <!-- PNG/GIF overlay upload inputs with previews - changes made by nick -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <!-- Desktop Image -->
                     <div class="form-group">
@@ -5415,6 +5418,7 @@ function showAddOverlayModal() {
     initializeOverlayUploadPreviews();
 }
 
+// Attach preview handlers for desktop and mobile overlay uploads - changes made by nick
 function initializeOverlayUploadPreviews() {
     const desktopInput = document.getElementById('desktop-overlay-image');
     const mobileInput = document.getElementById('mobile-overlay-image');
@@ -5432,6 +5436,7 @@ function initializeOverlayUploadPreviews() {
     }
 }
 
+// Show a selected PNG/GIF overlay preview below the file input - changes made by nick
 function showOverlayUploadPreview(inputId, previewId) {
     const input = document.getElementById(inputId);
     const preview = document.getElementById(previewId);
@@ -5466,6 +5471,7 @@ function showOverlayUploadPreview(inputId, previewId) {
     preview.style.display = 'block';
 }
 
+// Clear selected overlay file and remove its preview - changes made by nick
 function clearOverlayUploadPreview(inputId, previewId) {
     const input = document.getElementById(inputId);
     const preview = document.getElementById(previewId);
@@ -5521,6 +5527,7 @@ async function handleAddOverlay(event) {
         return;
     }
 
+    // Validate admin overlay upload format before sending to backend - changes made by nick
     const allowedOverlayTypes = ['image/png', 'image/gif'];
     const uploadedOverlayFiles = [desktopFileInput.files[0], mobileFileInput.files[0]];
     if (!uploadedOverlayFiles.every(file => allowedOverlayTypes.includes(file.type))) {

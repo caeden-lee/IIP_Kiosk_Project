@@ -2495,6 +2495,7 @@ body {
     opacity: 1;
 }
 
+/* Overlay upload image preview and remove button - changes made by nick */
 .overlay-upload-preview {
     margin-top: 12px;
 }
