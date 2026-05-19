@@ -115,6 +115,10 @@
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
         }
 
+        .floating-language-selector[hidden] {
+            display: none;
+        }
+
         .floating-language-selector button {
             padding: 7px 10px;
             font-size: 13px;
@@ -140,7 +144,7 @@
 </head>
 <body>
     <!-- Global language switcher: click/tap or use Alt+1 English, Alt+2 Chinese, Alt+3 Malay, Alt+4 Tamil (Done by Caeden) -->
-    <div class="language-selector floating-language-selector" aria-label="Choose feedback form language">
+    <div class="language-selector floating-language-selector" aria-label="Choose feedback form language" hidden>
         <button type="button" onclick="setLanguage('en')" data-lang="en" class="active" title="Alt+1">English</button>
         <button type="button" onclick="setLanguage('zh')" data-lang="zh" title="Alt+2">&#20013;&#25991;</button>
         <button type="button" onclick="setLanguage('ms')" data-lang="ms" title="Alt+3">Bahasa Melayu</button>

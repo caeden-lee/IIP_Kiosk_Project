@@ -109,7 +109,8 @@ const DEFAULT_CONFIG = {
     pledgeEnabled: true,
     badgeEmailEnabled: true,
     thankYouEmailEnabled: true,
-    socialSharingEnabled: true
+    socialSharingEnabled: true,
+    floatingLanguageSelectorEnabled: false
   },
   // Centralized validation rules configurable from the admin panel (DONE BY CAEDEN)
   validationRules: {
@@ -161,12 +162,19 @@ const DEFAULT_CONFIG = {
   },
   layoutSettings: {
     landingTextScale: 1,
+    landingPanelWidth: 600,
+    landingPanelMinHeight: 0,
+    landingPanelPadding: 60,
     landingPanelOffsetX: 0,
     landingPanelOffsetY: 0,
     startButtonOffsetX: 0,
     startButtonOffsetY: 0,
     startButtonWidth: 280,
-    startButtonHeight: 64
+    startButtonHeight: 64,
+    pledgeboardButtonOffsetX: 0,
+    pledgeboardButtonOffsetY: 0,
+    pledgeboardButtonWidth: 600,
+    pledgeboardButtonHeight: 64
   }
 };
 
