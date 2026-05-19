@@ -11976,12 +11976,19 @@ async function saveBadgeEmailTemplates() {
 
 const DEFAULT_LANDING_LAYOUT_SETTINGS = {
     landingTextScale: 1,
+    landingPanelWidth: 600,
+    landingPanelMinHeight: 0,
+    landingPanelPadding: 60,
     landingPanelOffsetX: 0,
     landingPanelOffsetY: 0,
     startButtonOffsetX: 0,
     startButtonOffsetY: 0,
     startButtonWidth: 280,
-    startButtonHeight: 64
+    startButtonHeight: 64,
+    pledgeboardButtonOffsetX: 0,
+    pledgeboardButtonOffsetY: 0,
+    pledgeboardButtonWidth: 600,
+    pledgeboardButtonHeight: 64
 };
 
 function switchParameterTab(tabId) {
@@ -12065,12 +12072,19 @@ function clampNumber(value, min, max, fallback) {
 function getLandingLayoutValues() {
     return {
         landingTextScale: clampNumber(getInputValue('layout-landingTextScale'), 0.75, 1.4, 1),
+        landingPanelWidth: clampNumber(getInputValue('layout-landingPanelWidth'), 360, 1000, 600),
+        landingPanelMinHeight: clampNumber(getInputValue('layout-landingPanelMinHeight'), 0, 900, 0),
+        landingPanelPadding: clampNumber(getInputValue('layout-landingPanelPadding'), 20, 120, 60),
         landingPanelOffsetX: clampNumber(getInputValue('layout-landingPanelOffsetX'), -360, 360, 0),
         landingPanelOffsetY: clampNumber(getInputValue('layout-landingPanelOffsetY'), -220, 220, 0),
         startButtonOffsetX: clampNumber(getInputValue('layout-startButtonOffsetX'), -220, 220, 0),
         startButtonOffsetY: clampNumber(getInputValue('layout-startButtonOffsetY'), -160, 160, 0),
         startButtonWidth: clampNumber(getInputValue('layout-startButtonWidth'), 180, 600, 280),
-        startButtonHeight: clampNumber(getInputValue('layout-startButtonHeight'), 44, 120, 64)
+        startButtonHeight: clampNumber(getInputValue('layout-startButtonHeight'), 44, 120, 64),
+        pledgeboardButtonOffsetX: clampNumber(getInputValue('layout-pledgeboardButtonOffsetX'), -220, 220, 0),
+        pledgeboardButtonOffsetY: clampNumber(getInputValue('layout-pledgeboardButtonOffsetY'), -160, 160, 0),
+        pledgeboardButtonWidth: clampNumber(getInputValue('layout-pledgeboardButtonWidth'), 180, 900, 600),
+        pledgeboardButtonHeight: clampNumber(getInputValue('layout-pledgeboardButtonHeight'), 44, 140, 64)
     };
 }
 
@@ -12106,29 +12120,50 @@ function updateLandingLayoutPreview() {
         previewStage.style.setProperty('--preview-button-y', `${Math.round(layout.startButtonOffsetY * 0.45)}px`);
         previewStage.style.setProperty('--preview-button-width', `${Math.round(layout.startButtonWidth * 0.45)}px`);
         previewStage.style.setProperty('--preview-button-height', `${Math.round(layout.startButtonHeight * 0.45)}px`);
+        previewStage.style.setProperty('--preview-panel-width', `${Math.round(layout.landingPanelWidth * 0.45)}px`);
+        previewStage.style.setProperty('--preview-panel-min-height', `${Math.round(layout.landingPanelMinHeight * 0.45)}px`);
+        previewStage.style.setProperty('--preview-panel-padding', `${Math.round(layout.landingPanelPadding * 0.45)}px`);
+        previewStage.style.setProperty('--preview-pledge-button-x', `${Math.round(layout.pledgeboardButtonOffsetX * 0.45)}px`);
+        previewStage.style.setProperty('--preview-pledge-button-y', `${Math.round(layout.pledgeboardButtonOffsetY * 0.45)}px`);
+        previewStage.style.setProperty('--preview-pledge-button-width', `${Math.round(layout.pledgeboardButtonWidth * 0.45)}px`);
+        previewStage.style.setProperty('--preview-pledge-button-height', `${Math.round(layout.pledgeboardButtonHeight * 0.45)}px`);
     }
 }
 
 function resetLandingLayoutPreview() {
     setInputValue('layout-landingTextScale', 1);
+    setInputValue('layout-landingPanelWidth', 600);
+    setInputValue('layout-landingPanelMinHeight', 0);
+    setInputValue('layout-landingPanelPadding', 60);
     setInputValue('layout-landingPanelOffsetX', 0);
     setInputValue('layout-landingPanelOffsetY', 0);
     setInputValue('layout-startButtonOffsetX', 0);
     setInputValue('layout-startButtonOffsetY', 0);
     setInputValue('layout-startButtonWidth', 280);
     setInputValue('layout-startButtonHeight', 64);
+    setInputValue('layout-pledgeboardButtonOffsetX', 0);
+    setInputValue('layout-pledgeboardButtonOffsetY', 0);
+    setInputValue('layout-pledgeboardButtonWidth', 600);
+    setInputValue('layout-pledgeboardButtonHeight', 64);
     updateLandingLayoutPreview();
 }
 
 function bindLandingLayoutPreview() {
     [
         'layout-landingTextScale',
+        'layout-landingPanelWidth',
+        'layout-landingPanelMinHeight',
+        'layout-landingPanelPadding',
         'layout-landingPanelOffsetX',
         'layout-landingPanelOffsetY',
         'layout-startButtonOffsetX',
         'layout-startButtonOffsetY',
         'layout-startButtonWidth',
-        'layout-startButtonHeight'
+        'layout-startButtonHeight',
+        'layout-pledgeboardButtonOffsetX',
+        'layout-pledgeboardButtonOffsetY',
+        'layout-pledgeboardButtonWidth',
+        'layout-pledgeboardButtonHeight'
     ].forEach(id => {
         const input = document.getElementById(id);
         if (input && !input.dataset.previewBound) {
@@ -12193,6 +12228,7 @@ function populateParameterForm(config) {
     setCheckedValue('flag-badgeEmailEnabled', flags.badgeEmailEnabled);
     setCheckedValue('flag-thankYouEmailEnabled', flags.thankYouEmailEnabled);
     setCheckedValue('flag-socialSharingEnabled', flags.socialSharingEnabled);
+    setCheckedValue('flag-floatingLanguageSelectorEnabled', flags.floatingLanguageSelectorEnabled === true);
 
     setCheckedValue('rule-nameRequired', rules.nameRequired);
     setInputValue('rule-nameMinLength', rules.nameMinLength);
@@ -12243,12 +12279,19 @@ function populateParameterForm(config) {
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
     setInputValue('layout-landingTextScale', layout.landingTextScale ?? 1);
+    setInputValue('layout-landingPanelWidth', layout.landingPanelWidth ?? 600);
+    setInputValue('layout-landingPanelMinHeight', layout.landingPanelMinHeight ?? 0);
+    setInputValue('layout-landingPanelPadding', layout.landingPanelPadding ?? 60);
     setInputValue('layout-landingPanelOffsetX', layout.landingPanelOffsetX ?? 0);
     setInputValue('layout-landingPanelOffsetY', layout.landingPanelOffsetY ?? 0);
     setInputValue('layout-startButtonOffsetX', layout.startButtonOffsetX ?? 0);
     setInputValue('layout-startButtonOffsetY', layout.startButtonOffsetY ?? 0);
     setInputValue('layout-startButtonWidth', layout.startButtonWidth ?? 280);
     setInputValue('layout-startButtonHeight', layout.startButtonHeight ?? 64);
+    setInputValue('layout-pledgeboardButtonOffsetX', layout.pledgeboardButtonOffsetX ?? 0);
+    setInputValue('layout-pledgeboardButtonOffsetY', layout.pledgeboardButtonOffsetY ?? 0);
+    setInputValue('layout-pledgeboardButtonWidth', layout.pledgeboardButtonWidth ?? 600);
+    setInputValue('layout-pledgeboardButtonHeight', layout.pledgeboardButtonHeight ?? 64);
     bindLandingLayoutPreview();
     updateLandingLayoutPreview();
     // Leaf image preview - Done by Yu Kang
@@ -12326,7 +12369,8 @@ function collectParameterForm() {
             pledgeEnabled: getCheckedValue('flag-pledgeEnabled'),
             badgeEmailEnabled: getCheckedValue('flag-badgeEmailEnabled'),
             thankYouEmailEnabled: getCheckedValue('flag-thankYouEmailEnabled'),
-            socialSharingEnabled: getCheckedValue('flag-socialSharingEnabled')
+            socialSharingEnabled: getCheckedValue('flag-socialSharingEnabled'),
+            floatingLanguageSelectorEnabled: getCheckedValue('flag-floatingLanguageSelectorEnabled')
         },
         // Centralized validation rules controlled by admin configuration (DONE BY CAEDEN)
         validationRules: {

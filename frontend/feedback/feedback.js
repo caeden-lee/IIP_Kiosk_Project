@@ -2975,12 +2975,19 @@ function clampLayoutNumber(value, min, max, fallback) {
 function applyLandingLayoutSettings(layout = {}) {
     const root = document.documentElement;
     const textScale = clampLayoutNumber(layout.landingTextScale, 0.75, 1.4, 1);
+    const panelWidth = clampLayoutNumber(layout.landingPanelWidth, 360, 1000, 600);
+    const panelMinHeight = clampLayoutNumber(layout.landingPanelMinHeight, 0, 900, 0);
+    const panelPadding = clampLayoutNumber(layout.landingPanelPadding, 20, 120, 60);
     const panelX = clampLayoutNumber(layout.landingPanelOffsetX, -360, 360, 0);
     const panelY = clampLayoutNumber(layout.landingPanelOffsetY, -220, 220, 0);
     const buttonX = clampLayoutNumber(layout.startButtonOffsetX, -220, 220, 0);
     const buttonY = clampLayoutNumber(layout.startButtonOffsetY, -160, 160, 0);
     const buttonWidth = clampLayoutNumber(layout.startButtonWidth, 180, 600, 280);
     const buttonHeight = clampLayoutNumber(layout.startButtonHeight, 44, 120, 64);
+    const pledgeButtonX = clampLayoutNumber(layout.pledgeboardButtonOffsetX, -220, 220, 0);
+    const pledgeButtonY = clampLayoutNumber(layout.pledgeboardButtonOffsetY, -160, 160, 0);
+    const pledgeButtonWidth = clampLayoutNumber(layout.pledgeboardButtonWidth, 180, 900, 600);
+    const pledgeButtonHeight = clampLayoutNumber(layout.pledgeboardButtonHeight, 44, 140, 64);
 
     root.style.setProperty('--landing-text-scale', textScale);
     root.style.setProperty('--landing-title-size', `${Math.round(48 * textScale)}px`);
@@ -2989,6 +2996,9 @@ function applyLandingLayoutSettings(layout = {}) {
     root.style.setProperty('--landing-brand-size', `${Math.round(16 * textScale)}px`);
     root.style.setProperty('--landing-control-size', `${Math.round(14 * textScale)}px`);
     root.style.setProperty('--landing-button-size', `${Math.round(16 * textScale)}px`);
+    root.style.setProperty('--landing-panel-width', `${panelWidth}px`);
+    root.style.setProperty('--landing-panel-min-height', `${panelMinHeight}px`);
+    root.style.setProperty('--landing-panel-padding', `${panelPadding}px`);
     root.style.setProperty('--landing-panel-x', `${panelX}px`);
     root.style.setProperty('--landing-panel-y', `${panelY}px`);
     root.style.setProperty('--landing-panel-mobile-x', `${Math.round(panelX * 0.45)}px`);
@@ -2999,6 +3009,12 @@ function applyLandingLayoutSettings(layout = {}) {
     root.style.setProperty('--start-button-height', `${buttonHeight}px`);
     root.style.setProperty('--start-button-mobile-width', `${Math.round(buttonWidth * 0.75)}px`);
     root.style.setProperty('--start-button-mobile-height', `${Math.round(buttonHeight * 0.85)}px`);
+    root.style.setProperty('--pledgeboard-button-x', `${pledgeButtonX}px`);
+    root.style.setProperty('--pledgeboard-button-y', `${pledgeButtonY}px`);
+    root.style.setProperty('--pledgeboard-button-width', `${pledgeButtonWidth}px`);
+    root.style.setProperty('--pledgeboard-button-height', `${pledgeButtonHeight}px`);
+    root.style.setProperty('--pledgeboard-button-mobile-width', `${Math.round(pledgeButtonWidth * 0.75)}px`);
+    root.style.setProperty('--pledgeboard-button-mobile-height', `${Math.round(pledgeButtonHeight * 0.85)}px`);
 }
 
 function applyParameterOverrides() {
@@ -3026,6 +3042,11 @@ function applyParameterOverrides() {
 
     const uploadPage = document.getElementById('file-upload-page');
     if (uploadPage) uploadPage.dataset.featureEnabled = String(flags.photoUploadEnabled !== false);
+
+    const floatingLanguageSelector = document.querySelector('.floating-language-selector');
+    if (floatingLanguageSelector) {
+        floatingLanguageSelector.hidden = flags.floatingLanguageSelectorEnabled !== true;
+    }
 
     const photoInput = document.getElementById('photo-input');
     if (photoInput && Array.isArray(rules.allowedPhotoFormats)) {
@@ -3076,6 +3097,7 @@ function getFeatureFlags() {
         badgeEmailEnabled: true,
         thankYouEmailEnabled: true,
         socialSharingEnabled: true,
+        floatingLanguageSelectorEnabled: false,
         ...(kioskParameters.featureFlags || {})
     };
 }

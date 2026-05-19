@@ -2077,6 +2077,23 @@
 
                                 <div class="form-row">
                                     <div class="form-group">
+                                        <label for="layout-landingPanelWidth">White Panel Width</label>
+                                        <input type="number" id="layout-landingPanelWidth" min="360" max="1000" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-landingPanelMinHeight">White Panel Minimum Height</label>
+                                        <input type="number" id="layout-landingPanelMinHeight" min="0" max="900" step="10">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="layout-landingPanelPadding">White Panel Inner Spacing</label>
+                                    <input type="number" id="layout-landingPanelPadding" min="20" max="120" step="4">
+                                    <small class="text-muted">Increase this to make the white landing area feel roomier</small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
                                         <label for="layout-landingPanelOffsetX">Form Position X</label>
                                         <input type="number" id="layout-landingPanelOffsetX" min="-360" max="360" step="10">
                                         <small class="text-muted">Negative moves left, positive moves right</small>
@@ -2107,6 +2124,32 @@
                                     <div class="form-group">
                                         <label for="layout-startButtonHeight">Start Button Height</label>
                                         <input type="number" id="layout-startButtonHeight" min="44" max="120" step="4">
+                                    </div>
+                                </div>
+
+                                <div class="parameter-field-heading compact-heading">
+                                    <h4>View Pledgeboards Button</h4>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-pledgeboardButtonOffsetX">Pledgeboard Button Position X</label>
+                                        <input type="number" id="layout-pledgeboardButtonOffsetX" min="-220" max="220" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-pledgeboardButtonOffsetY">Pledgeboard Button Position Y</label>
+                                        <input type="number" id="layout-pledgeboardButtonOffsetY" min="-160" max="160" step="10">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="layout-pledgeboardButtonWidth">Pledgeboard Button Width</label>
+                                        <input type="number" id="layout-pledgeboardButtonWidth" min="180" max="900" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="layout-pledgeboardButtonHeight">Pledgeboard Button Height</label>
+                                        <input type="number" id="layout-pledgeboardButtonHeight" min="44" max="140" step="4">
                                     </div>
                                 </div>
 
@@ -2293,6 +2336,7 @@
                             <label class="parameter-toggle-card"><input type="checkbox" id="flag-badgeEmailEnabled"><span><strong>Badge Email</strong><small>Send badge reward emails during feedback submission</small></span></label>
                             <label class="parameter-toggle-card"><input type="checkbox" id="flag-thankYouEmailEnabled"><span><strong>Photo Thank You Email</strong><small>Send the visitor photo thank-you email after database save</small></span></label>
                             <label class="parameter-toggle-card"><input type="checkbox" id="flag-socialSharingEnabled"><span><strong>Social Sharing</strong><small>Show the thank-you page social sharing controls</small></span></label>
+                            <label class="parameter-toggle-card"><input type="checkbox" id="flag-floatingLanguageSelectorEnabled"><span><strong>Floating Language Bar</strong><small>Show the always-visible language switcher at the top of the feedback page</small></span></label>
                         </div>
                     </div>
 
