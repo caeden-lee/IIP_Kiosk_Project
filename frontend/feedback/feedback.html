@@ -407,13 +407,41 @@
             <h2 class="consent-title" id="pledge-title">Make Your Pledge</h2>
             <p class="consent-description" id="pledge-description">Choose one action you can try after today.</p>
 
-            <div class="pledge-examples">
-                <p class="examples-header" id="pledge-examples-header">Pledge Examples:</p>
-                <ul class="examples-list">
-                    <li id="pledge-example-1">Carry a reusable bottle and cutlery every day</li>
-                    <li id="pledge-example-2">Sort waste properly and recycle whenever possible</li>
-                    <li id="pledge-example-3">Reduce food waste by taking only what I can finish</li>
-                </ul>
+            <div class="pledge-coach" id="pledge-coach">
+                <div class="pledge-coach-header">
+                    <span><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <div>
+                        <p class="examples-header" id="pledge-examples-header">Smart Pledge Coach</p>
+                        <strong id="pledge-coach-title">Make your pledge easier to act on</strong>
+                    </div>
+                </div>
+                <p id="pledge-coach-feedback" class="pledge-coach-feedback">
+                    Type your pledge below. The coach will suggest one small improvement.
+                </p>
+                <div class="pledge-quality" aria-label="Pledge quality score">
+                    <div class="pledge-quality-topline">
+                        <strong id="pledge-quality-score">Pledge strength: 0/3</strong>
+                        <span id="pledge-quality-label">Needs details</span>
+                    </div>
+                    <div class="pledge-quality-bar" aria-hidden="true">
+                        <span id="pledge-quality-fill"></span>
+                    </div>
+                    <div class="pledge-quality-checks">
+                        <span id="pledge-check-action">Specific action</span>
+                        <span id="pledge-check-measure">Measurable target</span>
+                        <span id="pledge-check-time">Timeframe</span>
+                    </div>
+                </div>
+                <div class="pledge-coach-suggestion">
+                    <span>Try this:</span>
+                    <p id="pledge-coach-suggestion">Choose a focus area or start typing to get a specific pledge.</p>
+                </div>
+                <p id="pledge-coach-reason" class="pledge-coach-reason">
+                    A stronger pledge says what you will do, how often, and by when.
+                </p>
+                <button type="button" id="apply-pledge-suggestion-btn" class="coach-apply-button" onclick="applyPledgeCoachSuggestion()" disabled>
+                    Use Suggestion
+                </button>
             </div>
 
             <form class="details-form" onsubmit="submitPledge(event)" novalidate>
@@ -798,6 +826,50 @@
                     <div>
                         <strong id="celebration-keepsake-title">Your keepsake is ready</strong>
                         <p id="celebration-keepsake-copy">Your photo and ESG contribution are now part of the kiosk story.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="journey-passport" class="journey-passport" aria-label="Visitor journey passport">
+                <div class="passport-header">
+                    <span>Visitor Journey Passport</span>
+                    <strong id="passport-title">Your kiosk visit is complete</strong>
+                </div>
+                <div class="passport-stamps">
+                    <div id="passport-feedback-stamp" class="passport-stamp complete">
+                        <span class="passport-icon"><i class="fa-solid fa-check"></i></span>
+                        <span>
+                            <strong>Feedback submitted</strong>
+                            <small id="passport-feedback-detail">Your answers were recorded.</small>
+                        </span>
+                    </div>
+                    <div id="passport-pledge-stamp" class="passport-stamp complete">
+                        <span class="passport-icon"><i class="fa-solid fa-pen"></i></span>
+                        <span>
+                            <strong id="passport-pledge-title">Pledge made</strong>
+                            <small id="passport-pledge-detail">Your action joined the pledgeboard.</small>
+                        </span>
+                    </div>
+                    <div id="passport-badge-stamp" class="passport-stamp complete">
+                        <span class="passport-icon"><i class="fa-solid fa-award"></i></span>
+                        <span>
+                            <strong id="passport-badge-title">Badge earned</strong>
+                            <small id="passport-badge-detail">Feedback Contributor unlocked.</small>
+                        </span>
+                    </div>
+                    <div id="passport-tree-stamp" class="passport-stamp complete">
+                        <span class="passport-icon"><i class="fa-solid fa-tree"></i></span>
+                        <span>
+                            <strong>Tree leaf added</strong>
+                            <small id="passport-tree-detail">Your leaf is growing the ESG tree.</small>
+                        </span>
+                    </div>
+                    <div id="passport-photo-stamp" class="passport-stamp complete">
+                        <span class="passport-icon"><i class="fa-solid fa-envelope"></i></span>
+                        <span>
+                            <strong id="passport-photo-title">Photo email queued</strong>
+                            <small id="passport-photo-detail">Your keepsake will arrive shortly.</small>
+                        </span>
                     </div>
                 </div>
             </section>

@@ -439,24 +439,46 @@ h1 {
     gap: 12px;
 }
 
-/* Pledge examples */
-.pledge-examples {
+/* Smart pledge coach */
+.pledge-coach {
+    display: grid;
+    gap: 14px;
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     border: 1px solid #bae6fd;
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 20px 24px;
     margin-bottom: 25px;
     text-align: left;
+    box-shadow: 0 12px 28px rgba(24, 57, 43, 0.08);
+}
+
+.pledge-coach-header {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+}
+
+.pledge-coach-header > span {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: #2f6f45;
+    border-radius: 999px;
+    box-shadow: 0 10px 20px rgba(47, 111, 69, 0.2);
 }
 
 .examples-header {
     font-size: 14px;
     font-weight: 600;
-    color: #0369a1;
-    margin-bottom: 12px;
+    color: #2f6f45;
+    margin: 0 0 4px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: center;
+    letter-spacing: 0;
+    text-align: left;
 }
 
 .examples-list {
@@ -483,6 +505,146 @@ h1 {
     color: #0284c7;
     font-size: 18px;
     font-weight: bold;
+}
+
+.pledge-coach-header strong {
+    color: #18392b;
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+.pledge-coach-feedback {
+    margin: 0;
+    color: #496656;
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.pledge-quality {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(74, 124, 89, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.58);
+}
+
+.pledge-quality-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pledge-quality-topline strong {
+    color: #18392b;
+    font-size: 14px;
+}
+
+.pledge-quality-topline span {
+    color: #2f6f45;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.pledge-quality-bar {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(74, 124, 89, 0.14);
+}
+
+.pledge-quality-bar span {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4a7c59, #10b981);
+    transition: width 0.22s ease;
+}
+
+.pledge-quality-checks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.pledge-quality-checks span {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    border: 1px solid rgba(74, 124, 89, 0.18);
+    border-radius: 8px;
+    color: #64748b;
+    background: rgba(255, 255, 255, 0.62);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.pledge-quality-checks span.complete {
+    color: #166534;
+    border-color: rgba(22, 101, 52, 0.24);
+    background: rgba(220, 252, 231, 0.76);
+}
+
+.pledge-coach-suggestion {
+    padding: 14px 16px;
+    border-left: 4px solid #4a7c59;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.pledge-coach-suggestion span {
+    display: block;
+    margin-bottom: 6px;
+    color: #2f6f45;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.pledge-coach-suggestion p {
+    margin: 0;
+    color: #18392b;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.pledge-coach-reason {
+    margin: -4px 0 0;
+    color: #496656;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.coach-apply-button {
+    justify-self: start;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 1px solid rgba(47, 111, 69, 0.28);
+    border-radius: 8px;
+    color: white;
+    background: #2f6f45;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.coach-apply-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(47, 111, 69, 0.18);
+}
+
+.coach-apply-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 /* Retention options grid */
@@ -1690,7 +1852,7 @@ h1 {
 .right-section,
 .retention-option,
 .privacy-notice,
-.pledge-examples,
+.pledge-coach,
 .theme-option,
 .upload-instructions,
 .file-upload-area,
@@ -1707,12 +1869,12 @@ h1 {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 44px rgba(0, 0, 0, 0.22);
 }
 
-.pledge-examples {
+.pledge-coach {
     background: rgba(139, 215, 193, 0.1) !important;
     border-color: rgba(139, 215, 193, 0.28) !important;
 }
 
-.examples-list li {
+.pledge-coach-suggestion p {
     color: #d7f7ee !important;
 }
 
@@ -1983,7 +2145,7 @@ h1 {
 .right-section,
 .retention-option,
 .privacy-notice,
-.pledge-examples,
+.pledge-coach,
 .theme-option,
 .upload-instructions,
 .file-upload-area,
@@ -1993,13 +2155,13 @@ h1 {
 }
 
 .right-section,
-.pledge-examples {
+.pledge-coach {
     background:
         radial-gradient(circle at top, rgba(127, 176, 105, 0.18), transparent 44%),
         rgba(247, 252, 242, 0.86) !important;
 }
 
-.examples-list li {
+.pledge-coach-suggestion p {
     color: #2f5d43 !important;
 }
 
@@ -2239,6 +2401,133 @@ h1 {
     line-height: 1.45;
 }
 
+.journey-passport {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 24px;
+    padding: 18px;
+    text-align: left;
+    border: 1px dashed rgba(47, 111, 69, 0.34);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(241, 248, 238, 0.9));
+    box-shadow: 0 14px 30px rgba(24, 57, 43, 0.08);
+}
+
+.passport-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid rgba(74, 124, 89, 0.16);
+    padding-bottom: 12px;
+}
+
+.passport-header span {
+    color: #2f6f45;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.passport-header strong {
+    color: #18392b;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.passport-stamps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 10px;
+}
+
+.passport-stamp {
+    min-height: 118px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(74, 124, 89, 0.16);
+    background: rgba(255, 255, 255, 0.72);
+    color: #18392b;
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.journey-passport.is-ready .passport-stamp {
+    animation: passportStampIn 420ms ease-out forwards;
+}
+
+.journey-passport.is-ready .passport-stamp:nth-child(2) {
+    animation-delay: 70ms;
+}
+
+.journey-passport.is-ready .passport-stamp:nth-child(3) {
+    animation-delay: 140ms;
+}
+
+.journey-passport.is-ready .passport-stamp:nth-child(4) {
+    animation-delay: 210ms;
+}
+
+.journey-passport.is-ready .passport-stamp:nth-child(5) {
+    animation-delay: 280ms;
+}
+
+.passport-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: white;
+    background: #2f6f45;
+    box-shadow: 0 10px 18px rgba(47, 111, 69, 0.18);
+}
+
+.passport-stamp.optional .passport-icon {
+    background: #64748b;
+}
+
+.passport-stamp.pending .passport-icon {
+    background: #d97706;
+}
+
+.passport-stamp strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.passport-stamp small {
+    display: block;
+    color: #496656;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.passport-stamp.optional,
+.passport-stamp.pending {
+    background: rgba(248, 250, 252, 0.82);
+}
+
+@keyframes passportStampIn {
+    0% {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @keyframes celebrationPop {
     0% {
         opacity: 0;
@@ -2302,8 +2591,30 @@ h1 {
         grid-template-columns: 1fr;
     }
 
+    .pledge-quality-topline {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .pledge-quality-checks {
+        grid-template-columns: 1fr;
+    }
+
     .celebration-impact-grid {
         grid-template-columns: 1fr;
+    }
+
+    .passport-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .passport-stamps {
+        grid-template-columns: 1fr;
+    }
+
+    .passport-stamp {
+        min-height: 0;
     }
 
     .celebration-keepsake {
