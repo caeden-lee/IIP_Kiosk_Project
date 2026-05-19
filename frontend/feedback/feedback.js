@@ -199,6 +199,15 @@ const BEAUTY_SMOOTH_FILTER_CSS = 'blur(7px) brightness(1.18) contrast(0.78) satu
 const BEAUTY_DETAIL_FILTER_CSS = 'contrast(1.02) saturate(1.08)'; // detail recovery done by nick
 const BEAUTY_FACE_SMOOTH_FILTER_CSS = 'blur(12px) brightness(1.16) contrast(0.78) saturate(1.12)'; // feathered acne cover smoothing done by nick
 const BEAUTY_FACE_SLIM_RATIO = 0.84; // cleaner face slimming strength done by nick
+const PLEDGE_COACH_TOPIC_SUGGESTIONS = {
+    'climate-change': 'Take public transport or walk for 2 trips this week.',
+    'renewable-energy': 'Switch off unused lights and chargers every day this week.',
+    'sustainable-living': 'Bring a reusable bottle for 3 school days this week.',
+    'ocean-conservation': 'Avoid single-use plastic for lunch 3 times this week.',
+    'ethical-governance': 'Share one responsible sustainability habit with a friend this week.',
+    'community-impact': 'Invite one friend to join a green habit with me this week.'
+};
+let pledgeCoachSuggestion = '';
 
 const FLOW_STEPS = [
     { key: 'consent', label: 'Consent', pageIds: ['consent-page'] },
@@ -549,9 +558,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pledgeTextarea) {
         pledgeTextarea.addEventListener('input', function() {
             document.getElementById('char-count').textContent = this.value.length;
+            updatePledgeCoach();
             resetInactivityTimer(); // Reset timer on user input
         });
     }
+
+    const pledgeTopicSelect = document.getElementById('pledge-topic');
+    if (pledgeTopicSelect) {
+        pledgeTopicSelect.addEventListener('change', function() {
+            updatePledgeCoach();
+            resetInactivityTimer();
+        });
+    }
+
+    updatePledgeCoach();
 
     // Add event listener for capture button
     const captureBtn = document.getElementById('capture-btn');
@@ -1041,6 +1061,150 @@ function validateRequiredQuestions() {
     return true;
 }
 
+function getPledgeCoachDefaultSuggestion(topic) {
+    return PLEDGE_COACH_TOPIC_SUGGESTIONS[topic] || 'Bring a reusable bottle for 3 school days this week.';
+}
+
+function hasPledgeTimeframe(text) {
+    return /\b(today|tomorrow|daily|every day|this week|weekly|weekend|month|for \d+|[1-9]\d?\s*(day|days|week|weeks|time|times))\b/i.test(text);
+}
+
+function hasPledgeActionQuantity(text) {
+    return /\b\d+\b/.test(text) || /\b(one|two|three|four|five|once|twice)\b/i.test(text);
+}
+
+function hasSpecificPledgeAction(text) {
+    return /\b(bring|carry|use|reuse|recycle|sort|reduce|avoid|switch|turn off|save|walk|take|share|invite|finish|choose|buy|donate|volunteer|clean)\b/i.test(text);
+}
+
+function getPledgeQuality(text) {
+    const hasText = Boolean(text.trim());
+    const action = hasText && hasSpecificPledgeAction(text);
+    const measure = hasText && hasPledgeActionQuantity(text);
+    const timeframe = hasText && hasPledgeTimeframe(text);
+    const score = [action, measure, timeframe].filter(Boolean).length;
+
+    return {
+        action,
+        measure,
+        timeframe,
+        score,
+        label: score === 3 ? 'Action-ready' : score === 2 ? 'Almost there' : score === 1 ? 'Good start' : 'Needs details'
+    };
+}
+
+function getPledgeCoachReason(quality, suggestionMatchesText) {
+    if (quality.score === 3 && suggestionMatchesText) {
+        return 'Strong pledge: it has a clear action, measurable target, and timeframe.';
+    }
+
+    const missing = [];
+    if (!quality.action) missing.push('a clear action');
+    if (!quality.measure) missing.push('a measurable target');
+    if (!quality.timeframe) missing.push('a timeframe');
+
+    if (!missing.length) {
+        return 'Better because it keeps the pledge clear and easy to try.';
+    }
+
+    return `Better because it adds ${missing.join(', ')}.`;
+}
+
+function buildSpecificPledgeSuggestion(rawText, topic) {
+    const text = rawText.trim();
+    if (!text) {
+        return getPledgeCoachDefaultSuggestion(topic);
+    }
+
+    const cleaned = text
+        .replace(/^i\s+(pledge|will|promise|want)\s+(to\s+)?/i, '')
+        .replace(/[.!?]+$/g, '')
+        .trim();
+
+    if (!cleaned) {
+        return getPledgeCoachDefaultSuggestion(topic);
+    }
+
+    if (/reusable bottle|water bottle|bottle/i.test(cleaned)) {
+        return 'Bring a reusable bottle for 3 school days this week.';
+    }
+    if (/recycl|sort waste|waste/i.test(cleaned)) {
+        return 'Sort my waste correctly after lunch 3 times this week.';
+    }
+    if (/food|leftover|finish/i.test(cleaned)) {
+        return 'Take only what I can finish for 3 meals this week.';
+    }
+    if (/light|electric|charger|energy|switch/i.test(cleaned)) {
+        return 'Switch off unused lights and chargers every day this week.';
+    }
+    if (/plastic|straw|bag|cup/i.test(cleaned)) {
+        return 'Avoid single-use plastic for lunch 3 times this week.';
+    }
+    if (/friend|classmate|community|share/i.test(cleaned)) {
+        return 'Share one sustainability habit with a friend this week.';
+    }
+
+    return `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)} at least 3 times this week.`;
+}
+
+function updatePledgeCoach() {
+    const textarea = document.getElementById('pledge-text');
+    const topicSelect = document.getElementById('pledge-topic');
+    const feedback = document.getElementById('pledge-coach-feedback');
+    const suggestion = document.getElementById('pledge-coach-suggestion');
+    const applyBtn = document.getElementById('apply-pledge-suggestion-btn');
+    const score = document.getElementById('pledge-quality-score');
+    const label = document.getElementById('pledge-quality-label');
+    const fill = document.getElementById('pledge-quality-fill');
+    const actionCheck = document.getElementById('pledge-check-action');
+    const measureCheck = document.getElementById('pledge-check-measure');
+    const timeCheck = document.getElementById('pledge-check-time');
+    const reason = document.getElementById('pledge-coach-reason');
+
+    if (!textarea || !feedback || !suggestion || !applyBtn) return;
+
+    const text = textarea.value.trim();
+    const topic = topicSelect ? topicSelect.value : '';
+    const wordCount = text ? text.split(/\s+/).length : 0;
+    const quality = getPledgeQuality(text);
+    pledgeCoachSuggestion = buildSpecificPledgeSuggestion(text, topic);
+
+    if (!text) {
+        feedback.textContent = topic
+            ? 'Good topic. Start with one action, then make it specific enough to try this week.'
+            : 'Choose a focus area or type a pledge. The coach will make it more specific.';
+    } else if (wordCount < 4) {
+        feedback.textContent = 'Nice start. Add a clear action so you know exactly what to do.';
+    } else if (!hasPledgeActionQuantity(text) || !hasPledgeTimeframe(text)) {
+        feedback.textContent = 'Make it more specific with a number and a timeframe.';
+    } else {
+        feedback.textContent = 'This is clear and actionable. You can use it as it is.';
+        pledgeCoachSuggestion = text;
+    }
+
+    const suggestionMatchesText = pledgeCoachSuggestion === text;
+    if (score) score.textContent = `Pledge strength: ${quality.score}/3`;
+    if (label) label.textContent = quality.label;
+    if (fill) fill.style.width = `${(quality.score / 3) * 100}%`;
+    if (actionCheck) actionCheck.classList.toggle('complete', quality.action);
+    if (measureCheck) measureCheck.classList.toggle('complete', quality.measure);
+    if (timeCheck) timeCheck.classList.toggle('complete', quality.timeframe);
+    if (reason) reason.textContent = getPledgeCoachReason(quality, suggestionMatchesText);
+
+    suggestion.textContent = pledgeCoachSuggestion;
+    applyBtn.disabled = !pledgeCoachSuggestion || suggestionMatchesText;
+}
+
+function applyPledgeCoachSuggestion() {
+    const textarea = document.getElementById('pledge-text');
+    const charCount = document.getElementById('char-count');
+    if (!textarea || !pledgeCoachSuggestion) return;
+
+    textarea.value = pledgeCoachSuggestion.slice(0, Number(textarea.maxLength) || 500);
+    if (charCount) charCount.textContent = textarea.value.length;
+    updatePledgeCoach();
+    resetInactivityTimer();
+}
 
 // ==================== 5. FORM SUBMISSION FUNCTIONS ====================
 
@@ -1090,7 +1254,7 @@ function submitFeedback(event) {
         showFormAlert('feedback-form-alert', getDynamicLanguageText().requiredQuestion);
         return;
     }
-    
+
     if (getFeatureFlags().pledgeEnabled === false) {
         skipPledge();
         return;
@@ -1231,6 +1395,7 @@ function skipPledge() {
     if (pledgeText) pledgeText.value = '';
     if (pledgeTopic) pledgeTopic.value = '';
     if (charCount) charCount.textContent = '0';
+    updatePledgeCoach();
 
     continueAfterPledgeChoice();
 }
@@ -2439,6 +2604,7 @@ function finalSubmit() {
         // Show the visitor which badge/leaf reward they unlocked.
         setupBadgeReward(submissionData);
         setupCelebrationMoment(submissionData);
+        setupJourneyPassport(submissionData);
 
         // Set up social share content for the thank-you page based on badge email status - done by XY
         setupSocialShare(submissionData);
@@ -2677,6 +2843,142 @@ function setupCelebrationMoment(data) {
     window.setTimeout(() => {
         celebration.classList.add('is-ready');
     }, 80);
+}
+
+function setPassportStamp(stampId, status, titleId, title, detailId, detail) {
+    const stamp = document.getElementById(stampId);
+    const titleElement = titleId ? document.getElementById(titleId) : null;
+    const detailElement = detailId ? document.getElementById(detailId) : null;
+
+    if (!stamp) return;
+
+    stamp.classList.remove('complete', 'optional', 'pending');
+    stamp.classList.add(status);
+
+    if (titleElement && title) titleElement.textContent = title;
+    if (detailElement && detail) detailElement.textContent = detail;
+}
+
+function getPassportPhotoStatus(data) {
+    const flags = getFeatureFlags();
+    const hasPhoto = Boolean(userData.processedPhotoId || userData.photoId || userData.processedPhoto || photoData);
+    const hasEmail = Boolean(userData.email && userData.email.includes('@'));
+
+    if (flags.thankYouEmailEnabled === false) {
+        return {
+            status: 'optional',
+            title: 'Photo email disabled',
+            detail: 'The admin setting has photo emails turned off.'
+        };
+    }
+
+    if (!hasPhoto) {
+        return {
+            status: 'optional',
+            title: 'No photo email needed',
+            detail: 'This visit was saved without a keepsake photo.'
+        };
+    }
+
+    if (!hasEmail) {
+        return {
+            status: 'optional',
+            title: 'Photo kept local',
+            detail: 'No email address was provided for this visit.'
+        };
+    }
+
+    if (data?.emailQueued) {
+        return {
+            status: 'complete',
+            title: 'Photo email queued',
+            detail: `Your keepsake is being sent to ${userData.email}.`
+        };
+    }
+
+    return {
+        status: 'pending',
+        title: 'Photo saved',
+        detail: 'Your keepsake was prepared for this visit.'
+    };
+}
+
+function getPassportLeafMessage(leafName) {
+    const leafText = leafName || 'classic feedback leaf';
+    const article = /^[aeiou]/i.test(leafText) ? 'An' : 'A';
+    return `${article} ${leafText} was added to the ESG tree.`;
+}
+
+function setupJourneyPassport(data) {
+    const passport = document.getElementById('journey-passport');
+    if (!passport) return;
+
+    const flags = getFeatureFlags();
+    const badgeKey = getCelebrationBadgeKey(data);
+    const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+    const photoStatus = getPassportPhotoStatus(data);
+    const pledgeEnabled = flags.pledgeEnabled !== false;
+    const pledgeMade = pledgeEnabled && !userData.pledgeSkipped && Boolean((userData.pledge || '').trim());
+    const pledgeTitle = !pledgeEnabled
+        ? 'Pledge step disabled'
+        : pledgeMade
+            ? 'Pledge made'
+            : 'Pledge skipped';
+    const pledgeDetail = !pledgeEnabled
+        ? 'The admin setting has pledge collection turned off.'
+        : pledgeMade
+            ? (userData.pledgeTopic ? `Added under ${userData.pledgeTopic.replace('-', ' ')}.` : 'Your action joined the pledgeboard.')
+            : 'You chose to finish with feedback only.';
+
+    setPassportStamp(
+        'passport-feedback-stamp',
+        'complete',
+        null,
+        '',
+        'passport-feedback-detail',
+        `${Object.keys(userData.answers || {}).length} feedback ${Object.keys(userData.answers || {}).length === 1 ? 'answer' : 'answers'} recorded.`
+    );
+
+    setPassportStamp(
+        'passport-pledge-stamp',
+        pledgeMade ? 'complete' : 'optional',
+        'passport-pledge-title',
+        pledgeTitle,
+        'passport-pledge-detail',
+        pledgeDetail
+    );
+
+    setPassportStamp(
+        'passport-badge-stamp',
+        'complete',
+        'passport-badge-title',
+        'Badge earned',
+        'passport-badge-detail',
+        `${reward.badgeName} unlocked for this visit.`
+    );
+
+    setPassportStamp(
+        'passport-tree-stamp',
+        'complete',
+        null,
+        '',
+        'passport-tree-detail',
+        getPassportLeafMessage(reward.leaf)
+    );
+
+    setPassportStamp(
+        'passport-photo-stamp',
+        photoStatus.status,
+        'passport-photo-title',
+        photoStatus.title,
+        'passport-photo-detail',
+        photoStatus.detail
+    );
+
+    passport.classList.remove('is-ready');
+    window.setTimeout(() => {
+        passport.classList.add('is-ready');
+    }, 160);
 }
 
 function sharePledge(platform) {
@@ -3068,18 +3370,8 @@ function applyParameterOverrides() {
         setText('details-description', messages.detailsPrompt);
         setText('feedback-description', messages.feedbackPrompt);
         setText('pledge-description', messages.pledgePrompt);
-        const campaignExamples = campaign.enabled === true && Array.isArray(campaign.pledgeExamples)
-            ? campaign.pledgeExamples
-            : [];
-        const examples = campaignExamples.length > 0
-            ? campaignExamples
-            : (Array.isArray(content.pledgeExamples) ? content.pledgeExamples : []);
-        const campaignPrefix = campaign.enabled === true && campaign.title ? `${campaign.title}: ` : '';
-        setText('pledge-example-1', examples[0] || 'Carry a reusable bottle and cutlery every day');
-        setText('pledge-example-2', examples[1] || 'Sort waste properly and recycle whenever possible');
-        setText('pledge-example-3', examples[2] || 'Reduce food waste by taking only what I can finish');
-        if (campaignPrefix) {
-            setText('pledge-examples-header', `${campaignPrefix}Pledge Examples:`);
+        if (campaign.enabled === true && campaign.title) {
+            setText('pledge-examples-header', `${campaign.title}: Smart Pledge Coach`);
         }
         setText('thankyou-title', messages.thankYouTitle);
         setText('thankyou-message', messages.thankYouMessage || messages.thankYouSubtitle);
@@ -3187,7 +3479,7 @@ const translations = {
 
         pledgeTitle: "Make Your Pledge",
         pledgeDescription: "Choose one action you can try after today.",
-        pledgeExamplesHeader: "Pledge Examples:",
+        pledgeExamplesHeader: "Smart Pledge Coach",
         pledgeExample1: "Carry a reusable bottle and cutlery every day",
         pledgeExample2: "Sort waste properly and recycle whenever possible",
         pledgeExample3: "Reduce food waste by taking only what I can finish",
@@ -3279,7 +3571,7 @@ const translations = {
 
         pledgeTitle: "Buat Ikrar Anda",
         pledgeDescription: "Kongsikan komitmen anda untuk memberi kesan positif",
-        pledgeExamplesHeader: "Contoh Ikrar:",
+        pledgeExamplesHeader: "Smart Pledge Coach",
         pledgeExample1: "Bawa botol dan sudu garpu guna semula setiap hari",
         pledgeExample2: "Asingkan sisa dengan betul dan kitar semula apabila boleh",
         pledgeExample3: "Kurangkan pembaziran makanan dengan mengambil hanya apa yang saya boleh habiskan",
@@ -3370,7 +3662,7 @@ const translations = {
 
         pledgeTitle: "作出您的承诺",
         pledgeDescription: "分享您为带来积极影响所作的承诺",
-        pledgeExamplesHeader: "承诺示例：",
+        pledgeExamplesHeader: "Smart Pledge Coach",
         pledgeExample1: "每天携带可重复使用的水瓶和餐具",
         pledgeExample2: "正确分类垃圾并尽可能回收",
         pledgeExample3: "只拿自己能吃完的食物以减少浪费",
@@ -3461,7 +3753,7 @@ const translations = {
 
         pledgeTitle: "உங்கள் உறுதிமொழியை வழங்கவும்",
         pledgeDescription: "நல்ல மாற்றத்தை உருவாக்கும் உங்கள் உறுதிப்பாட்டைப் பகிரவும்",
-        pledgeExamplesHeader: "உறுதிமொழி எடுத்துக்காட்டுகள்:",
+        pledgeExamplesHeader: "Smart Pledge Coach",
         pledgeExample1: "ஒவ்வொரு நாளும் மறுபயன்பாட்டு தண்ணீர் பாட்டிலும் உபகரணங்களும் எடுத்துச் செல்லுங்கள்",
         pledgeExample2: "கழிவுகளை சரியாக பிரித்து இயன்றபோது மறுசுழற்சி செய்யுங்கள்",
         pledgeExample3: "நான் முடிக்க முடியும் அளவிற்கு மட்டுமே உணவை எடுத்து உணவு வீணாவதை குறைப்பேன்",
@@ -3737,9 +4029,6 @@ function applyTranslations() {
     setText('pledge-title', t.pledgeTitle);
     setText('pledge-description', t.pledgeDescription);
     setText('pledge-examples-header', t.pledgeExamplesHeader);
-    setText('pledge-example-1', t.pledgeExample1);
-    setText('pledge-example-2', t.pledgeExample2);
-    setText('pledge-example-3', t.pledgeExample3);
     setText('pledge-label', t.pledgeLabel);
     setText('pledge-topic-label', t.pledgeTopicLabel || 'Choose your sustainability focus');
     setSelectOptionText('pledge-topic', '', getDynamicLanguageText().selectFocusArea);

@@ -44,8 +44,12 @@ const { isDeviceNearby } = require('./bluetooth');
 // ==================== 1. CONFIGURATION ====================
 const SALT_ROUNDS = 12; // bcrypt salt rounds (higher = more secure but slower)
 
-// Email encryption key - IN PRODUCTION, LOAD FROM SECURE ENVIRONMENT VARIABLE
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+// Email encryption key - IN PRODUCTION, LOAD FROM SECURE ENVIRONMENT VARIABLE.
+// Use a stable development fallback so returning-visitor features still work after restarts.
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto
+    .createHash('sha256')
+    .update('rp-esg-kiosk-development-email-key')
+    .digest('hex');
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
 // ==================== 2. PASSWORD HASHING FUNCTIONS ====================
