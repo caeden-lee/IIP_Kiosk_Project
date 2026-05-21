@@ -1151,6 +1151,7 @@ class TreeManager {
         const leafSize = Math.max(8, Math.round(baseLeafSize * scale));
         leaf.style.width = `${leafSize}px`;
         leaf.style.height = `${leafSize}px`;
+        leaf.style.setProperty('--leaf-size', `${leafSize}px`);
 
         // 1) Place within mask
         let position = this.findRandomPositionInLeavesMask(leafSize, `${visitorSeed}|position`);
@@ -1163,9 +1164,20 @@ class TreeManager {
         leaf.style.left = `${position.x}px`;
         leaf.style.top = `${position.y}px`;
 
+        const useFlippedOverride = Boolean(this.leafOverrideImage) && seededRandom() > 0.5;
+        const leafImageUrl = this.leafOverrideImage
+            ? this.leafOverrideImage
+            : `/assets/Tree/leaf/${finalLeafImage}`;
+
+        leaf.classList.toggle('leaf-image-flipped', useFlippedOverride);
+        leaf.style.setProperty('--leaf-image-url', `url('${leafImageUrl}')`);
+        leaf.style.setProperty('--leaf-image-scale-x', useFlippedOverride ? '-1' : '1');
+        leaf.style.backgroundImage = 'none';
+
         const nameElement = document.createElement('div');
         nameElement.className = 'leaf-name';
         nameElement.textContent = visitor.name || 'Anonymous';
+        nameElement.style.setProperty('--leaf-name-font-size', `${this.getLeafNameFontSize(visitor.name || 'Anonymous', leafSize)}px`);
         leaf.appendChild(nameElement);
 
         if (visitor.badgeName && !isVip) {
@@ -1187,6 +1199,18 @@ class TreeManager {
         });
 
         this.leavesContainer.appendChild(leaf);
+    }
+
+    getLeafNameFontSize(name, leafSize) {
+        const normalizedName = String(name || '').trim();
+        const length = normalizedName.length || 1;
+        const size = Number(leafSize) || 80;
+
+        const sizeBasedFont = size * 0.13;
+        const lengthPenalty = Math.min(0.6, Math.max(0, (length - 6) * 0.035));
+        const adjustedFont = sizeBasedFont * (1 - lengthPenalty);
+
+        return Math.max(6, Math.min(14, Math.round(adjustedFont)));
     }
 
     applyLeafThresholdEffect(leafCycle) {
