@@ -4185,7 +4185,11 @@ async function analyzeFeedbackDataLegacy() {
         `;
 
         // Create sentiment chart
-        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+        //setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+        requestAnimationFrame(() => {
+            createSentimentChart(positive, neutral, negative);
+        });
+        
     } catch (error) {
         console.error('Error analyzing feedback sentiment:', error);
         output.innerHTML = `
@@ -4245,20 +4249,116 @@ function renderActionPanel(title, items) {
     `;
 }
 
+function getFeedbackInsightsBySentiment(sentiment) {
+    const items = Array.isArray(window.latestFeedbackInsightItems) ? window.latestFeedbackInsightItems : [];
+    return items.filter(item => String(item.sentiment || '').toLowerCase() === sentiment);
+}
+
+function closeFeedbackInsightsModal() {
+    const modal = document.getElementById('feedback-insights-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function openFeedbackInsightsModal(sentiment) {
+    const normalizedSentiment = String(sentiment || '').toLowerCase();
+    const items = getFeedbackInsightsBySentiment(normalizedSentiment);
+    const titleMap = {
+        positive: 'Positive Feedback',
+        neutral: 'Neutral Feedback',
+        negative: 'Negative Feedback'
+    };
+    const colorMap = {
+        positive: '#10b981',
+        neutral: '#f59e0b',
+        negative: '#ef4444'
+    };
+
+    closeFeedbackInsightsModal();
+
+    const modal = document.createElement('div');
+    modal.id = 'feedback-insights-modal';
+    modal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 10020;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.72);
+        padding: 20px;
+    `;
+
+    const content = items.length
+        ? items.map(item => `
+            <div style="padding: 14px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                    <strong style="color: #0f172a;">${escapeHtml(item.source || 'Feedback')}</strong>
+                    <span style="font-size: 12px; color: #64748b;">${escapeHtml(item.date || '')}</span>
+                </div>
+                ${item.question ? `<div style="margin-bottom: 6px; color: #1d4ed8; font-size: 13px; font-weight: 600;">${escapeHtml(item.question)}</div>` : ''}
+                <div style="color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(item.text || '')}</div>
+            </div>
+        `).join('')
+        : `<div style="padding: 18px 0; color: #64748b;">No ${escapeHtml(normalizedSentiment)} feedback was found for the selected analysis window.</div>`;
+
+    modal.innerHTML = `
+        <div style="width: min(920px, 100%); max-height: 86vh; background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35); display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);">
+                <div>
+                    <h3 style="margin: 0; color: #0f172a; font-size: 20px;">${escapeHtml(titleMap[normalizedSentiment] || 'Feedback')}</h3>
+                    <div style="margin-top: 4px; color: ${colorMap[normalizedSentiment] || '#64748b'}; font-weight: 700; font-size: 13px;">${items.length} item(s)</div>
+                </div>
+                <button type="button" onclick="closeFeedbackInsightsModal()" style="background: transparent; border: 0; color: #64748b; font-size: 28px; line-height: 1; cursor: pointer; padding: 4px 8px;">&times;</button>
+            </div>
+            <div style="padding: 20px 22px 22px; overflow: auto; background: #ffffff;">
+                ${content}
+            </div>
+        </div>
+    `;
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeFeedbackInsightsModal();
+        }
+    });
+
+    document.body.appendChild(modal);
+}
+
 // Analyze feedback into AI Insight Summary (Done by Yu Kang)
+let feedbackAnalysisAbortController = null;
+let feedbackAnalysisRunId = 0;
+
 async function analyzeFeedbackData() {
     const resultsContainer = document.getElementById('feedback-analysis-results');
     const output = document.getElementById('feedback-analysis-output');
+    const analyzeButton = document.getElementById('analyze-feedback-btn');
 
     if (!resultsContainer || !output) return;
 
+    if (feedbackAnalysisAbortController) {
+        feedbackAnalysisAbortController.abort();
+    }
+
+    const runId = ++feedbackAnalysisRunId;
+    const controller = new AbortController();
+    feedbackAnalysisAbortController = controller;
+
     resultsContainer.style.display = 'block';
     output.innerHTML = '<div style="padding: 20px; color: #64748b; text-align: center;">Analyzing feedback insights...</div>';
+    if (analyzeButton) {
+        analyzeButton.disabled = true;
+        analyzeButton.dataset.originalText = analyzeButton.dataset.originalText || analyzeButton.textContent;
+        analyzeButton.textContent = 'Analyzing...';
+    }
 
     try {
         const analysisMode = document.getElementById('analysis-mode')?.value || 'rule-based';
 
         const response = await fetch(`/api/admin/feedback-insight-summary?mode=${encodeURIComponent(analysisMode)}`, {
+            signal: controller.signal,
             credentials: 'include',
             headers: {
                 'x-username': sessionStorage.getItem('loggedUser')
@@ -4273,14 +4373,20 @@ async function analyzeFeedbackData() {
         const { positive = 0, neutral = 0, negative = 0, total = 0 } = data.sentiment || {};
         const insights = data.insights || {};
         const weeklySummary = insights.weeklySummary || {};
+        window.latestFeedbackInsightItems = Array.isArray(data.analyzedItems) ? data.analyzedItems : [];
 
         output.innerHTML = `
             <div style="display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap: 22px; align-items: stretch;">
-                <div style="position: relative; min-height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <div style="position: relative; height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
                     <canvas id="sentimentChart"></canvas>
                 </div>
                 <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+                        <button type="button" onclick="openFeedbackInsightsModal('positive')" style="border: 1px solid rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.12); color: #047857; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;">Positive ${positive}</button>
+                        <button type="button" onclick="openFeedbackInsightsModal('neutral')" style="border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.12); color: #92400e; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;">Neutral ${neutral}</button>
+                        <button type="button" onclick="openFeedbackInsightsModal('negative')" style="border: 1px solid rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.12); color: #991b1b; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;">Negative ${negative}</button>
+                    </div>
                     <!--<div style=" 
                         display: inline-block;
                         margin-bottom: 12px;
@@ -4317,6 +4423,10 @@ async function analyzeFeedbackData() {
 
         setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
     } catch (error) {
+        if (error.name === 'AbortError') {
+            return;
+        }
+
         console.error('Error analyzing feedback insights:', error);
         output.innerHTML = `
             <div style="padding: 20px; color: #ef4444; text-align: center;">
@@ -4324,13 +4434,43 @@ async function analyzeFeedbackData() {
                 <small>${escapeHtml(error.message)}</small>
             </div>
         `;
+    } finally {
+        if (feedbackAnalysisAbortController === controller) {
+            feedbackAnalysisAbortController = null;
+        }
+
+        if (analyzeButton && feedbackAnalysisRunId === runId) {
+            analyzeButton.disabled = false;
+            analyzeButton.textContent = analyzeButton.dataset.originalText || 'Analyze Feedback';
+        }
     }
 }
 
 // Create sentiment analysis doughnut chart (added by Yu Kang)
 function createSentimentChart(positive, neutral, negative) {
-    const ctx = document.getElementById('sentimentChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('sentimentChart');
+    if (!canvas) {
+        console.error('❌ Sentiment chart canvas not found');
+        return;
+    }
+
+    if (typeof Chart === 'undefined') {
+        console.error('❌ Chart.js library is not loaded');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    positive = Number(positive) || 0;
+    neutral = Number(neutral) || 0;
+    negative = Number(negative) || 0;
+
+    console.log('📊 Creating chart:', {
+        positive,
+        neutral,
+        negative
+    });
+
 
     // Destroy existing chart if any
     if (window.sentimentChartInstance) {
@@ -4398,6 +4538,8 @@ function createSentimentChart(positive, neutral, negative) {
             }
         }
     });
+
+    console.log('✅ Sentiment chart created successfully');
 }
 
 // ==================== 10. PHOTO MANAGEMENT ====================

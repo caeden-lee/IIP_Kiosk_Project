@@ -17,6 +17,25 @@
       "Reduce food waste by taking only what I can finish"
     ]
   },
+  "campaignSettings": {
+    "enabled": false,
+    "title": "Food Waste Week",
+    "cadence": "weekly",
+    "treeSubtitle": "This week's focus: reduce food waste through mindful choices.",
+    "pulseGoal": 100,
+    "badgeEmphasis": "sustainable-living",
+    "focusKeywords": [
+      "food waste",
+      "leftovers",
+      "canteen",
+      "meal"
+    ],
+    "pledgeExamples": [
+      "Take only what I can finish during meals",
+      "Share food waste tips with one friend this week",
+      "Choose reusable containers for takeaway food"
+    ]
+  },
   "emailContent": {
     "thankYouSubject": "Thank you for visiting RP ESG Centre, {name}!",
     "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
@@ -38,7 +57,8 @@
     "pledgeEnabled": true,
     "badgeEmailEnabled": true,
     "thankYouEmailEnabled": true,
-    "socialSharingEnabled": true
+    "socialSharingEnabled": true,
+    "floatingLanguageSelectorEnabled": false
   },
   "validationRules": {
     "nameRequired": true,
@@ -71,7 +91,8 @@
     "leafFallThreshold": 15,
     "leafFallDuration": 4200,
     "leafGreenResetTime": "00:00",
-    "leafDisplayScale": 1
+    "leafDisplayScale": 1,
+    "showTitleBox": true
   },
   "photoSettings": {
     "beautyFilterEnabled": true,
@@ -94,18 +115,29 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/BackGround.png",
+    "treeBackground": "/assets/Tree/background/BackGround.png",
     "leafImage": "",
     "previousLeafImage": "",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
     "landingTextScale": 1,
+    "landingPanelWidth": 600,
+    "landingPanelMinHeight": 0,
+    "landingPanelPadding": 60,
     "landingPanelOffsetX": 0,
     "landingPanelOffsetY": 0,
     "startButtonOffsetX": 0,
     "startButtonOffsetY": 0,
     "startButtonWidth": 280,
-    "startButtonHeight": 64
+    "startButtonHeight": 64,
+    "pledgeboardButtonOffsetX": 0,
+    "pledgeboardButtonOffsetY": 0,
+    "pledgeboardButtonWidth": 600,
+    "pledgeboardButtonHeight": 64
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
   }
 }

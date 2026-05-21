@@ -107,14 +107,30 @@ body {
     position: absolute;
     z-index: 10;
     cursor: pointer;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
     filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
     backface-visibility: hidden;
     transform: translate3d(0, 0, 0);
     transform-style: preserve-3d;
     contain: layout paint;
+    overflow: hidden;
+}
+
+.leaf::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--leaf-image-url);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transform: scaleX(var(--leaf-image-scale-x, 1));
+    transform-origin: center;
+    pointer-events: none;
+}
+
+.leaf > * {
+    position: absolute;
+    z-index: 1;
 }
 
 .leaf:focus-visible {
@@ -235,12 +251,23 @@ body {
     transform: translate(-50%, -50%);
     color: #ffffff;
     font-weight: bold;
-    font-size: 12px;
+     font-size: clamp(10px, calc(var(--leaf-size, 80px) * 0.12), 1.6px);
     text-align: center;
     pointer-events: none;
-    max-width: 80%;
-    word-wrap: break-word;
+    width: calc(var(--leaf-size, 80px) * 0.72);
+    max-width: 85%;
+    padding: 0 6px;
     line-height: 1.2;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    text-wrap: balance;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+    overflow: hidden;
 }
 
 .leaf-badge {
@@ -253,15 +280,18 @@ body {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.84);
     color: #14532d;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1.1;
-    text-align: center;
-    white-space: nowrap;
+    width: calc(var(--leaf-size, 80px) * 0.75);
+    max-width: 72%;
+    max-height: 42%;
+    padding: 0 5px;
+    line-height: 1;
     overflow: hidden;
-    text-overflow: ellipsis;
     pointer-events: none;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+    font-size: 12px;
+    text-align: center;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .leaf-detail-card {

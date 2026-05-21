@@ -550,10 +550,12 @@
 
                                     <option value="xenova">Xenova AI</option>
 
-                                    <option value="localgpt">LocalGPT</option>
+                                    <!-- <option value="localgpt">LocalGPT</option> -->
+
+                                    <option value="qwen">Qwen AI</option>
                                 </select>
                             
-                                <button class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                                <button id="analyze-feedback-btn" class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
                             </div>
                         </div>
 
@@ -2961,6 +2963,7 @@
                 
 
             </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin.js"></script>
 </body>
 </html>

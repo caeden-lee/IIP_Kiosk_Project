@@ -260,7 +260,6 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 //AI for sentiment analysis testing (Done by Yu Kang)
 const { pipeline } = require('@xenova/transformers');
-const { stdout } = require('process');
 
 let classifier;
 
@@ -1225,7 +1224,23 @@ router.delete('/feedback/:id', async (req, res) => {
 const analysis_modes = {
     RULE_BASED: 'rule-based',
     XENOVA: 'xenova',
-    LOCALGPT: 'localgpt'
+    //LOCALGPT: 'localgpt',
+    QWEN: 'qwen'
+}
+
+let activeFeedbackAnalysisController = null;
+let activeFeedbackAnalysisRunId = 0;
+
+function createAbortError(message = 'Feedback analysis was cancelled') {
+    const abortError = new Error(message);
+    abortError.name = 'AbortError';
+    return abortError;
+}
+
+function throwIfAnalysisAborted(signal) {
+    if (signal?.aborted) {
+        throw createAbortError();
+    }
 }
 
 const INSIGHT_POSITIVE_KEYWORDS = [
@@ -1304,10 +1319,13 @@ function classifyRuleBasedSentiment(text) {
 }
 
 // Xenova Analysis Engine
-async function analyzeWithXenova(text) {
+async function analyzeWithXenova(text, signal) {
     try {
+        throwIfAnalysisAborted(signal);
         const model = await getModel();
+        throwIfAnalysisAborted(signal);
         const result = await model(text);
+        throwIfAnalysisAborted(signal);
         const label =
             result[0]?.label || '';
         if (
@@ -1333,7 +1351,7 @@ async function analyzeWithXenova(text) {
 }
 
 // LocalGPT Analysis Engine
-async function analyzeWithLocalGPT(text) {
+/*async function analyzeWithLocalGPT(text) {
     try {
         const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
 
@@ -1355,14 +1373,51 @@ async function analyzeWithLocalGPT(text) {
         console.error('❌ LocalGPT analysis error:', error);
         return 'neutral';
     }
+}*/
+
+// Qwen Analysis Engine
+async function analyzeWithQwen(text, signal) {
+    try {
+        throwIfAnalysisAborted(signal);
+        const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
+        
+        const response = await axios.post('http://localhost:11434/api/generate', {
+            model: 'qwen2.5:3b',
+            prompt,
+            stream: false
+        }, {
+            signal
+        });
+
+        throwIfAnalysisAborted(signal);
+
+        const result = String(response.data.response || '').trim().toLowerCase();
+        if (result.includes('positive')) {
+            return 'positive';
+        }
+
+        if (result.includes('negative')) {
+            return 'negative';
+        }
+
+        return 'neutral';
+
+    } catch (error) {
+        console.error('❌ Qwen analysis error:', error.message);
+        return 'neutral';
+    }
 }
 
-// Master Classifier
-async function classifySentiment(text, mode) {
-    switch (mode) {
-        case analysis_modes.XENOVA: return await analyzeWithXenova(text);
 
-        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+// Master Classifier
+async function classifySentiment(text, mode, signal) {
+    throwIfAnalysisAborted(signal);
+    switch (mode) {
+        case analysis_modes.XENOVA: return await analyzeWithXenova(text, signal);
+
+        // case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+
+        case analysis_modes.QWEN: return await analyzeWithQwen(text, signal);
 
         case analysis_modes.RULE_BASED:
         default: return classifyRuleBasedSentiment(text);
@@ -1514,7 +1569,7 @@ function getCampaignKeywordList(campaign) {
     return keywords.map(keyword => normalizeInsightText(keyword).toLowerCase()).filter(Boolean);
 }
 
-function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaign = null) {
+async function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaign = null) {
     const todayKey = getSgtDateKey();
     const thisWeekStart = getSgtWeekStartKey(0);
     const previousWeekStart = getSgtWeekStartKey(7);
@@ -1556,8 +1611,25 @@ function getInterventionAlertsFromRows(feedbackRows, answerRows, health, campaig
 
     const thisWeekItems = textItems.filter(item => item.dateKey >= thisWeekStart);
     const previousWeekItems = textItems.filter(item => item.dateKey >= previousWeekStart && item.dateKey < thisWeekStart);
-    const negativeThisWeek = thisWeekItems.filter(item => classifySentiment(item.text) === 'negative');
-    const negativePreviousWeek = previousWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    //const negativeThisWeek = thisWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    const negativeThisWeekResults = await Promise.all(
+        thisWeekItems.map(async item => {
+            const sentiment = await classifySentiment(item.text, analysis_modes.RULE_BASED);
+            return sentiment === 'negative';
+        })
+    );
+
+    const negativeThisWeek = thisWeekItems.filter((_, index) => negativeThisWeekResults[index]);
+    //const negativePreviousWeek = previousWeekItems.filter(item => classifySentiment(item.text) === 'negative');
+    const negativePreviousWeekResults = await Promise.all(
+        previousWeekItems.map(async item => {
+            const sentiment = await classifySentiment(item.text, analysis_modes.RULE_BASED);
+            return sentiment === 'negative';
+        })
+    );
+
+    const negativePreviousWeek = previousWeekItems.filter((_, index) => negativePreviousWeekResults[index]);
+
     const negativeRate = thisWeekItems.length > 0 ? negativeThisWeek.length / thisWeekItems.length : 0;
 
     const foodWasteKeywords = ['food waste', 'food', 'meal', 'leftover', 'leftovers', 'canteen', 'waste food', 'throw food'];
@@ -1824,7 +1896,7 @@ router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
             return res.status(500).json({ success: false, error: feedbackErr.message });
         }
 
-        db.all(answersQuery, [], (answersErr, answerRows) => {
+        db.all(answersQuery, [], async (answersErr, answerRows) => {
             if (answersErr) {
                 console.error('Error loading intervention answer data:', answersErr);
                 return res.status(500).json({ success: false, error: answersErr.message });
@@ -1837,7 +1909,7 @@ router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
                 console.warn('Intervention alert health check unavailable:', healthError.message);
             }
 
-            const alerts = getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
+            const alerts = await getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
             res.json({
                 success: true,
                 generatedAt: new Date().toISOString(),
@@ -1897,6 +1969,22 @@ router.get('/journey-passport', auth.requireAuth, (req, res) => {
 router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
     const mode = req.query.mode || analysis_modes.RULE_BASED;
     console.log(`🧠 Generating feedback insights using mode: ${mode}`);
+
+    if (activeFeedbackAnalysisController) {
+        activeFeedbackAnalysisController.abort();
+    }
+
+    const analysisController = new AbortController();
+    const analysisRunId = ++activeFeedbackAnalysisRunId;
+    activeFeedbackAnalysisController = analysisController;
+    const { signal } = analysisController;
+
+    req.on('close', () => {
+        if (activeFeedbackAnalysisController === analysisController) {
+            analysisController.abort();
+        }
+    });
+
     const query = `
         SELECT
             fa.answer_value AS text,
@@ -1924,52 +2012,106 @@ router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
           AND f.archive_status = 'not_archived'
           AND f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         ORDER BY created_at DESC
-        LIMIT 2;
+        LIMIT 200;
     `;
 
     db.all(query, [], async (err, rows) => {
+        if (signal.aborted || activeFeedbackAnalysisRunId !== analysisRunId) {
+            return;
+        }
+
         if (err) {
+            if (activeFeedbackAnalysisController === analysisController) {
+                activeFeedbackAnalysisController = null;
+            }
             console.error('Error loading feedback insight data:', err);
             return res.status(500).json({ success: false, error: err.message });
         }
 
-        const rawItems = (rows || []).map(row => ({
-            text: normalizeInsightText(row.text),
-            question: row.question || row.source || 'Feedback',
-            source: row.source || 'Feedback',
-            date: row.created_at
-            }))
-            .filter(item => isUsefulInsightText(item.text));
+        try {
+            throwIfAnalysisAborted(signal);
+            const rawItems = (rows || []).map(row => ({
+                text: normalizeInsightText(row.text),
+                question: row.question || row.source || 'Feedback',
+                source: row.source || 'Feedback',
+                date: row.created_at})
+            ).filter(item => isUsefulInsightText(item.text));
 
-        const items = await Promise.all(rawItems.map(async (item) => {
-            const sentiment = await classifySentiment(item.text, mode);
-            return { ...item, sentiment };
-        }));
-
-        
-
-        const sentiment = items.reduce((counts, item) => {
-            counts[item.sentiment]++;
-            counts.total++;
-            return counts;
-        }, { positive: 0, neutral: 0, negative: 0, total: 0 });
-
-        const topConcerns = buildInsightCategories(items, INSIGHT_CONCERN_CATEGORIES, 'negative');
-        const topCompliments = buildInsightCategories(items, INSIGHT_COMPLIMENT_CATEGORIES, 'positive');
-        const suggestedActions = buildSuggestedActions(topConcerns, sentiment);
-        const weeklySummary = buildWeeklySummary(items, sentiment, topConcerns, topCompliments);
-
-        res.json({
-            success: true,
-            sentiment,
-            insights: {
-                weeklySummary,
-                topConcerns,
-                topCompliments,
-                suggestedActions,
-                analyzedAt: new Date().toISOString()
+            const items = [];
+            for (const item of rawItems) {
+                throwIfAnalysisAborted(signal);
+                let sentiment = 'neutral';
+                try {
+                    sentiment = await classifySentiment(item.text, mode, signal);
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        return;
+                    }
+                    console.error('❌ classifySentiment failed:', err.message);
+                }
+                items.push({...item, sentiment});
             }
-        });
+
+            throwIfAnalysisAborted(signal);
+
+            const sentiment = items.reduce((counts, item) => {
+                counts[item.sentiment]++;
+                counts.total++;
+                return counts;
+            }, {positive: 0, neutral: 0, negative: 0, total: 0});
+
+            const topConcerns = buildInsightCategories(
+                items,
+                INSIGHT_CONCERN_CATEGORIES,
+                'negative'
+            );
+
+            const topCompliments = buildInsightCategories(
+                items,
+                INSIGHT_COMPLIMENT_CATEGORIES,
+                'positive'
+            );
+
+            const suggestedActions = buildSuggestedActions(
+                topConcerns,
+                sentiment
+            );
+
+            const weeklySummary = buildWeeklySummary(
+                items,
+                sentiment,
+                topConcerns,
+                topCompliments
+            );
+
+            return res.json({
+                success: true,
+                sentiment,
+                analyzedItems: items,
+                insights: {
+                    weeklySummary,
+                    topConcerns,
+                    topCompliments,
+                    suggestedActions,
+                    analyzedAt: new Date().toISOString()
+                }
+            });
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return;
+            }
+
+            console.error('❌ Route crash:', error);
+
+            if (!res.headersSent) {
+                return res.status(500).json({ success: false, error: error.message });
+            }
+        } finally {
+            if (activeFeedbackAnalysisController === analysisController) {
+                activeFeedbackAnalysisController = null;
+            }
+        }
     });
 });
 
