@@ -27,6 +27,7 @@
 const express = require('express');
 const router = express.Router();
 const { getBadgeSummary } = require('./emailService');
+const { isFeedbackFlagged } = require('./flaggedFeedback');
 
 let db;
 
@@ -96,9 +97,17 @@ router.get('/', (req, res) => {
                 f.created_at,
                 f.comment,
                 f.data_retention,
-                f.metadata
+                f.metadata,
+                fa.answer_values
             FROM feedback f
             JOIN users u ON f.user_id = u.id
+            LEFT JOIN (
+                SELECT feedback_id, GROUP_CONCAT(answer_value SEPARATOR ' ') AS answer_values
+                FROM feedback_answers
+                WHERE answer_value IS NOT NULL
+                  AND TRIM(answer_value) != ''
+                GROUP BY feedback_id
+            ) fa ON fa.feedback_id = f.id
             WHERE f.is_active = 1
               AND YEAR(f.created_at) = ?
             ORDER BY f.created_at ASC, f.id ASC
@@ -110,8 +119,14 @@ router.get('/', (req, res) => {
                 return res.status(500).json({ error: 'Leaf query error: ' + userErr.message });
             }
 
-            console.log('✅ Tree leaves fetched:', rows ? rows.length : 0);
-            return res.json(mapRowsToVisitors(rows || [], vipSet));
+            const visibleRows = (rows || []).filter(row => !isFeedbackFlagged([
+                row.comment,
+                row.answer_values
+            ]));
+            const hiddenCount = (rows || []).length - visibleRows.length;
+
+            console.log('✅ Tree leaves fetched:', visibleRows.length, hiddenCount ? `(${hiddenCount} flagged hidden)` : '');
+            return res.json(mapRowsToVisitors(visibleRows, vipSet));
         });
     });
 });
@@ -129,14 +144,20 @@ router.get('/years', (req, res) => {
     const currentYear = getCurrentTreeYear();
     const sql = `
         SELECT
-            YEAR(created_at) AS year,
-            COUNT(*) AS leaf_count,
-            MIN(created_at) AS first_submission,
-            MAX(created_at) AS last_submission
-        FROM feedback
-        WHERE is_active = 1
-        GROUP BY YEAR(created_at)
-        ORDER BY year DESC
+            f.id,
+            f.created_at,
+            f.comment,
+            fa.answer_values
+        FROM feedback f
+        LEFT JOIN (
+            SELECT feedback_id, GROUP_CONCAT(answer_value SEPARATOR ' ') AS answer_values
+            FROM feedback_answers
+            WHERE answer_value IS NOT NULL
+              AND TRIM(answer_value) != ''
+            GROUP BY feedback_id
+        ) fa ON fa.feedback_id = f.id
+        WHERE f.is_active = 1
+        ORDER BY f.created_at DESC
     `;
 
     db.all(sql, [], (err, rows) => {
@@ -145,13 +166,36 @@ router.get('/years', (req, res) => {
             return res.status(500).json({ success: false, currentYear, years: [] });
         }
 
-        const years = (rows || []).map(row => ({
-            year: Number(row.year),
-            leafCount: Number(row.leaf_count) || 0,
-            firstSubmission: row.first_submission,
-            lastSubmission: row.last_submission,
-            isCurrentYear: Number(row.year) === currentYear
-        }));
+        const yearMap = new Map();
+
+        (rows || [])
+            .filter(row => !isFeedbackFlagged([row.comment, row.answer_values]))
+            .forEach(row => {
+                const createdAt = row.created_at;
+                const year = new Date(createdAt).getFullYear();
+                if (!Number.isInteger(year)) return;
+
+                if (!yearMap.has(year)) {
+                    yearMap.set(year, {
+                        year,
+                        leafCount: 0,
+                        firstSubmission: createdAt,
+                        lastSubmission: createdAt,
+                        isCurrentYear: year === currentYear
+                    });
+                }
+
+                const item = yearMap.get(year);
+                item.leafCount += 1;
+                if (!item.firstSubmission || new Date(createdAt) < new Date(item.firstSubmission)) {
+                    item.firstSubmission = createdAt;
+                }
+                if (!item.lastSubmission || new Date(createdAt) > new Date(item.lastSubmission)) {
+                    item.lastSubmission = createdAt;
+                }
+            });
+
+        const years = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
 
         if (!years.some(item => item.year === currentYear)) {
             years.unshift({

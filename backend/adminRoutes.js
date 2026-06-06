@@ -5,6 +5,11 @@
 //   * xenova: transformer-based processing (Xenova)
 //   * localgpt: on-prem LocalGPT inference for offline/private processing
 // - LocalGPT note: Use local models to avoid external API calls and protect data privacy.
+//
+// - Flagged feedback analysis:
+//   * Added keyword-based flagging for potential issues (e.g. "bad", "worst", "disappointed") (Done by Yu Kang)
+//   * Admin dashboard highlights flagged feedback for review (Done by Yu Kang)
+//
 // ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
@@ -253,6 +258,10 @@ const https = require('https');
 const archiver = require('archiver');
 const emailService = require('./emailService');
 const emailConfigStore = require('./emailConfigStore');
+const {
+    FLAGGED_FEEDBACK_KEYWORDS,
+    analyzeFlaggedFeedbackText
+} = require('./flaggedFeedback');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 const parametersConfigStore = require('./parametersConfigStore');
 const dataRetentionCleanup = require('./dataRetentionCleanup');
@@ -1069,6 +1078,78 @@ router.get('/feedback', (req, res) => {
     });
 });
 
+router.get('/flagged-feedback', auth.requireAuth, (req, res) => {
+    console.log('Fetching flagged feedback using keyword analysis...');
+
+    const query = `
+        SELECT
+            f.id AS feedback_id,
+            u.name,
+            DATE_FORMAT(CONVERT_TZ(f.created_at, '+00:00', '+08:00'), '%Y-%m-%d %H:%i:%s') AS date,
+            f.comment AS text,
+            'Comment' AS source,
+            'Visitor pledge' AS question
+        FROM feedback f
+        JOIN users u ON f.user_id = u.id
+        WHERE f.comment IS NOT NULL
+          AND TRIM(f.comment) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+        UNION ALL
+        SELECT
+            f.id AS feedback_id,
+            u.name,
+            DATE_FORMAT(CONVERT_TZ(fa.created_at, '+00:00', '+08:00'), '%Y-%m-%d %H:%i:%s') AS date,
+            fa.answer_value AS text,
+            'Answer' AS source,
+            q.question_text AS question
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        JOIN users u ON f.user_id = u.id
+        LEFT JOIN questions q ON fa.question_id = q.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+        ORDER BY date DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Error fetching flagged feedback candidates:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        const flagged = (rows || [])
+            .map(row => {
+                const analysis = analyzeFlaggedFeedbackText(row.text);
+                if (!analysis.flagged) return null;
+
+                return {
+                    feedback_id: row.feedback_id,
+                    name: row.name || 'Anonymous',
+                    date: row.date,
+                    source: row.source || 'Feedback',
+                    question: row.question || row.source || 'Feedback',
+                    text: analysis.text,
+                    matchedKeywords: analysis.matchedKeywords
+                };
+            })
+            .filter(Boolean);
+
+        const flaggedFeedbackIds = [...new Set(flagged.map(item => item.feedback_id))];
+
+        return res.json({
+            success: true,
+            keywords: FLAGGED_FEEDBACK_KEYWORDS,
+            flaggedCount: flagged.length,
+            flaggedFeedbackIds,
+            feedbackCount: flaggedFeedbackIds.length,
+            flagged
+        });
+    });
+});
+
 // Update feedback
 router.put('/feedback/:id', (req, res) => {
     const { id } = req.params;
@@ -1225,7 +1306,8 @@ const analysis_modes = {
     RULE_BASED: 'rule-based',
     XENOVA: 'xenova',
     //LOCALGPT: 'localgpt',
-    QWEN: 'qwen'
+    QWEN: 'qwen',
+    GEMMA: 'gemma'
 }
 
 let activeFeedbackAnalysisController = null;
@@ -1408,6 +1490,35 @@ async function analyzeWithQwen(text, signal) {
     }
 }
 
+// Gemma Analysis Engine
+async function analyzeWithGemma(text, signal) {
+    try {
+        throwIfAnalysisAborted(signal);
+        const response = await axios.post('http://localhost:11434/api/generate', {
+            model: 'gemma2:2b',
+            prompt: `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `,
+            stream: false
+        }, {
+            signal
+        });
+
+        throwIfAnalysisAborted(signal);
+
+        const result = String(response.data.response || '').trim().toLowerCase();
+        if (result.includes('positive')) {
+            return 'positive';
+        }
+        if (result.includes('negative')) {
+            return 'negative';
+        }
+        return 'neutral';
+
+    } catch (error) {
+        console.error('❌ Gemma analysis error:', error.message);
+        return 'neutral';
+    }
+}
+
 
 // Master Classifier
 async function classifySentiment(text, mode, signal) {
@@ -1418,6 +1529,8 @@ async function classifySentiment(text, mode, signal) {
         // case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
 
         case analysis_modes.QWEN: return await analyzeWithQwen(text, signal);
+
+        case analysis_modes.GEMMA: return await analyzeWithGemma(text, signal);
 
         case analysis_modes.RULE_BASED:
         default: return classifyRuleBasedSentiment(text);

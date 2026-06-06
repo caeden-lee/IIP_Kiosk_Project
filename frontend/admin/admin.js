@@ -6,6 +6,11 @@
 //   * localgpt: on-prem LocalGPT fallback for private/offline inference
 // - LocalGPT note: LocalGPT runs models locally/offline to avoid external API calls
 //   and preserve visitor data privacy when required.
+//
+// - Flagged feedback analysis:
+//   * Added keyword-based flagging for potential issues (e.g. "bad", "worst", "disappointed") (Done by Yu Kang)
+//   * Admin dashboard highlights flagged feedback for review (Done by Yu Kang)
+//
 // ============================================================
 // XY CHANGE SUMMARY (DONE BY XY)
 // ============================================================
@@ -2140,9 +2145,24 @@ async function loadDailyLeafPledgeData() {
     }
 }
 
+function getVisitorTrendsCanvas() {
+    const activePage = document.querySelector('.page.active');
+    const activePageId = activePage ? activePage.id : '';
+
+    if (activePageId === 'feedback-report-page') {
+        return document.getElementById('feedbackTrendChart') || document.getElementById('visitorTrendsChart');
+    }
+
+    if (activePageId === 'dashboard-page') {
+        return document.getElementById('visitorTrendsChart') || document.getElementById('feedbackTrendChart');
+    }
+
+    return document.getElementById('visitorTrendsChart') || document.getElementById('feedbackTrendChart');
+}
+
 // Create feedback trends chart (feedback only - no visitor data)
 function createVisitorTrendsChart(labels, feedbackData) {
-    const ctx = document.getElementById('visitorTrendsChart');
+    const ctx = getVisitorTrendsCanvas();
     if (!ctx) {
         console.warn('visitorTrendsChart canvas not found');
         return;
@@ -4123,6 +4143,127 @@ function closeQAPopup() {
 }
 
 // ==================== Feedback Sentiment Analysis ====================
+
+async function loadFlaggedFeedback() {
+    const tbody = document.getElementById('flagged-feedback-table-body');
+    const summary = document.getElementById('flagged-feedback-summary');
+
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
+                Loading flagged feedback...
+            </td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch('/api/admin/flagged-feedback', {
+            credentials: 'include',
+            headers: {
+                'x-username': sessionStorage.getItem('loggedUser')
+            }
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load flagged feedback');
+        }
+
+        renderFlaggedFeedback(data.flagged || [], data.feedbackCount || 0);
+
+        if (summary) {
+            const flaggedItems = Number(data.flaggedCount || 0);
+            const flaggedFeedback = Number(data.feedbackCount || 0);
+            summary.textContent = `${flaggedItems} flagged text item(s) found across ${flaggedFeedback} feedback submission(s). These submissions are hidden from /tree page.`;
+        }
+    } catch (error) {
+        console.error('Error loading flagged feedback:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 24px; color: #ef4444;">
+                    Unable to load flagged feedback<br>
+                    <small>${escapeHtmlSafe(error.message)}</small>
+                </td>
+            </tr>
+        `;
+
+        if (summary) {
+            summary.textContent = 'Flagged feedback could not be loaded. Check the server logs if this repeats.';
+        }
+    }
+}
+
+function renderFlaggedFeedback(items, feedbackCount) {
+    const tbody = document.getElementById('flagged-feedback-table-body');
+    if (!tbody) return;
+
+    if (!items.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
+                    No flagged feedback found.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Aggregate items by feedback_id so we display one row per feedback entry.
+    const grouped = {};
+    items.forEach(item => {
+        const id = item.feedback_id || 'unknown';
+        if (!grouped[id]) {
+            grouped[id] = {
+                feedback_id: id,
+                name: item.name || 'Anonymous',
+                date: item.date || '-',
+                matchedKeywords: [],
+                answers: [],
+                comment: ''
+            };
+        }
+
+        // collect keywords
+        if (Array.isArray(item.matchedKeywords)) {
+            grouped[id].matchedKeywords.push(...item.matchedKeywords);
+        }
+
+        // distinguish answer vs comment
+        if ((item.source || '').toLowerCase() === 'answer') {
+            if (item.text) grouped[id].answers.push(item.text);
+        } else {
+            // treat other sources (including Comment) as pledge/comment text
+            if (item.text) grouped[id].comment = grouped[id].comment ? grouped[id].comment + ' ' + item.text : item.text;
+        }
+    });
+
+    const rows = Object.values(grouped).map(entry => {
+        const uniqueKeywords = Array.from(new Set(entry.matchedKeywords || []));
+        const keywordBadges = (uniqueKeywords || []).map(k => `<span class="flagged-keyword-badge">${escapeHtmlSafe(k)}</span>`).join('');
+        const feedbackText = (entry.answers || []).join('; ');
+        const pledgeText = entry.comment || '';
+
+        return `
+            <tr data-feedback-id="${escapeHtmlSafe(entry.feedback_id)}">
+                <td>${escapeHtmlSafe(entry.date)}</td>
+                <td>${escapeHtmlSafe(entry.name)}</td>
+                <td>Feedback</td>
+                <td><div class="flagged-keyword-list">${keywordBadges}</div></td>
+                <td class="flagged-feedback-text">${escapeHtmlSafe(feedbackText)}</td>
+                <td class="flagged-pledge-text">${escapeHtmlSafe(pledgeText)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.innerHTML = rows;
+
+    const summary = document.getElementById('flagged-feedback-summary');
+    if (summary) {
+        summary.textContent = `${Object.keys(grouped).length} flagged text item(s) found across ${Number(feedbackCount || 0)} feedback submission(s). These submissions are hidden from /tree page.`;
+    }
+}
 
 // Update feedback analysis title based on selected mode (Done by Yu Kang)
 function updateAnalysisTitle() {
@@ -8020,6 +8161,9 @@ function showPage(pageName) {
     } else if (pageName === 'feedback-data') {
         loadFeedbackData();
         analyzeFeedbackData();
+    } else if (pageName === 'feedback-report') {
+        loadFlaggedFeedback();
+        loadVisitorTrendsData();
     } else if (pageName === 'digital-tree') {
         loadDigitalTreeData();
     } else if (pageName === 'pledgeboard') {
