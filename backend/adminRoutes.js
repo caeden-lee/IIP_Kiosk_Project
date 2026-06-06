@@ -1998,7 +1998,6 @@ router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
           AND TRIM(fa.answer_value) != ''
           AND f.is_active = 1
           AND f.archive_status = 'not_archived'
-          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         UNION ALL
         SELECT
             f.comment AS text,
@@ -2010,9 +2009,7 @@ router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
           AND TRIM(f.comment) != ''
           AND f.is_active = 1
           AND f.archive_status = 'not_archived'
-          AND f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        ORDER BY created_at DESC
-        LIMIT 200;
+        ORDER BY created_at DESC;
     `;
 
     db.all(query, [], async (err, rows) => {

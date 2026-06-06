@@ -785,6 +785,31 @@ body {
     margin-top: 0;
 }
 
+/* Feedback Reports Page - match padding with other admin pages */
+#feedback-report-page {
+    min-height: 100%;
+    padding: 30px;
+    margin-top: 0;
+}
+
+#analyze-feedback-btn {
+    padding: 10px 20px;
+    background: var(--theme-btn-primary-bg);
+    color: var(--theme-btn-primary-text);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#analyze-feedback-btn:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
 #dashboard-page .page-header {
     display: flex;
     justify-content: space-between;

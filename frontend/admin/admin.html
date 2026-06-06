@@ -110,7 +110,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedback Kiosk Admin</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="/admin/admin.css">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -127,7 +127,7 @@
             <h1>Admin Login</h1>
             <p class="login-subtitle">Access the feedback kiosk administration panel</p>
             
-            <form id="login-form" onsubmit="handleLogin(event)">
+            <form id="login-form" method="post" action="/api/admin/login" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" autocomplete="username" placeholder="Enter your username" required>
@@ -193,6 +193,16 @@
                         <a href="#" class="nav-item" onclick="showPage('theme-settings')">
                             <span class="nav-icon">🎨</span>
                             Style & Theme Settings
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar-section" id="content-section">
+                    <h3>REPORTS</h3>
+                    <nav>
+                        <a href="#" class="nav-item" onclick="showPage('feedback-report')">
+                            <span class="nav-icon">📈</span>
+                            Feedback Reports
                         </a>
                     </nav>
                 </div>
@@ -540,34 +550,6 @@
                         <p>Manage and review visitor feedback submissions</p>
                     </div>
 
-                    <!-- Feedback Analysis Section (DONE BY YU KANG)-->
-                    <div class="feedback-section feedback-analyse">
-                        <div class="section-header">
-                            <h3>Feedback Analysis</h3>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
-                                    <option value="rule-based">Rule-Based Analysis</option>
-
-                                    <option value="xenova">Xenova AI</option>
-
-                                    <!-- <option value="localgpt">LocalGPT</option> -->
-
-                                    <option value="qwen">Qwen AI</option>
-                                </select>
-                            
-                                <button id="analyze-feedback-btn" class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
-                            </div>
-                        </div>
-
-                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
-                            <!-- AI Insight Summary (Done by Yu Kang) -->
-                            <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
-                            <div id="feedback-analysis-output"></div>
-                        </div>
-                    </div> 
-
-                    <br>
-
                     <div class="feedback-section">
                         <div class="section-header">
                             <h3>Visitor Feedback</h3>
@@ -704,6 +686,42 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Feedback Reports Page (DONE BY Yu Kang) -->
+                <div id="feedback-report-page" class="page">
+                    <div class="page-header">
+                        <h2>Feedback Reports</h2>
+                        <p>Generate and view detailed feedback reports with AI insights</p>
+                    </div>
+
+                    <!-- Feedback Analysis Section (DONE BY YU KANG)-->
+                    <div class="feedback-section feedback-analyse">
+                        <div class="section-header">
+                            <h3 id="feedback-analysis-header">Feedback Analysis</h3>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
+                                    <option value="rule-based">Rule-Based Analysis</option>
+
+                                    <option value="xenova">Xenova AI</option>
+
+                                    <!-- <option value="localgpt">LocalGPT</option> -->
+
+                                    <option value="qwen">Qwen AI</option>
+                                </select>
+                            
+                                <button id="analyze-feedback-btn" class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                            </div>
+                        </div>
+
+                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
+                            <!-- AI Insight Summary (Done by Yu Kang) -->
+                            <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
+                            <div id="feedback-analysis-output"></div>
+                        </div>
+                    </div> 
+
+                    <br>
                 </div>
 
                 <!-- Digital Tree Page (DONE BY PRETI)-->
@@ -2964,6 +2982,6 @@
 
             </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="admin.js"></script>
+    <script src="/admin/admin.js"></script>
 </body>
 </html>

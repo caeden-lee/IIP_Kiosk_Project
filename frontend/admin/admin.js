@@ -4124,6 +4124,20 @@ function closeQAPopup() {
 
 // ==================== Feedback Sentiment Analysis ====================
 
+// Update feedback analysis title based on selected mode (Done by Yu Kang)
+function updateAnalysisTitle() {
+    const select = document.getElementById('analysis-mode');
+    const title = document.getElementById('feedback-analysis-header');
+
+    if (!select || !title) return;
+
+    const selectedText =
+        select.options[select.selectedIndex].text;
+
+    title.textContent =
+        `Feedback Analysis (${selectedText})`;
+}
+
 // Done by Yu Kang
 // Analyze and display all feedback answer values
 async function analyzeFeedbackDataLegacy() {
@@ -4332,6 +4346,8 @@ let feedbackAnalysisAbortController = null;
 let feedbackAnalysisRunId = 0;
 
 async function analyzeFeedbackData() {
+     updateAnalysisTitle();
+
     const resultsContainer = document.getElementById('feedback-analysis-results');
     const output = document.getElementById('feedback-analysis-output');
     const analyzeButton = document.getElementById('analyze-feedback-btn');
