@@ -536,6 +536,12 @@ app.use(session({
 // Keep the Pulse screen inside the authenticated admin experience.
 app.use('/pulse', auth.requireAuth);
 
+// Serve the admin page before static directory handling so /admin and /admin/
+// both load the same HTML and use the same absolute asset paths.
+app.get(['/admin', '/admin/'], (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -835,7 +841,7 @@ app.get('/pledgeboard', requireMobileTokenForPledgeboard, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/Pledgeboard/Pledgeboard.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get(['/admin', '/admin/'], (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
 });
 

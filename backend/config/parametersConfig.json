@@ -135,9 +135,5 @@
     "pledgeboardButtonOffsetY": 0,
     "pledgeboardButtonWidth": 600,
     "pledgeboardButtonHeight": 64
-  },
-  "archiveSettings": {
-    "autoArchiveEnabled": true,
-    "archiveAfterDays": 90
   }
 }
