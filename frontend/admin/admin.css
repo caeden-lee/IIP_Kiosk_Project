@@ -792,6 +792,7 @@ body {
     margin-top: 0;
 }
 
+
 #analyze-feedback-btn {
     padding: 10px 20px;
     background: var(--theme-btn-primary-bg);
@@ -1969,6 +1970,45 @@ body {
 
 .feedback-analyse {
     margin-top: 20px;
+}
+
+.flagged-feedback-summary {
+    margin: 12px 0 16px;
+    padding: 12px 14px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #7f1d1d;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.flagged-feedback-table-wrap {
+    overflow-x: auto;
+}
+
+.flagged-feedback-text {
+    max-width: 520px;
+    white-space: normal;
+    line-height: 1.5;
+}
+
+.flagged-keyword-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.flagged-keyword-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 /* Toolbar with search and filters */
