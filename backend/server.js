@@ -109,6 +109,7 @@
 //    app.get('/admin'                 - Serve admin HTML page (DONE BY PRETI)
 //    app.get('/pledgeboard'           - Serve pledgeboard HTML page (DONE BY PRETI)
 //    app.get('/tree'                  - Serve tree HTML page (DONE BY PRETI)
+//    app.get('/3dTree'                - Serve 3D tree HTML page (DONE BY Yu Kang)
 //    app.get('/'                      - Redirect root to /feedback (DONE BY PRETI)
 //
 // 7. SERVER STARTUP FUNCTIONS
@@ -850,6 +851,11 @@ app.get('/tree', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
 });
 
+// 3D Tree page – assumes file: frontend/3dTree/3dTree.html
+app.get('/3dTree', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/3dTree/3dTree.html'));
+});
+
 app.get('/pulse', auth.requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
@@ -935,6 +941,7 @@ function printServerInfo(isHttps) {
     console.log(`📊 Feedback: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/feedback`);
     console.log(`🏆 Pledgeboard: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/pledgeboard`);
     console.log(`🌳 Tree: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/tree`);
+    console.log(`🌳 3D Tree: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/3dTree`);
     console.log(`⚙️  Admin: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/admin`);
     console.log(`📦 Data Export: ${isHttps ? 'https' : 'http'}://${localIP}:${PORT}/api/admin/data-export`); 
     console.log(`📅 Started: ${new Date().toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`);
