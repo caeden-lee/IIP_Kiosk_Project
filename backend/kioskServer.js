@@ -82,6 +82,7 @@
 //    app.get('/feedback'              - Serve feedback HTML page (DONE BY PRETI)
 //    app.get('/pledgeboard'           - Serve pledgeboard HTML page (DONE BY PRETI)
 //    app.get('/tree'                  - Serve tree HTML page (DONE BY PRETI)
+//    app.get('/3dTree'                - Serve 3D tree HTML page (DONE BY Yu Kang)
 //    app.get('/'                      - Redirect root to /feedback (DONE BY PRETI)
 //
 // 7. SERVER STARTUP FUNCTIONS
@@ -378,6 +379,10 @@ app.get('/pledgeboard', (req, res) => {
 
 app.get('/tree', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
+});
+
+app.get('/3dTree', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/3dTree/3dTree.html'));
 });
 
 app.get('/pulse', auth.requireAuth, (req, res) => {

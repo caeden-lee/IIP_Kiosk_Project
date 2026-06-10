@@ -116,8 +116,8 @@
   "visualAssets": {
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/background/BackGround.png",
-    "leafImage": "",
-    "previousLeafImage": "",
+    "leafImage": "/assets/Tree/leaf/NewRightLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/GoldLeftLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
@@ -129,11 +129,15 @@
     "landingPanelOffsetY": 0,
     "startButtonOffsetX": 0,
     "startButtonOffsetY": 0,
-    "startButtonWidth": 280,
-    "startButtonHeight": 64,
+    "startButtonWidth": 330,
+    "startButtonHeight": 72,
     "pledgeboardButtonOffsetX": 0,
     "pledgeboardButtonOffsetY": 0,
-    "pledgeboardButtonWidth": 600,
+    "pledgeboardButtonWidth": 900,
     "pledgeboardButtonHeight": 64
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
   }
 }
