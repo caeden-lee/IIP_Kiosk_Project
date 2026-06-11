@@ -215,8 +215,12 @@
                     <h3>ADJUSTMENTS</h3>
                     <nav>
                         <a href="#" class="nav-item" onclick="showPage('tree-adjustment')">
-                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-icon">🌴</span>
                             Digital Tree Adjustment
+                        </a>
+                        <a href="#" class="nav-item" onclick="showPage('parameter-adjustment')">
+                            <span class="nav-icon">⚙️</span>
+                            Parameter Adjustment
                         </a>
                     </nav>
                 </div>
@@ -250,10 +254,6 @@
                         <a href="#" class="nav-item" onclick="showPage('form-management')">
                             <span class="nav-icon">📝</span>
                             Form Management
-                        </a>
-                        <a href="#" class="nav-item" onclick="showPage('parameter-adjustment')">
-                            <span class="nav-icon">⚙️</span>
-                            Parameter Adjustment
                         </a>
                         <a href="#" class="nav-item" onclick="showPage('archive')">
                             <span class="nav-icon">📚</span>
@@ -858,17 +858,26 @@
                     <div class="tree-adjustment-section">
                         <div class="section-header">
                             <h3>Tree Background</h3>
-                            <button class="btn-primary" onclick="selectTreeBackground()">Apply Background</button>
+                            <button class="btn-primary" onclick="selectTreeBackground()">Apply Selected</button>
                         </div>
                         <div class="section-body" style="display:flex;gap:20px;align-items:flex-start;margin-top:12px;">
                             <div style="flex:1;">
-                                <label for="param-treeBackgroundList">Select Background</label><br>
+                                <label for="param-treeBackgroundUpload">Upload custom background image</label><br>
+                                <input type="file" id="param-treeBackgroundUpload" accept="image/png,image/jpeg,image/webp">
+                                <div style="display:flex;gap:8px;margin-top:6px;">
+                                    <button class="btn-primary" onclick="uploadTreeBackground()">Upload Background</button>
+                                </div>
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded background will be saved to <em>/assets/Tree/background</em> and applied to the tree.</p>
+                            </div>
+                            <div style="flex:1;">
+                                <label for="param-treeBackgroundList">Or select from existing background</label><br>
                                 <div id="param-treeBackgroundList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:240px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">The selected image will be used as the /tree page background.</p>
+                                
+                                <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing background images with thumbnails and labels.</p>
                             </div>
                             <div style="width:240px;">
                                 <div id="treeBackgroundPreview" style="width:100%;height:140px;border:1px solid #e6e9ef;border-radius:8px;background:#eef2f7 center/cover no-repeat;"></div>
-                                <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Background.</p>
+                                <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Selected.</p>
                             </div>
                         </div>
                     </div>
@@ -886,7 +895,7 @@
                                 <label for="param-leafUpload">Upload custom leaf image</label><br>
                                 <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
                                 <div style="display:flex;gap:8px;margin-top:6px;">
-                                    <button class="btn-secondary" onclick="uploadParameterLeaf()">Upload Leaf</button>
+                                    <button class="btn-primary" onclick="uploadParameterLeaf()">Upload Leaf</button>
                                     <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
                                 </div>
                                 <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>

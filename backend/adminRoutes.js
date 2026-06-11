@@ -284,7 +284,260 @@ async function getModel() {
     return classifier;
 }
 
-// ==================== 1. AUDIT LOGGING FUNCTIONS ====================
+// ===================== 1. ESG JOURNEY PASSPORT (Done by Nick) =====================
+const PASSPORT_TOPIC_LABELS = {
+    'climate-change': 'Climate Champion',
+    'renewable-energy': 'Renewable Innovator',
+    'sustainable-living': 'Sustainable Living Advocate',
+    'ocean-conservation': 'Ocean Guardian',
+    'ethical-governance': 'Governance Guardian',
+    'community-impact': 'Social Champion'
+};
+
+const PASSPORT_STAMP_LABELS = {
+    firstFeedback: 'First Feedback',
+    firstPledge: 'First Pledge',
+    photoKeepsake: 'Photo Keepsake',
+    likedPledge: 'Community Liked',
+    repeatVisitor: 'Repeat Visitor',
+    topicExplorer: 'Topic Explorer'
+};
+
+function parsePassportMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'string') return {};
+    try {
+        return JSON.parse(metadata);
+    } catch {
+        return {};
+    }
+}
+
+function addPassportStamp(visitor, key, label, detail) {
+    if (visitor._stampKeys.has(key)) return;
+    visitor._stampKeys.add(key);
+    visitor.stamps.push({ key, label, detail });
+}
+
+function buildJourneyPassport(rows) {
+    const visitorsById = new Map();
+
+    (rows || []).forEach(row => {
+        if (!visitorsById.has(row.user_id)) {
+            visitorsById.set(row.user_id, {
+                id: row.user_id,
+                name: row.name || 'Anonymous Visitor',
+                visitCount: Number(row.visit_count || 0),
+                firstSeen: row.user_created_at,
+                lastSeen: row.last_visit || row.feedback_created_at,
+                feedbackCount: 0,
+                pledgeCount: 0,
+                photoCount: 0,
+                likedPledgeCount: 0,
+                keepsakeCount: 0,
+                topics: new Set(),
+                stamps: [],
+                _stampKeys: new Set()
+            });
+        }
+
+        const visitor = visitorsById.get(row.user_id);
+        if (!row.feedback_id) return;
+
+        const metadata = parsePassportMetadata(row.metadata);
+        const pledgeText = normalizeInsightText(row.comment);
+        const topic = metadata.pledgeTopic || '';
+        visitor.feedbackCount += 1;
+        visitor.pledgeCount += pledgeText ? 1 : 0;
+        visitor.photoCount += row.photo_path || row.processed_photo_path ? 1 : 0;
+        visitor.keepsakeCount += Number(row.email_sent || 0) > 0 || row.processed_photo_path ? 1 : 0;
+        visitor.likedPledgeCount += Number(row.like_count || 0);
+        if (topic && PASSPORT_TOPIC_LABELS[topic]) visitor.topics.add(topic);
+        if (!visitor.lastSeen || new Date(row.feedback_created_at) > new Date(visitor.lastSeen)) {
+            visitor.lastSeen = row.feedback_created_at;
+        }
+    });
+
+    const stampBreakdown = Object.fromEntries(
+        Object.keys(PASSPORT_STAMP_LABELS).map(key => [key, { label: PASSPORT_STAMP_LABELS[key], count: 0 }])
+    );
+
+    const passports = Array.from(visitorsById.values()).map(visitor => {
+        if (visitor.feedbackCount > 0) {
+            addPassportStamp(visitor, 'firstFeedback', PASSPORT_STAMP_LABELS.firstFeedback, `${visitor.feedbackCount} feedback submission${visitor.feedbackCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.pledgeCount > 0) {
+            addPassportStamp(visitor, 'firstPledge', PASSPORT_STAMP_LABELS.firstPledge, `${visitor.pledgeCount} pledge${visitor.pledgeCount === 1 ? '' : 's'} shared`);
+        }
+        if (visitor.keepsakeCount > 0 || visitor.photoCount > 0) {
+            addPassportStamp(visitor, 'photoKeepsake', PASSPORT_STAMP_LABELS.photoKeepsake, `${Math.max(visitor.keepsakeCount, visitor.photoCount)} keepsake moment${Math.max(visitor.keepsakeCount, visitor.photoCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.likedPledgeCount > 0) {
+            addPassportStamp(visitor, 'likedPledge', PASSPORT_STAMP_LABELS.likedPledge, `${visitor.likedPledgeCount} pledge like${visitor.likedPledgeCount === 1 ? '' : 's'}`);
+        }
+        if (visitor.visitCount >= 2 || visitor.feedbackCount >= 2) {
+            addPassportStamp(visitor, 'repeatVisitor', PASSPORT_STAMP_LABELS.repeatVisitor, `${Math.max(visitor.visitCount, visitor.feedbackCount)} recorded visit${Math.max(visitor.visitCount, visitor.feedbackCount) === 1 ? '' : 's'}`);
+        }
+        if (visitor.topics.size >= 2) {
+            addPassportStamp(visitor, 'topicExplorer', PASSPORT_STAMP_LABELS.topicExplorer, `${visitor.topics.size} pledge topics explored`);
+        }
+
+        const topicBadges = Array.from(visitor.topics)
+            .map(topic => ({ topic, label: PASSPORT_TOPIC_LABELS[topic] }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        visitor.stamps.forEach(stamp => {
+            if (stampBreakdown[stamp.key]) stampBreakdown[stamp.key].count += 1;
+        });
+
+        const stampCount = visitor.stamps.length + topicBadges.length;
+
+        return {
+            id: visitor.id,
+            name: visitor.name,
+            visitCount: visitor.visitCount,
+            feedbackCount: visitor.feedbackCount,
+            pledgeCount: visitor.pledgeCount,
+            photoCount: visitor.photoCount,
+            likedPledgeCount: visitor.likedPledgeCount,
+            firstSeen: visitor.firstSeen,
+            lastSeen: visitor.lastSeen,
+            stampCount,
+            progressPercent: Math.min(100, Math.round((stampCount / 12) * 100)),
+            stamps: visitor.stamps,
+            topicBadges
+        };
+    })
+        .filter(visitor => visitor.feedbackCount > 0)
+        .sort((a, b) => b.stampCount - a.stampCount || b.feedbackCount - a.feedbackCount || new Date(b.lastSeen) - new Date(a.lastSeen));
+
+    const totalStamps = passports.reduce((sum, visitor) => sum + visitor.stampCount, 0);
+    const repeatVisitors = passports.filter(visitor => visitor.visitCount >= 2 || visitor.feedbackCount >= 2).length;
+    const topicBreakdown = Object.entries(passports.reduce((counts, visitor) => {
+        (visitor.topicBadges || []).forEach(badge => {
+            counts[badge.label] = (counts[badge.label] || 0) + 1;
+        });
+        return counts;
+    }, {}))
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    return {
+        summary: {
+            passportHolders: passports.length,
+            repeatVisitors,
+            totalStamps,
+            averageStamps: passports.length ? Number((totalStamps / passports.length).toFixed(1)) : 0,
+            repeatRate: passports.length ? Math.round((repeatVisitors / passports.length) * 100) : 0
+        },
+        stampBreakdown: Object.values(stampBreakdown),
+        topicBreakdown,
+        topPassports: passports.slice(0, 6)
+    };
+}
+
+// Dashboard intervention alerts for staff action.
+router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
+    const activeCampaign = getActiveCampaignSettings();
+    const feedbackQuery = `
+        SELECT id, comment, metadata, photo_path, processed_photo_path, created_at
+        FROM feedback
+        WHERE is_active = 1
+          AND archive_status = 'not_archived'
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY created_at DESC
+        LIMIT 800
+    `;
+
+    const answersQuery = `
+        SELECT fa.answer_value AS text, fa.created_at
+        FROM feedback_answers fa
+        JOIN feedback f ON fa.feedback_id = f.id
+        WHERE fa.answer_value IS NOT NULL
+          AND TRIM(fa.answer_value) != ''
+          AND f.is_active = 1
+          AND f.archive_status = 'not_archived'
+          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY fa.created_at DESC
+        LIMIT 800
+    `;
+
+    db.all(feedbackQuery, [], (feedbackErr, feedbackRows) => {
+        if (feedbackErr) {
+            console.error('Error loading intervention feedback data:', feedbackErr);
+            return res.status(500).json({ success: false, error: feedbackErr.message });
+        }
+
+        db.all(answersQuery, [], async (answersErr, answerRows) => {
+            if (answersErr) {
+                console.error('Error loading intervention answer data:', answersErr);
+                return res.status(500).json({ success: false, error: answersErr.message });
+            }
+
+            let health = null;
+            try {
+                health = resolveHealthDetails();
+            } catch (healthError) {
+                console.warn('Intervention alert health check unavailable:', healthError.message);
+            }
+
+            const alerts = await getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
+            res.json({
+                success: true,
+                generatedAt: new Date().toISOString(),
+                activeCampaign,
+                alerts
+            });
+        });
+    });
+});
+
+// ESG Journey Passport dashboard summary for repeat engagement tracking.
+router.get('/journey-passport', auth.requireAuth, (req, res) => {
+    const query = `
+        SELECT
+            u.id AS user_id,
+            u.name,
+            u.visit_count,
+            u.created_at AS user_created_at,
+            u.last_visit,
+            f.id AS feedback_id,
+            f.comment,
+            f.metadata,
+            f.photo_path,
+            f.processed_photo_path,
+            f.email_sent,
+            f.created_at AS feedback_created_at,
+            COALESCE(pl.like_count, 0) AS like_count
+        FROM users u
+        LEFT JOIN feedback f
+            ON f.user_id = u.id
+           AND f.is_active = 1
+           AND f.archive_status = 'not_archived'
+        LEFT JOIN (
+            SELECT feedback_id, COUNT(*) AS like_count
+            FROM pledge_likes
+            GROUP BY feedback_id
+        ) pl ON pl.feedback_id = f.id
+        ORDER BY u.last_visit DESC, f.created_at DESC
+        LIMIT 1200
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Error loading journey passport data:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        res.json({
+            success: true,
+            generatedAt: new Date().toISOString(),
+            passport: buildJourneyPassport(rows || [])
+        });
+    });
+});
+
+
+// ==================== 2. AUDIT LOGGING FUNCTIONS ====================
 
 function logAudit(action, adminUsername, targetType = null, targetId = null, req = null) {
     // Only log important actions - customize this list as needed
@@ -317,7 +570,7 @@ function logAudit(action, adminUsername, targetType = null, targetId = null, req
     });
 }
 
-// ==================== 2. FILE UPLOAD CONFIGURATION ====================
+// ==================== 3. FILE UPLOAD CONFIGURATION ====================
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -459,11 +712,11 @@ const uploadParameterLeaf = multer({
         }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024
+        fileSize: 10 * 1024 * 1024 // 10MB limit
     }
 });
 
-// ==================== 3. AUTHENTICATION ROUTES ====================
+// ==================== 4. AUTHENTICATION ROUTES ====================
 
 // In /login endpoint, replace or modify:
 router.post('/login', (req, res) => {
@@ -528,7 +781,7 @@ router.post('/keep-alive', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 4. DASHBOARD ROUTES ====================
+// ==================== 5. DASHBOARD ROUTES ====================
 
 // Dashboard data endpoint - FEEDBACK ONLY (matches Feedback Data page filters)
 router.get('/dashboard', (req, res) => {
@@ -984,7 +1237,7 @@ router.get('/test-db', (req, res) => {
 });
 
 
-// ==================== 5. FEEDBACK MANAGEMENT ROUTES ====================
+// ==================== 6. FEEDBACK MANAGEMENT ROUTES ====================
 
 router.get('/feedback', (req, res) => {
     console.log('🔍 Fetching ALL feedback data (pagination handled by frontend)...');
@@ -1299,7 +1552,7 @@ router.delete('/feedback/:id', async (req, res) => {
 });
 
 
-// ==================== 6. FEEDBACK SENTIMENT ANALYSIS (Done by Yu Kang) ====================
+// ==================== 7. FEEDBACK SENTIMENT ANALYSIS (Done by Yu Kang) ====================
 
 //AI analysis modes
 const analysis_modes = {
@@ -1827,256 +2080,7 @@ async function getInterventionAlertsFromRows(feedbackRows, answerRows, health, c
         .slice(0, 5);
 }
 
-const PASSPORT_TOPIC_LABELS = {
-    'climate-change': 'Climate Champion',
-    'renewable-energy': 'Renewable Innovator',
-    'sustainable-living': 'Sustainable Living Advocate',
-    'ocean-conservation': 'Ocean Guardian',
-    'ethical-governance': 'Governance Guardian',
-    'community-impact': 'Social Champion'
-};
 
-const PASSPORT_STAMP_LABELS = {
-    firstFeedback: 'First Feedback',
-    firstPledge: 'First Pledge',
-    photoKeepsake: 'Photo Keepsake',
-    likedPledge: 'Community Liked',
-    repeatVisitor: 'Repeat Visitor',
-    topicExplorer: 'Topic Explorer'
-};
-
-function parsePassportMetadata(metadata) {
-    if (!metadata || typeof metadata !== 'string') return {};
-    try {
-        return JSON.parse(metadata);
-    } catch {
-        return {};
-    }
-}
-
-function addPassportStamp(visitor, key, label, detail) {
-    if (visitor._stampKeys.has(key)) return;
-    visitor._stampKeys.add(key);
-    visitor.stamps.push({ key, label, detail });
-}
-
-function buildJourneyPassport(rows) {
-    const visitorsById = new Map();
-
-    (rows || []).forEach(row => {
-        if (!visitorsById.has(row.user_id)) {
-            visitorsById.set(row.user_id, {
-                id: row.user_id,
-                name: row.name || 'Anonymous Visitor',
-                visitCount: Number(row.visit_count || 0),
-                firstSeen: row.user_created_at,
-                lastSeen: row.last_visit || row.feedback_created_at,
-                feedbackCount: 0,
-                pledgeCount: 0,
-                photoCount: 0,
-                likedPledgeCount: 0,
-                keepsakeCount: 0,
-                topics: new Set(),
-                stamps: [],
-                _stampKeys: new Set()
-            });
-        }
-
-        const visitor = visitorsById.get(row.user_id);
-        if (!row.feedback_id) return;
-
-        const metadata = parsePassportMetadata(row.metadata);
-        const pledgeText = normalizeInsightText(row.comment);
-        const topic = metadata.pledgeTopic || '';
-        visitor.feedbackCount += 1;
-        visitor.pledgeCount += pledgeText ? 1 : 0;
-        visitor.photoCount += row.photo_path || row.processed_photo_path ? 1 : 0;
-        visitor.keepsakeCount += Number(row.email_sent || 0) > 0 || row.processed_photo_path ? 1 : 0;
-        visitor.likedPledgeCount += Number(row.like_count || 0);
-        if (topic && PASSPORT_TOPIC_LABELS[topic]) visitor.topics.add(topic);
-        if (!visitor.lastSeen || new Date(row.feedback_created_at) > new Date(visitor.lastSeen)) {
-            visitor.lastSeen = row.feedback_created_at;
-        }
-    });
-
-    const stampBreakdown = Object.fromEntries(
-        Object.keys(PASSPORT_STAMP_LABELS).map(key => [key, { label: PASSPORT_STAMP_LABELS[key], count: 0 }])
-    );
-
-    const passports = Array.from(visitorsById.values()).map(visitor => {
-        if (visitor.feedbackCount > 0) {
-            addPassportStamp(visitor, 'firstFeedback', PASSPORT_STAMP_LABELS.firstFeedback, `${visitor.feedbackCount} feedback submission${visitor.feedbackCount === 1 ? '' : 's'}`);
-        }
-        if (visitor.pledgeCount > 0) {
-            addPassportStamp(visitor, 'firstPledge', PASSPORT_STAMP_LABELS.firstPledge, `${visitor.pledgeCount} pledge${visitor.pledgeCount === 1 ? '' : 's'} shared`);
-        }
-        if (visitor.keepsakeCount > 0 || visitor.photoCount > 0) {
-            addPassportStamp(visitor, 'photoKeepsake', PASSPORT_STAMP_LABELS.photoKeepsake, `${Math.max(visitor.keepsakeCount, visitor.photoCount)} keepsake moment${Math.max(visitor.keepsakeCount, visitor.photoCount) === 1 ? '' : 's'}`);
-        }
-        if (visitor.likedPledgeCount > 0) {
-            addPassportStamp(visitor, 'likedPledge', PASSPORT_STAMP_LABELS.likedPledge, `${visitor.likedPledgeCount} pledge like${visitor.likedPledgeCount === 1 ? '' : 's'}`);
-        }
-        if (visitor.visitCount >= 2 || visitor.feedbackCount >= 2) {
-            addPassportStamp(visitor, 'repeatVisitor', PASSPORT_STAMP_LABELS.repeatVisitor, `${Math.max(visitor.visitCount, visitor.feedbackCount)} recorded visit${Math.max(visitor.visitCount, visitor.feedbackCount) === 1 ? '' : 's'}`);
-        }
-        if (visitor.topics.size >= 2) {
-            addPassportStamp(visitor, 'topicExplorer', PASSPORT_STAMP_LABELS.topicExplorer, `${visitor.topics.size} pledge topics explored`);
-        }
-
-        const topicBadges = Array.from(visitor.topics)
-            .map(topic => ({ topic, label: PASSPORT_TOPIC_LABELS[topic] }))
-            .sort((a, b) => a.label.localeCompare(b.label));
-
-        visitor.stamps.forEach(stamp => {
-            if (stampBreakdown[stamp.key]) stampBreakdown[stamp.key].count += 1;
-        });
-
-        const stampCount = visitor.stamps.length + topicBadges.length;
-
-        return {
-            id: visitor.id,
-            name: visitor.name,
-            visitCount: visitor.visitCount,
-            feedbackCount: visitor.feedbackCount,
-            pledgeCount: visitor.pledgeCount,
-            photoCount: visitor.photoCount,
-            likedPledgeCount: visitor.likedPledgeCount,
-            firstSeen: visitor.firstSeen,
-            lastSeen: visitor.lastSeen,
-            stampCount,
-            progressPercent: Math.min(100, Math.round((stampCount / 12) * 100)),
-            stamps: visitor.stamps,
-            topicBadges
-        };
-    })
-        .filter(visitor => visitor.feedbackCount > 0)
-        .sort((a, b) => b.stampCount - a.stampCount || b.feedbackCount - a.feedbackCount || new Date(b.lastSeen) - new Date(a.lastSeen));
-
-    const totalStamps = passports.reduce((sum, visitor) => sum + visitor.stampCount, 0);
-    const repeatVisitors = passports.filter(visitor => visitor.visitCount >= 2 || visitor.feedbackCount >= 2).length;
-    const topicBreakdown = Object.entries(passports.reduce((counts, visitor) => {
-        (visitor.topicBadges || []).forEach(badge => {
-            counts[badge.label] = (counts[badge.label] || 0) + 1;
-        });
-        return counts;
-    }, {}))
-        .map(([label, count]) => ({ label, count }))
-        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-
-    return {
-        summary: {
-            passportHolders: passports.length,
-            repeatVisitors,
-            totalStamps,
-            averageStamps: passports.length ? Number((totalStamps / passports.length).toFixed(1)) : 0,
-            repeatRate: passports.length ? Math.round((repeatVisitors / passports.length) * 100) : 0
-        },
-        stampBreakdown: Object.values(stampBreakdown),
-        topicBreakdown,
-        topPassports: passports.slice(0, 6)
-    };
-}
-
-// Dashboard intervention alerts for staff action.
-router.get('/intervention-alerts', auth.requireAuth, (req, res) => {
-    const activeCampaign = getActiveCampaignSettings();
-    const feedbackQuery = `
-        SELECT id, comment, metadata, photo_path, processed_photo_path, created_at
-        FROM feedback
-        WHERE is_active = 1
-          AND archive_status = 'not_archived'
-          AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-        ORDER BY created_at DESC
-        LIMIT 800
-    `;
-
-    const answersQuery = `
-        SELECT fa.answer_value AS text, fa.created_at
-        FROM feedback_answers fa
-        JOIN feedback f ON fa.feedback_id = f.id
-        WHERE fa.answer_value IS NOT NULL
-          AND TRIM(fa.answer_value) != ''
-          AND f.is_active = 1
-          AND f.archive_status = 'not_archived'
-          AND fa.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-        ORDER BY fa.created_at DESC
-        LIMIT 800
-    `;
-
-    db.all(feedbackQuery, [], (feedbackErr, feedbackRows) => {
-        if (feedbackErr) {
-            console.error('Error loading intervention feedback data:', feedbackErr);
-            return res.status(500).json({ success: false, error: feedbackErr.message });
-        }
-
-        db.all(answersQuery, [], async (answersErr, answerRows) => {
-            if (answersErr) {
-                console.error('Error loading intervention answer data:', answersErr);
-                return res.status(500).json({ success: false, error: answersErr.message });
-            }
-
-            let health = null;
-            try {
-                health = resolveHealthDetails();
-            } catch (healthError) {
-                console.warn('Intervention alert health check unavailable:', healthError.message);
-            }
-
-            const alerts = await getInterventionAlertsFromRows(feedbackRows || [], answerRows || [], health, activeCampaign);
-            res.json({
-                success: true,
-                generatedAt: new Date().toISOString(),
-                activeCampaign,
-                alerts
-            });
-        });
-    });
-});
-
-// ESG Journey Passport dashboard summary for repeat engagement tracking.
-router.get('/journey-passport', auth.requireAuth, (req, res) => {
-    const query = `
-        SELECT
-            u.id AS user_id,
-            u.name,
-            u.visit_count,
-            u.created_at AS user_created_at,
-            u.last_visit,
-            f.id AS feedback_id,
-            f.comment,
-            f.metadata,
-            f.photo_path,
-            f.processed_photo_path,
-            f.email_sent,
-            f.created_at AS feedback_created_at,
-            COALESCE(pl.like_count, 0) AS like_count
-        FROM users u
-        LEFT JOIN feedback f
-            ON f.user_id = u.id
-           AND f.is_active = 1
-           AND f.archive_status = 'not_archived'
-        LEFT JOIN (
-            SELECT feedback_id, COUNT(*) AS like_count
-            FROM pledge_likes
-            GROUP BY feedback_id
-        ) pl ON pl.feedback_id = f.id
-        ORDER BY u.last_visit DESC, f.created_at DESC
-        LIMIT 1200
-    `;
-
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            console.error('Error loading journey passport data:', err);
-            return res.status(500).json({ success: false, error: err.message });
-        }
-
-        res.json({
-            success: true,
-            generatedAt: new Date().toISOString(),
-            passport: buildJourneyPassport(rows || [])
-        });
-    });
-});
 
 // AI Insight Summary for admin feedback analysis (Done by Yu Kang)
 router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
@@ -2273,7 +2277,7 @@ router.get('/feedback-sentiment-analysis', async (req, res) => {
     });
 });
 
-// ==================== 7. ARCHIVE MANAGEMENT ROUTES ====================
+// ==================== 8. ARCHIVE MANAGEMENT ROUTES ====================
 
 // Get archived feedback (older than 3 months)
 router.get('/archive', (req, res) => {
@@ -2616,7 +2620,7 @@ router.get('/download-file/:filename', async (req, res) => {
     }
 });
 
-// ==================== 8. ARCHIVE DELETION ROUTES (System Admin Only) ====================
+// ==================== 9. ARCHIVE DELETION ROUTES (System Admin Only) ====================
 
 
 // Preview deletion count before executing
@@ -2986,7 +2990,7 @@ router.post('/archive/delete-by-date', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 9. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
+// ==================== 10. PHOTO ACCESS & EMAIL DECRYPTION ROUTES ====================
 
 // Verify system admin password for photo access
 router.post('/verify-photo-access', (req, res) => {
@@ -3114,7 +3118,7 @@ router.post('/decrypt-email', (req, res) => {
     });
 });
 
-// ==================== 10. ADMIN USER MANAGEMENT ROUTES  ====================
+// ==================== 11. ADMIN USER MANAGEMENT ROUTES  ====================
 
 // Get all ACTIVE admin users (excludes soft-deleted users)
 router.get('/users', (req, res) => {
@@ -3781,7 +3785,7 @@ router.put('/users/:id', async (req, res) => {
     });
 });
 
-// ==================== 11. DATA EXPORT MANAGEMENT ROUTES ====================
+// ==================== 12. DATA EXPORT MANAGEMENT ROUTES ====================
 
 // Unlock data export with password verification (System Admin only)
 router.post('/data-export/unlock', (req, res) => {
@@ -3879,7 +3883,7 @@ router.post('/data-export/unlock', (req, res) => {
     });
 });
 
-// ==================== 12. EXPORT/IMPORT ROUTES ====================
+// ==================== 13. EXPORT/IMPORT ROUTES ====================
 
 // Excel download endpoint with email decryption
 router.get('/download-excel', (req, res) => {
@@ -4146,7 +4150,7 @@ router.get('/download-photos', async (req, res) => {
     }
 });
 
-// ==================== 13. OVERLAY MANAGEMENT ROUTES ====================
+// ==================== 14. OVERLAY MANAGEMENT ROUTES ====================
 
 // Overlay list route
 router.get('/overlays', (req, res) => {
@@ -4507,7 +4511,7 @@ router.delete('/overlays/:id', (req, res) => {
     });
 });
 
-// ==================== 14. QUESTION MANAGEMENT ROUTES ====================
+// ==================== 15. QUESTION MANAGEMENT ROUTES ====================
 
 // Get all active questions with their options
 router.get('/questions', (req, res) => {
@@ -4944,7 +4948,7 @@ router.put('/questions/:id', (req, res) => {
     });
 });
 
-// ==================== 15. AUDIT LOGS ROUTES ====================
+// ==================== 16. AUDIT LOGS ROUTES ====================
 
 // Get audit logs
 router.get('/audit-logs', (req, res) => {
@@ -4979,7 +4983,7 @@ router.get('/audit-logs', (req, res) => {
     });
 });
 
-// ==================== 16. HELPER FUNCTIONS ====================
+// ==================== 17. HELPER FUNCTIONS ====================
 
 // Helper function to delete user photos from filesystem
 function deleteUserPhotos(feedback, callback) {
@@ -5232,7 +5236,7 @@ function convertToCSV(data) {
     return [headers, ...rows].join('\n');
 }
 
-// ==================== 17. SAVED THEMES ROUTES ====================
+// ==================== 18. SAVED THEMES ROUTES ====================
 
 
 // GET /api/admin/saved-themes
@@ -5603,7 +5607,7 @@ router.get('/saved-themes/active', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 18. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
+// ==================== 19. VIP MANAGEMENT ROUTES (DONE BY ZAH) ====================
 
 // Get VIP list (Active only)
 // GET /vips
@@ -5727,7 +5731,7 @@ router.delete('/vips/:name', (req, res) => {
 });
 
 
-// ==================== 19. FORM UI CONFIGURATION ====================
+// ==================== 20. FORM UI CONFIGURATION ====================
 // Read + write feedback form UI settings 
 
 const FORM_UI_CONFIG_PATH = path.join(__dirname, 'config', 'form-ui.json');
@@ -5799,7 +5803,7 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
   }
 });
 
-// ==================== 24. PARAMETER ADJUSTMENT MANAGEMENT ====================
+// ==================== 21. PARAMETER ADJUSTMENT MANAGEMENT ====================
 // System-wide parameter configuration, including feature toggles and centralized validation rules (DONE BY CAEDEN)
 // Translation, archive timing, and auto-archive helpers added for admin controls. (Done by Caeden)
 
@@ -6070,7 +6074,7 @@ router.post('/parameters/background', auth.requireAdmin, uploadParameterBackgrou
   }
 });
 
-// POST /api/admin/parameters/leaf - Upload a custom leaf image and activate it
+// POST /api/admin/parameters/leaf - Upload a custom leaf image and activate it (Done by Yu Kang)
 router.post('/parameters/leaf', auth.requireAdmin, uploadParameterLeaf.single('leaf'), (req, res) => {
     try {
         console.log('🍃 Leaf upload endpoint hit');
@@ -6348,7 +6352,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
     if (!categoryData || Object.keys(categoryData).length === 0) {
       return res.status(404).json({ success: false, error: 'Category not found' });
     }
-    
+
     res.json({ success: true, category, parameters: categoryData });
   } catch (error) {
     console.error('❌ Error reading parameter category:', error);
@@ -6552,7 +6556,8 @@ router.post('/retention-cleanup/run', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 20. EMAIL MANAGEMENT ====================
+
+// ==================== 22. EMAIL MANAGEMENT ====================
 // Get/Update SMTP config (Gmail / Outlook / Custom) without restarting server
 
 router.get('/email-config', auth.requireAuth, (req, res) => {
@@ -6666,7 +6671,7 @@ router.put('/badge-email-templates', auth.requireAdmin, (req, res) => {
   }
 });
 
-// ==================== 21. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 23. TIMER COUNTDOWN MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
  // GET /api/admin/countdown-management
  // Returns: { success: true, countdown_seconds: number }
@@ -6754,7 +6759,7 @@ router.put('/countdown-management', auth.requireAuth, (req, res) => {
     });
 });
 
-// ==================== 22. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
+// ==================== 24. SERVER SCHEDULE MANAGEMENT ROUTES (DONE BY BERNISSA) ====================
 
 // SERVER SCHEDULE MANAGEMENT (Config File Based)
 
