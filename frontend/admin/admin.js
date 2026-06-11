@@ -357,6 +357,7 @@
 //     function updateDigitalTreeTable() - Update digital tree table display (DONE BY PRETI)
 //     function refreshTreeData()      - Refresh tree data (DONE BY PRETI)
 //     function escapeHtml()           - Escape HTML for safe display (DONE BY PRETI)
+//     function saveTreeParameters()     - Save tree parameters (stage and background) (DONE BY Yu Kang)
 //
 // 19. UTILITY FUNCTIONS (DONE BY PRETI)
 //     const style                     - Style element for dynamic CSS (DONE BY PRETI)
@@ -8304,6 +8305,7 @@ async function saveTreeStageSelection() {
     }
 }
 
+
 async function loadAvailableTreeBackgrounds() {
     try {
         const response = await fetch('/api/admin/parameters/tree-background/list', {
@@ -8454,6 +8456,52 @@ async function selectTreeBackground() {
             status.textContent = `Error: ${error.message || 'Failed to apply tree background.'}`;
         }
         showNotification(error.message || 'Failed to apply tree background.', 'error');
+    }
+}
+
+async function uploadTreeBackground() {
+    const fileInput = document.getElementById('param-treeBackgroundUpload');
+    const file = fileInput?.files?.[0];
+    const status = document.getElementById('tree-background-status');
+    
+    if (!file) {
+        if (status) status.textContent = 'Choose a background image first.';
+        showNotification('Choose a background image first.', 'error');
+        return;
+    }
+
+    try {
+        if (status) status.textContent = 'Uploading background image...';
+        const formData = new FormData();
+        formData.append('background', file);
+
+        const response = await fetch('/api/admin/parameters/tree-background/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload background image');
+        }
+
+        if (fileInput) fileInput.value = '';
+        if (status) status.textContent = '✅ Background uploaded and applied.';
+        showNotification('Tree background uploaded and applied successfully.', 'success');
+
+        // Update the manual path field input under Visual Assets settings if it exists
+        const manualInput = document.getElementById('param-treeBackground');
+        if (manualInput && data.assetPath) {
+            setInputValue('param-treeBackground', data.assetPath);
+        }
+
+        // Reload the backgrounds list to reflect the new background
+        await loadAvailableTreeBackgrounds();
+    } catch (error) {
+        console.error('Error uploading tree background:', error);
+        if (status) status.textContent = `Error: ${error.message || 'Failed to upload background image.'}`;
+        showNotification(error.message || 'Failed to upload background image.', 'error');
     }
 }
 

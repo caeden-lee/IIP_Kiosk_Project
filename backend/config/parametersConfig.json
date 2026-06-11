@@ -1,13 +1,13 @@
 {
   "feedbackMessages": {
-    "thankYouTitle": "Thank You! ☀️",
-    "thankYouMessage": "Your feedback has been recorded and a new leaf has been added to our digital tree!",
-    "thankYouSubtitle": "Your feedback makes a difference",
-    "thankYouFooter": "Thank you for contributing to our sustainability journey at Republic Polytechnic!",
-    "consentPrompt": "Your feedback helps us create a more sustainable future. Your responses will be kept confidential.",
-    "detailsPrompt": "Please provide your details so we can track your contributions.",
-    "feedbackPrompt": "Share your thoughts on our sustainability initiatives.",
-    "pledgePrompt": "Would you like to make a pledge to support sustainability?"
+    "thankYouTitle": "",
+    "thankYouMessage": "",
+    "thankYouSubtitle": "",
+    "thankYouFooter": "",
+    "consentPrompt": "",
+    "detailsPrompt": "",
+    "feedbackPrompt": "",
+    "pledgePrompt": ""
   },
   "contentSettings": {
     "temporaryRetentionDays": 7,
@@ -19,17 +19,12 @@
   },
   "campaignSettings": {
     "enabled": false,
-    "title": "Food Waste Week",
+    "title": "ESG Campaign",
     "cadence": "weekly",
     "treeSubtitle": "This week's focus: reduce food waste through mindful choices.",
     "pulseGoal": 100,
     "badgeEmphasis": "sustainable-living",
-    "focusKeywords": [
-      "food waste",
-      "leftovers",
-      "canteen",
-      "meal"
-    ],
+    "focusKeywords": [],
     "pledgeExamples": [
       "Take only what I can finish during meals",
       "Share food waste tips with one friend this week",
@@ -37,11 +32,11 @@
     ]
   },
   "emailContent": {
-    "thankYouSubject": "Thank you for visiting RP ESG Centre, {name}!",
-    "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
-    "thankYouClosing": "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
-    "senderName": "ESG Centre Team",
-    "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.",
+    "thankYouSubject": "",
+    "thankYouIntro": "",
+    "thankYouClosing": "",
+    "senderName": "",
+    "footerNote": "",
     "visitSummaryTitle": "Your Visit Summary",
     "visitSummaryDateLabel": "Visit date",
     "visitSummaryTopicLabel": "Pledge topic",
@@ -51,62 +46,56 @@
     "visitSummaryTreeMessage": "Your virtual leaf has been added to the RP ESG digital tree."
   },
   "featureFlags": {
-    "cameraCaptureEnabled": true,
-    "photoUploadEnabled": true,
-    "beautyFilterEnabled": true,
-    "pledgeEnabled": true,
-    "badgeEmailEnabled": true,
-    "thankYouEmailEnabled": true,
-    "socialSharingEnabled": true,
+    "cameraCaptureEnabled": false,
+    "photoUploadEnabled": false,
+    "beautyFilterEnabled": false,
+    "pledgeEnabled": false,
+    "badgeEmailEnabled": false,
+    "thankYouEmailEnabled": false,
+    "socialSharingEnabled": false,
     "floatingLanguageSelectorEnabled": false
   },
   "validationRules": {
-    "nameRequired": true,
-    "nameMinLength": 2,
+    "nameRequired": false,
+    "nameMinLength": 0,
     "nameMaxLength": 80,
-    "emailRequired": true,
+    "emailRequired": false,
     "emailPattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-    "requiredQuestionsEnabled": true,
-    "pledgeRequired": true,
-    "pledgeMinLength": 5,
+    "requiredQuestionsEnabled": false,
+    "pledgeRequired": false,
+    "pledgeMinLength": 0,
     "pledgeMaxLength": 500,
-    "pledgeTopicRequired": true,
-    "photoRequired": true,
+    "pledgeTopicRequired": false,
+    "photoRequired": false,
     "maxPhotoFileSizeMb": 5,
-    "allowedPhotoFormats": [
-      "jpeg",
-      "jpg",
-      "png",
-      "webp"
-    ]
+    "allowedPhotoFormats": []
   },
   "treeParameters": {
     "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
-    "ovalTopOffset": -100,
-    "leafRefreshInterval": 30000,
-    "leafOpacity": 0.9,
-    "leafAnimationDuration": 500,
-    "leafFallThreshold": 15,
-    "leafFallDuration": 4200,
+    "ovalTopOffset": 0,
+    "leafRefreshInterval": 0,
+    "leafOpacity": 0,
+    "leafAnimationDuration": 0,
+    "leafFallThreshold": 0,
+    "leafFallDuration": 0,
     "leafGreenResetTime": "00:00",
-    "leafDisplayScale": 1,
-    "showTitleBox": true
+    "leafDisplayScale": 1.4,
+    "showTitleBox": false
   },
   "photoSettings": {
-    "beautyFilterEnabled": true,
+    "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
-    "maxPhotoFileSize": 5242880,
+    "maxPhotoFileSize": 1048576,
     "supportedFormats": [
       "jpeg",
-      "png",
-      "webp"
+      "png"
     ]
   },
   "overlaySettings": {
-    "enableOverlayUpload": true,
-    "maxOverlayFileSize": 10485760,
+    "enableOverlayUpload": false,
+    "maxOverlayFileSize": 1048576,
     "supportedFormats": [
       "png",
       "jpg",
@@ -115,29 +104,29 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/background/BackGround.png",
-    "leafImage": "/assets/Tree/leaf/NewRightLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/GoldLeftLeaf.png",
+    "treeBackground": "",
+    "leafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/NewRightLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
-    "landingTextScale": 1,
-    "landingPanelWidth": 600,
+    "landingTextScale": 1.1,
+    "landingPanelWidth": 360,
     "landingPanelMinHeight": 0,
-    "landingPanelPadding": 60,
+    "landingPanelPadding": 20,
     "landingPanelOffsetX": 0,
     "landingPanelOffsetY": 0,
     "startButtonOffsetX": 0,
     "startButtonOffsetY": 0,
-    "startButtonWidth": 330,
-    "startButtonHeight": 72,
+    "startButtonWidth": 180,
+    "startButtonHeight": 44,
     "pledgeboardButtonOffsetX": 0,
     "pledgeboardButtonOffsetY": 0,
-    "pledgeboardButtonWidth": 900,
-    "pledgeboardButtonHeight": 64
+    "pledgeboardButtonWidth": 180,
+    "pledgeboardButtonHeight": 44
   },
   "archiveSettings": {
-    "autoArchiveEnabled": true,
-    "archiveAfterDays": 90
+    "autoArchiveEnabled": false,
+    "archiveAfterDays": 15
   }
 }
