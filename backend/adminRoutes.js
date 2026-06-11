@@ -716,6 +716,41 @@ const uploadParameterLeaf = multer({
     }
 });
 
+// Storage for custom tree background image uploads
+const treeBackgroundStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/Tree/background');
+        try {
+            if (!fs.existsSync(destFolder)) {
+                fs.mkdirSync(destFolder, { recursive: true });
+            }
+        } catch (err) {
+            console.error('❌ Failed to create directory:', err.message);
+            return cb(err);
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        const filename = `tree-bg-${Date.now()}${ext}`;
+        cb(null, filename);
+    }
+});
+
+const uploadTreeBackground = multer({
+    storage: treeBackgroundStorage,
+    fileFilter: (req, file, cb) => {
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
 // ==================== 4. AUTHENTICATION ROUTES ====================
 
 // In /login endpoint, replace or modify:
@@ -6341,6 +6376,59 @@ router.post('/parameters/tree-background/select', auth.requireAdmin, (req, res) 
         return res.status(500).json({ success: false, error: error.message || 'Failed to select tree background' });
     }
 });
+
+// POST /api/admin/parameters/tree-background/upload - Upload a new tree background image and activate it
+function handleTreeBackgroundUploadErrors(err, req, res, next) {
+    if (!err) {
+        return next();
+    }
+    console.error('❌ Tree background upload failed:', err.message);
+    return res.status(400).json({
+        success: false,
+        error: err.message || 'Tree background upload failed'
+    });
+}
+
+router.post('/parameters/tree-background/upload', auth.requireAdmin, uploadTreeBackground.single('background'), handleTreeBackgroundUploadErrors, (req, res) => {
+    try {
+        console.log('🎨 Tree background upload endpoint hit');
+        if (!req.file) {
+            console.error('❌ No file received in request');
+            return res.status(400).json({ success: false, error: 'No background file uploaded' });
+        }
+
+        const assetPath = `/assets/Tree/background/${req.file.filename}`;
+        console.log('✅ File saved to:', req.file.path);
+        console.log('🔗 Asset path:', assetPath);
+
+        const config = parametersConfigStore.readParametersConfig();
+        config.visualAssets = { ...config.visualAssets, treeBackground: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to save parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to save tree background setting' });
+        }
+
+        console.log('💾 Parameters config saved successfully');
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_TREE_BACKGROUND_UPLOADED', req.session.user.username, 'config', 'visualAssets.treeBackground', req);
+        }
+
+        const finalConfig = parametersConfigStore.readParametersConfig();
+        res.json({
+            success: true,
+            message: 'Tree background uploaded and applied successfully',
+            assetPath,
+            parameters: finalConfig
+        });
+    } catch (error) {
+        console.error('❌ Error uploading tree background:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to upload tree background' });
+    }
+});
+
 
 // GET /api/admin/parameters/:category
 // Load parameters for specific category

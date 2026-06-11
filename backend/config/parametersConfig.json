@@ -1,13 +1,13 @@
 {
   "feedbackMessages": {
-    "thankYouTitle": "",
-    "thankYouMessage": "",
-    "thankYouSubtitle": "",
-    "thankYouFooter": "",
-    "consentPrompt": "",
-    "detailsPrompt": "",
-    "feedbackPrompt": "",
-    "pledgePrompt": ""
+    "thankYouTitle": "Thank You! ☀️",
+    "thankYouMessage": "Your feedback has been recorded and a new leaf has been added to our digital tree!",
+    "thankYouSubtitle": "Your feedback makes a difference",
+    "thankYouFooter": "Thank you for contributing to our sustainability journey at Republic Polytechnic!",
+    "consentPrompt": "Your feedback helps us create a more sustainable future. Your responses will be kept confidential.",
+    "detailsPrompt": "Please provide your details so we can track your contributions.",
+    "feedbackPrompt": "Share your thoughts on our sustainability initiatives.",
+    "pledgePrompt": "Would you like to make a pledge to support sustainability?"
   },
   "contentSettings": {
     "temporaryRetentionDays": 7,
@@ -19,12 +19,17 @@
   },
   "campaignSettings": {
     "enabled": false,
-    "title": "ESG Campaign",
+    "title": "Food Waste Week",
     "cadence": "weekly",
     "treeSubtitle": "This week's focus: reduce food waste through mindful choices.",
     "pulseGoal": 100,
     "badgeEmphasis": "sustainable-living",
-    "focusKeywords": [],
+    "focusKeywords": [
+      "food waste",
+      "leftovers",
+      "canteen",
+      "meal"
+    ],
     "pledgeExamples": [
       "Take only what I can finish during meals",
       "Share food waste tips with one friend this week",
@@ -32,11 +37,11 @@
     ]
   },
   "emailContent": {
-    "thankYouSubject": "",
-    "thankYouIntro": "",
-    "thankYouClosing": "",
-    "senderName": "",
-    "footerNote": "",
+    "thankYouSubject": "Thank you for visiting RP ESG Centre, {name}!",
+    "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
+    "thankYouClosing": "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
+    "senderName": "ESG Centre Team",
+    "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.",
     "visitSummaryTitle": "Your Visit Summary",
     "visitSummaryDateLabel": "Visit date",
     "visitSummaryTopicLabel": "Pledge topic",
@@ -46,56 +51,62 @@
     "visitSummaryTreeMessage": "Your virtual leaf has been added to the RP ESG digital tree."
   },
   "featureFlags": {
-    "cameraCaptureEnabled": false,
-    "photoUploadEnabled": false,
-    "beautyFilterEnabled": false,
-    "pledgeEnabled": false,
-    "badgeEmailEnabled": false,
-    "thankYouEmailEnabled": false,
-    "socialSharingEnabled": false,
+    "cameraCaptureEnabled": true,
+    "photoUploadEnabled": true,
+    "beautyFilterEnabled": true,
+    "pledgeEnabled": true,
+    "badgeEmailEnabled": true,
+    "thankYouEmailEnabled": true,
+    "socialSharingEnabled": true,
     "floatingLanguageSelectorEnabled": false
   },
   "validationRules": {
-    "nameRequired": false,
-    "nameMinLength": 0,
+    "nameRequired": true,
+    "nameMinLength": 2,
     "nameMaxLength": 80,
-    "emailRequired": false,
+    "emailRequired": true,
     "emailPattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-    "requiredQuestionsEnabled": false,
-    "pledgeRequired": false,
-    "pledgeMinLength": 0,
+    "requiredQuestionsEnabled": true,
+    "pledgeRequired": true,
+    "pledgeMinLength": 5,
     "pledgeMaxLength": 500,
-    "pledgeTopicRequired": false,
-    "photoRequired": false,
+    "pledgeTopicRequired": true,
+    "photoRequired": true,
     "maxPhotoFileSizeMb": 5,
-    "allowedPhotoFormats": []
+    "allowedPhotoFormats": [
+      "jpeg",
+      "jpg",
+      "png",
+      "webp"
+    ]
   },
   "treeParameters": {
     "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
-    "ovalTopOffset": 0,
-    "leafRefreshInterval": 0,
-    "leafOpacity": 0,
-    "leafAnimationDuration": 0,
-    "leafFallThreshold": 0,
-    "leafFallDuration": 0,
+    "ovalTopOffset": -100,
+    "leafRefreshInterval": 30000,
+    "leafOpacity": 0.9,
+    "leafAnimationDuration": 500,
+    "leafFallThreshold": 15,
+    "leafFallDuration": 4200,
     "leafGreenResetTime": "00:00",
-    "leafDisplayScale": 1.4,
-    "showTitleBox": false
+    "leafDisplayScale": 1,
+    "showTitleBox": true
   },
   "photoSettings": {
-    "beautyFilterEnabled": false,
+    "beautyFilterEnabled": true,
     "beautyFilterStrength": "medium",
-    "maxPhotoFileSize": 1048576,
+    "maxPhotoFileSize": 5242880,
     "supportedFormats": [
       "jpeg",
-      "png"
+      "png",
+      "webp"
     ]
   },
   "overlaySettings": {
-    "enableOverlayUpload": false,
-    "maxOverlayFileSize": 1048576,
+    "enableOverlayUpload": true,
+    "maxOverlayFileSize": 10485760,
     "supportedFormats": [
       "png",
       "jpg",
@@ -104,29 +115,25 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "",
-    "leafImage": "/assets/Tree/leaf/OldRightLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/NewRightLeaf.png",
+    "treeBackground": "/assets/Tree/background/tree-bg-1781197173261.jpeg",
+    "leafImage": "",
+    "previousLeafImage": "",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
-    "landingTextScale": 1.1,
-    "landingPanelWidth": 360,
+    "landingTextScale": 1,
+    "landingPanelWidth": 600,
     "landingPanelMinHeight": 0,
-    "landingPanelPadding": 20,
+    "landingPanelPadding": 60,
     "landingPanelOffsetX": 0,
     "landingPanelOffsetY": 0,
     "startButtonOffsetX": 0,
     "startButtonOffsetY": 0,
-    "startButtonWidth": 180,
-    "startButtonHeight": 44,
+    "startButtonWidth": 280,
+    "startButtonHeight": 64,
     "pledgeboardButtonOffsetX": 0,
     "pledgeboardButtonOffsetY": 0,
-    "pledgeboardButtonWidth": 180,
-    "pledgeboardButtonHeight": 44
-  },
-  "archiveSettings": {
-    "autoArchiveEnabled": false,
-    "archiveAfterDays": 15
+    "pledgeboardButtonWidth": 600,
+    "pledgeboardButtonHeight": 64
   }
 }
