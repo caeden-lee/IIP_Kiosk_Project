@@ -1593,7 +1593,7 @@ router.delete('/feedback/:id', async (req, res) => {
 const analysis_modes = {
     RULE_BASED: 'rule-based',
     XENOVA: 'xenova',
-    //LOCALGPT: 'localgpt',
+    LOCALGPT: 'localgpt',
     QWEN: 'qwen',
     GEMMA: 'gemma'
 }
@@ -1721,7 +1721,7 @@ async function analyzeWithXenova(text, signal) {
 }
 
 // LocalGPT Analysis Engine
-/*async function analyzeWithLocalGPT(text) {
+async function analyzeWithLocalGPT(text) {
     try {
         const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
 
@@ -1743,7 +1743,7 @@ async function analyzeWithXenova(text, signal) {
         console.error('❌ LocalGPT analysis error:', error);
         return 'neutral';
     }
-}*/
+}
 
 // Qwen Analysis Engine
 async function analyzeWithQwen(text, signal) {
@@ -1814,7 +1814,7 @@ async function classifySentiment(text, mode, signal) {
     switch (mode) {
         case analysis_modes.XENOVA: return await analyzeWithXenova(text, signal);
 
-        // case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
 
         case analysis_modes.QWEN: return await analyzeWithQwen(text, signal);
 
@@ -6602,7 +6602,7 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
 
 // POST /api/admin/parameters/reset
 // Reset all parameters to defaults
-router.post('/parameters/reset', auth.requireAdmin, (req, res) => {
+/*router.post('/parameters/reset', auth.requireAdmin, (req, res) => {
   try {
     const success = parametersConfigStore.resetToDefaults();
     
@@ -6621,7 +6621,7 @@ router.post('/parameters/reset', auth.requireAdmin, (req, res) => {
     console.error('❌ Error resetting parameters:', error);
     res.status(500).json({ success: false, error: 'Failed to reset parameters' });
   }
-});
+});*/
 
 // POST /api/admin/retention-cleanup/run
 // Trigger temporary retention and audit log cleanup manually from admin UI.
