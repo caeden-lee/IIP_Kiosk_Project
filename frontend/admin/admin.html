@@ -740,7 +740,7 @@
 
                                     <option value="xenova">Xenova AI</option>
 
-                                    <!-- <option value="localgpt">LocalGPT</option> -->
+                                    <option value="localgpt">LocalGPT</option>
 
                                     <option value="qwen">Qwen AI</option>
 
@@ -831,7 +831,7 @@
                             <h3>Tree Display</h3>
                             <div style="display:flex; gap:10px; align-items:center;">
                                 <button class="btn-primary" onclick="saveTreeStageSelection()">Apply Stage</button>
-                                <button class="btn-primary" onclick="saveParameters()">Save Display</button>
+                                <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
                                 <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
                             </div>
                         </div>
@@ -853,7 +853,60 @@
                             </label>
                             <p style="font-size:12px;color:#666;margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
                         </div>
-                    </div>
+                    </div> 
+
+                    <!--<div class="tree-adjustment-section">
+                        <div class="section-header">
+                            <h3>Tree Display</h3>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button class="btn-primary" onclick="saveTreeStageSelection()">Apply Stage</button>
+                                <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
+                                <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
+                            </div>
+                        </div>
+                        <div class="section-body">-->
+                            <!-- Auto / Manual toggle -->
+                            <!--<div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+                                <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                                    <input type="radio" name="stageMode" value="auto" checked> Auto (based on leaf count)
+                                </label>
+                                <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                                    <input type="radio" name="stageMode" value="manual"> Manual override
+                                </label>
+                            </div>-->
+
+                            <!-- Manual stage selection (enabled only when manual mode is chosen) -->
+                            <!--<div id="manualStageContainer" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                                <label for="param-treeStage" style="font-weight:600;">Current stage:</label>
+                                <select id="param-treeStage" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
+                                    <option value="0">Stage 0 - Bare Trunk</option>
+                                    <option value="1">Stage 1 - Early Growth</option>
+                                    <option value="2">Stage 2 - Young Canopy</option>
+                                    <option value="3">Stage 3 - Mature Canopy</option>
+                                    <option value="4">Stage 4 - Full Canopy</option>
+                                </select>
+                                <span id="tree-stage-status" style="font-size:13px;color:#64748b;">Shown on /tree after apply.</span>
+                            </div>-->
+
+                            <!-- Automatic thresholds configuration -->
+                            <!--<div id="autoThresholdsContainer" style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-weight:600; margin-bottom:12px;">⚙️ Leaf count thresholds for automatic stage</div>
+                                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px;">
+                                    <div><label>Stage 1 (Early Growth) min leaves:</label> <input type="number" id="threshold-stage1" min="0" step="1" value="1" style="width:100px;"></div>
+                                    <div><label>Stage 2 (Young Canopy) min leaves:</label> <input type="number" id="threshold-stage2" min="0" step="1" value="10" style="width:100px;"></div>
+                                    <div><label>Stage 3 (Mature Canopy) min leaves:</label> <input type="number" id="threshold-stage3" min="0" step="1" value="25" style="width:100px;"></div>
+                                    <div><label>Stage 4 (Full Canopy) min leaves:</label> <input type="number" id="threshold-stage4" min="0" step="1" value="50" style="width:100px;"></div>
+                                </div>
+                                <p style="font-size:12px; color:#64748b; margin-top:8px;">Current leaf count: <span id="currentLeafCount">—</span> → automatic stage: <strong id="autoStagePreview">—</strong></p>
+                            </div>
+
+                            <label style="display:flex; align-items:center; gap:10px; font-weight:600; color:#334155; margin-top:16px;">
+                                <input type="checkbox" id="param-showTitleBox"> Show title box on tree display
+                            </label>
+                            <p style="font-size:12px; color:#666; margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
+                        </div>
+                    </div>-->
+
                     <br>
                     <div class="tree-adjustment-section">
                         <div class="section-header">
@@ -886,7 +939,7 @@
                     <div class="tree-adjustment-section">
                         <div class="section-header">
                             <h3>Leaf Adjustments</h3>
-                            <button class="btn-primary" onclick="saveParameters()">Save Changes</button>
+                            <button class="btn-primary" onclick="saveTreeParameters()">Save Changes</button>
 
 
                         </div>
@@ -2711,9 +2764,9 @@
                         <button class="btn-secondary" onclick="loadParameters()">
                             <span class="btn-icon">🔄</span> Reload
                         </button>
-                        <button class="btn-tertiary" onclick="resetParametersToDefaults()">
+                        <!--<button class="btn-tertiary" onclick="resetParametersToDefaults()">
                             <span class="btn-icon">⚠️</span> Reset to Defaults
-                        </button>
+                        </button>-->
                     </div>
 
                     <!-- Status Message -->

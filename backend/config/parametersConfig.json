@@ -81,7 +81,7 @@
     ]
   },
   "treeParameters": {
-    "treeStage": 4,
+    "treeStage": 0,
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": -100,
@@ -115,9 +115,9 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/background/tree-bg-1781197173261.jpeg",
-    "leafImage": "",
-    "previousLeafImage": "",
+    "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
+    "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
