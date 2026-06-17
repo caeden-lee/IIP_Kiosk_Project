@@ -4531,13 +4531,22 @@ async function analyzeFeedbackData() {
         const { positive = 0, neutral = 0, negative = 0, total = 0 } = data.sentiment || {};
         const insights = data.insights || {};
         const weeklySummary = insights.weeklySummary || {};
-        window.latestFeedbackInsightItems = Array.isArray(data.analyzedItems) ? data.analyzedItems : [];
+        const analyzedItems = Array.isArray(data.analyzedItems) ? data.analyzedItems : [];
+        window.latestFeedbackInsightItems = analyzedItems;
+
+        // Extract timeline data (expects data.timeline = array of { date, positive, neutral, negative })
+        let timeline = Array.isArray(data.timeline) ? data.timeline : [];
+        if (timeline.length === 0 && analyzedItems.length > 0) {
+            timeline = buildTimelineFromItems(analyzedItems);
+        }
+        console.log('📊 Timeline for line chart:', timeline);
 
         output.innerHTML = `
             <div style="display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap: 22px; align-items: stretch;">
                 <div style="position: relative; height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
                     <canvas id="sentimentChart"></canvas>
                 </div>
+
                 <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
@@ -4566,7 +4575,7 @@ async function analyzeFeedbackData() {
                     </div>
                     <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
                         <strong>Total text responses analyzed:</strong> ${total}<br>
-                        <strong>Window:</strong> ${escapeHtml(weeklySummary.responseWindow || 'last 7 days')}<br>
+                        <strong>Window:</strong> ${escapeHtml(weeklySummary.responseWindow || 'last 7 Days')}<br>
                         <strong>Pledge mentions:</strong> ${Number(weeklySummary.pledgeMentions || 0)}
                     </div>
                 </div>
@@ -4577,9 +4586,20 @@ async function analyzeFeedbackData() {
                 ${renderInsightPanel('Top Compliments', insights.topCompliments || [], '#10b981', 'No repeated compliment detected.')}
                 ${renderActionPanel('Suggested Admin Actions', insights.suggestedActions || [])}
             </div>
+
+            <div style="margin-top: 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <h4 style="margin: 0 0 12px;">Feedback Trend (All Time)</h4>
+                <div style="position: relative; height: 250px;">
+                    <canvas id="sentimentLineChart"></canvas>
+                </div>
+            </div>
+
         `;
 
-        setTimeout(() => createSentimentChart(positive, neutral, negative), 100);
+        setTimeout(() => {
+            createSentimentChart(positive, neutral, negative); 
+            createSentimentLineChart(timeline);
+        }, 100);
     } catch (error) {
         if (error.name === 'AbortError') {
             return;
@@ -4603,6 +4623,144 @@ async function analyzeFeedbackData() {
         }
     }
 }
+
+// Create sentiment analysis line chart (added by Yu Kang)
+function createSentimentLineChart(timelineData) {
+    const canvas = document.getElementById('sentimentLineChart');
+    if (!canvas) {
+        console.warn('Line chart canvas not found');
+        return;
+    }
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js not loaded');
+        return;
+    }
+
+    // Destroy existing instance
+    if (window.sentimentLineChartInstance) {
+        window.sentimentLineChartInstance.destroy();
+    }
+
+    // If no timeline data, show a placeholder
+    if (!timelineData || timelineData.length === 0) {
+        const ctx = canvas.getContext('2d');
+        window.sentimentLineChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['No data'],
+                datasets: [
+                    { label: 'Positive', data: [0], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)' },
+                    { label: 'Neutral', data: [0], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)' },
+                    { label: 'Negative', data: [0], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
+        });
+        return;
+    }
+
+    // Extract labels (dates) and data series
+    const labels = timelineData.map(item => item.date);
+    const positiveData = timelineData.map(item => item.positive || 0);
+    const neutralData = timelineData.map(item => item.neutral || 0);
+    const negativeData = timelineData.map(item => item.negative || 0);
+
+    const ctx = canvas.getContext('2d');
+    window.sentimentLineChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Positive',
+                    data: positiveData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Neutral',
+                    data: neutralData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Negative',
+                    data: negativeData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { usePointStyle: true }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: { display: true, text: 'Date' },
+                    ticks: { maxTicksLimit: 15 }
+                },
+                y: {
+                    display: true,
+                    title: { display: true, text: 'Count' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Build timeline data from analyzed items if timeline is not provided (Done by Yu Kang)
+function buildTimelineFromItems(items) {
+    const dateMap = {};
+
+    items.forEach(item => {
+        // Use item.date (from backend) or fallback to item.created_at
+        const dateStr = item.date || item.created_at || '';
+        if (!dateStr) return;
+
+        // Extract date part (YYYY-MM-DD)
+        const date = dateStr.split('T')[0] || dateStr.split(' ')[0];
+        if (!date) return;
+
+        if (!dateMap[date]) {
+            dateMap[date] = { positive: 0, neutral: 0, negative: 0 };
+        }
+
+        const sentiment = (item.sentiment || '').toLowerCase();
+        if (sentiment === 'positive') dateMap[date].positive += 1;
+        else if (sentiment === 'neutral') dateMap[date].neutral += 1;
+        else if (sentiment === 'negative') dateMap[date].negative += 1;
+    });
+
+    // Convert to array and sort by date
+    return Object.entries(dateMap)
+        .map(([date, counts]) => ({ date, ...counts }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 
 // Create sentiment analysis doughnut chart (added by Yu Kang)
 function createSentimentChart(positive, neutral, negative) {
@@ -8241,13 +8399,31 @@ async function loadDigitalTreeData() {
 }
 
 
-// Replace this with your actual leaf count retrieval (from global variable or API)
-/*async function getCurrentLeafCount() {
-    // Example: fetch from server
+async function getCurrentLeafCount() {
     try {
-        const res = await fetch('/api/tree/leafCount', { credentials: 'include' });
+        const res = await fetch('/api/tree', { credentials: 'include' });
         const data = await res.json();
-        return data.leafCount || 0;
+        console.log('📡 /api/tree response:', data);  // debug
+
+        // If the response is an array, the leaf count is its length
+        if (Array.isArray(data)) {
+            return data.length;
+        }
+        // If it's an object with a leafCount property (fallback for other endpoints)
+        if (data && typeof data === 'object' && data.leafCount !== undefined) {
+            return data.leafCount;
+        }
+        // If it's an object with a 'count' or 'total' property (just in case)
+        if (data && data.count !== undefined) return data.count;
+        if (data && data.total !== undefined) return data.total;
+
+        // Otherwise, try to guess: if it's an object with a 'visitors' array
+        if (data && Array.isArray(data.visitors)) {
+            return data.visitors.length;
+        }
+
+        console.warn('⚠️ Unexpected response format from /api/tree:', data);
+        return 0;
     } catch (e) {
         console.warn('Could not get leaf count, using 0', e);
         return 0;
@@ -8377,11 +8553,11 @@ document.getElementById('threshold-stage1')?.addEventListener('input', updateAut
 document.getElementById('threshold-stage2')?.addEventListener('input', updateAutoStagePreview);
 document.getElementById('threshold-stage3')?.addEventListener('input', updateAutoStagePreview);
 document.getElementById('threshold-stage4')?.addEventListener('input', updateAutoStagePreview);
-*/
+
 
 
 // Save tree parameters (stage, title box, leaf scale) - Done by Yu Kang
-async function saveTreeParameters() {
+/*async function saveTreeParameters() {
     // Helper to show status messages (uses your existing setParameterStatus if available,
     // otherwise a fallback)
     const setStatus = (msg, type) => {
@@ -8448,7 +8624,7 @@ async function saveTreeParameters() {
         setStatus(error.message || 'Failed to save tree parameters.', 'error');
         showNotification(error.message || 'Failed to save tree parameters.', 'error');
     }
-}
+}*/
 
 
 async function loadTreeStageSelection() {

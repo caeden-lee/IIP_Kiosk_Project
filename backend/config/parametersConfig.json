@@ -81,7 +81,7 @@
     ]
   },
   "treeParameters": {
-    "treeStage": 0,
+    "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": -100,
@@ -92,7 +92,13 @@
     "leafFallDuration": 4200,
     "leafGreenResetTime": "00:00",
     "leafDisplayScale": 1,
-    "showTitleBox": true
+    "showTitleBox": false,
+    "leafThresholds": {
+      "stage1": 1,
+      "stage2": 10,
+      "stage3": 25,
+      "stage4": 50
+    }
   },
   "photoSettings": {
     "beautyFilterEnabled": true,
