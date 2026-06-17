@@ -1884,6 +1884,32 @@ function buildSuggestedActions(concerns, sentiment) {
     return actions.slice(0, 5);
 }
 
+// Build timeline data structure for frontend charting (Done by Yu Kang)
+function buildTimelineFromItems(items) {
+    const dateMap = {};
+
+    items.forEach(item => {
+        // Use item.date (from backend) or fallback to item.created_at
+        const dateStr = item.date || item.created_at || '';
+        const date = dateStr.split('T')[0];  // "YYYY-MM-DD"
+        if (!date) return; // skip if no date
+
+        if (!dateMap[date]) {
+            dateMap[date] = { positive: 0, neutral: 0, negative: 0 };
+        }
+        const sentiment = (item.sentiment || '').toLowerCase();
+        if (sentiment === 'positive') dateMap[date].positive += 1;
+        else if (sentiment === 'neutral') dateMap[date].neutral += 1;
+        else if (sentiment === 'negative') dateMap[date].negative += 1;
+    });
+
+    // Convert to array and sort by date
+    return Object.entries(dateMap)
+        .map(([date, counts]) => ({ date, ...counts }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+
 function buildWeeklySummary(items, sentiment, concerns, compliments) {
     const total = sentiment.total || 0;
     const dominantSentiment = [
