@@ -4532,7 +4532,19 @@ async function analyzeFeedbackData() {
         const insights = data.insights || {};
         const weeklySummary = insights.weeklySummary || {};
         const analyzedItems = Array.isArray(data.analyzedItems) ? data.analyzedItems : [];
-        window.latestFeedbackInsightItems = analyzedItems;
+
+        const totalResponses = total;
+        const dominantSentiment = (positive > negative) ? 'positive' : (negative > positive) ? 'negative' : 'neutral';
+
+        // Get the actual top concern/compliment from the arrays
+        const topConcern = (insights.topConcerns && insights.topConcerns.length > 0) 
+            ? insights.topConcerns[0].label : 'No repeated concern detected';
+        const topCompliment = (insights.topCompliments && insights.topCompliments.length > 0) 
+            ? insights.topCompliments[0].label : 'No repeated compliment detected';
+
+        const customSummaryText = totalResponses === 0
+            ? 'No visitor comments were available for analysis.' : `Overall, ${totalResponses} visitor text response(s) were analyzed. The overall tone is ${dominantSentiment}. The most repeated concern is ${topConcern.toLowerCase()}, while the strongest positive signal is ${topCompliment.toLowerCase()}.`;
+
 
         // Extract timeline data (expects data.timeline = array of { date, positive, neutral, negative })
         let timeline = Array.isArray(data.timeline) ? data.timeline : [];
@@ -4542,13 +4554,33 @@ async function analyzeFeedbackData() {
         console.log('📊 Timeline for line chart:', timeline);
 
         output.innerHTML = `
+            <style>
+                .btn-range {
+                    padding: 4px 12px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 4px;
+                    background: #fff;
+                    cursor: pointer;
+                    font-size: 12px;
+                    transition: background 0.2s;
+                }
+                .btn-range.active {
+                    background: #3b82f6;
+                    color: #fff;
+                    border-color: #3b82f6;
+                }
+                .btn-range:hover:not(.active) {
+                    background: #e2e8f0;
+                }
+            </style>
+
             <div style="display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap: 22px; align-items: stretch;">
                 <div style="position: relative; height: 300px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
                     <canvas id="sentimentChart"></canvas>
                 </div>
 
                 <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px; color: #0f172a;">Weekly AI Insight Summary</h4>
+                    <h4 style="margin: 0 0 10px; color: #0f172a;">AI Insight Summary</h4>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
                         <button type="button" onclick="openFeedbackInsightsModal('positive')" style="border: 1px solid rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.12); color: #047857; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;">Positive ${positive}</button>
                         <button type="button" onclick="openFeedbackInsightsModal('neutral')" style="border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.12); color: #92400e; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;">Neutral ${neutral}</button>
@@ -4567,7 +4599,7 @@ async function analyzeFeedbackData() {
                         Analysis Engine: ${escapeHtml((data.mode || 'rule-based').toUpperCase())}
                     </div> -->
 
-                    <p style="margin: 0 0 16px; color: #475569; line-height: 1.6;">${escapeHtml(weeklySummary.summaryText || 'No summary available yet.')}</p>
+                    <p style="margin: 0 0 16px; color: #475569; line-height: 1.6;">${escapeHtml(customSummaryText)}</p>
                     <div style="margin-bottom: 15px; font-size: 14px;">
                         <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #10b981;">Positive:</strong> ${positive} (${total > 0 ? ((positive / total) * 100).toFixed(1) : 0}%)</div>
                         <div style="color: #475569; margin-bottom: 12px;"><strong style="color: #f59e0b;">Neutral:</strong> ${neutral} (${total > 0 ? ((neutral / total) * 100).toFixed(1) : 0}%)</div>
@@ -4575,7 +4607,7 @@ async function analyzeFeedbackData() {
                     </div>
                     <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 13px; color: #64748b;">
                         <strong>Total text responses analyzed:</strong> ${total}<br>
-                        <strong>Window:</strong> ${escapeHtml(weeklySummary.responseWindow || 'last 7 Days')}<br>
+                        <strong>Window:</strong> All Time<br>
                         <strong>Pledge mentions:</strong> ${Number(weeklySummary.pledgeMentions || 0)}
                     </div>
                 </div>
@@ -4588,7 +4620,21 @@ async function analyzeFeedbackData() {
             </div>
 
             <div style="margin-top: 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-                <h4 style="margin: 0 0 12px;">Feedback Trend (All Time)</h4>
+                <h4 id="feedbackDemographicsHeading" style="margin: 0 0 12px;">Feedback Demographics (All Time)</h4>
+
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <label for="timeRangeSelect" style="font-size: 13px; font-weight: 500;">Range:</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 13px; font-weight: 500;">Range:</span>
+                        <div class="btn-group" id="timeRangeButtons" style="display: flex; gap: 4px;">
+                            <button class="btn-range" data-range="weekly">Weekly</button>
+                            <button class="btn-range" data-range="monthly">Monthly</button>
+                            <button class="btn-range" data-range="yearly">Yearly</button>
+                            <button class="btn-range active" data-range="all">All Time</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="position: relative; height: 250px;">
                     <canvas id="sentimentLineChart"></canvas>
                 </div>
@@ -4598,8 +4644,32 @@ async function analyzeFeedbackData() {
 
         setTimeout(() => {
             createSentimentChart(positive, neutral, negative); 
-            createSentimentLineChart(timeline);
+            window.latestFeedbackInsightItems = analyzedItems;
+
+            // --- Handle range button --- 
+            const buttons = document.querySelectorAll('.btn-range');
+            const defaultRange = 'all';
+
+            // Function to update chart and active state
+            function setRange(range) {
+                window.currentTimeRange = range;
+                updateLineChartForRange(range);
+            }
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove all active class
+                    buttons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    setRange(this.dataset.range);
+                })
+            });
+
+            const defaultBtn = document.querySelector(`.btn-range[data-range="all"]`);
+            if (defaultBtn) defaultBtn.classList.add('active');
+            setRange(defaultRange);
         }, 100);
+
     } catch (error) {
         if (error.name === 'AbortError') {
             return;
@@ -4761,6 +4831,69 @@ function buildTimelineFromItems(items) {
         .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Filter feedback items based on selected time range (Done by Yu Kang)
+function filterItemsByRange(items, range) {
+    const now = new Date();
+    let cutoffDate = new Date(0); // default: all time
+
+    switch (range) {
+        case 'weekly':
+            cutoffDate = new Date(now);
+            cutoffDate.setDate(now.getDate() - 7);
+            break;
+        case 'monthly':
+            cutoffDate = new Date(now);
+            cutoffDate.setMonth(now.getMonth() - 1);
+            break;
+        case 'yearly':
+            cutoffDate = new Date(now);
+            cutoffDate.setFullYear(now.getFullYear() - 1);
+            break;
+        case 'all':
+        default:
+            return items; // no filter
+    }
+
+    return items.filter(item => {
+        const dateStr = item.date || item.created_at || '';
+        if (!dateStr) return false;
+        const itemDate = new Date(dateStr);
+        return itemDate >= cutoffDate;
+    });
+}
+
+// Update line chart based on selected time range (Done by Yu Kang)
+function updateLineChartForRange(range) {
+    const items = window.latestFeedbackInsightItems || [];
+    if (items.length === 0) {
+        createSentimentLineChart([]);
+        return;
+    }
+
+    const filteredItems = filterItemsByRange(items, range);
+    const timeline = buildTimelineFromItems(filteredItems);
+    createSentimentLineChart(timeline);
+
+    // Update the heading to show the current range
+    const heading = document.getElementById('feedbackDemographicsHeading');
+    if (heading) {
+        const rangeLabel = range.charAt(0).toUpperCase() + range.slice(1);
+        heading.textContent = `Feedback Demographics (${rangeLabel})`;
+    }
+}
+
+// Wait for the page to load
+document.addEventListener('DOMContentLoaded', function() {
+    const rangeSelect = document.getElementById('timeRangeSelect');
+    if (rangeSelect) {
+        rangeSelect.addEventListener('change', function() {
+            const range = this.value;
+            window.currentTimeRange = range;
+            updateLineChartForRange(this.value);
+        });
+    }
+});
+
 
 // Create sentiment analysis doughnut chart (added by Yu Kang)
 function createSentimentChart(positive, neutral, negative) {
@@ -4857,6 +4990,7 @@ function createSentimentChart(positive, neutral, negative) {
 
     console.log('✅ Sentiment chart created successfully');
 }
+
 
 // ==================== 10. PHOTO MANAGEMENT ====================
 
