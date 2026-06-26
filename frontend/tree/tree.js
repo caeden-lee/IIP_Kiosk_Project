@@ -297,10 +297,10 @@ class TreeManager {
     }
 
     applyTitleBoxVisibility() {
-        if (this.treeTitleBox) {
-            this.treeTitleBox.style.display = this.showTitleBox ? 'block' : 'none';
-        }
+    if (this.treeTitleBox) {
+        this.treeTitleBox.style.display = 'block';
     }
+}
 
     normalizeTreeStage(rawStage) {
         const parsed = Number(rawStage);
