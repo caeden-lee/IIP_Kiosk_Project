@@ -4,11 +4,11 @@
 //
 // 1. LIVE PULSE ROUTING
 //    const pulseRoutes                - Live Pulse API routes for kiosk server mode (DONE BY XY)
-//    app.use('/api/pulse')            - Protected Pulse API route wiring (DONE BY XY)
-//    app.get('/pulse')                - Protected Pulse dashboard page route (DONE BY XY)
+//    app.use('/api/pulse')            - Public Pulse API route wiring (DONE BY XY)
+//    app.get('/pulse')                - Public Pulse dashboard page route (DONE BY XY)
 //
 // 2. ACCESS CONTROL
-//    auth middleware                  - Prevents guest users from directly accessing Pulse dashboard (DONE BY XY)
+//    Pulse dashboard                  - Public live-display route; no admin login required (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -106,7 +106,6 @@ const feedbackRoutes = require('./feedbackRoutes');
 const pledgeboardRoutes = require('./pledgeboardRoutes');
 const pulseRoutes = require('./pulseRoutes');
 const emailService = require('./emailService');
-const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
 
 const { router: treeRoutes, setDatabase: setTreeDatabase } = require('./treeRoutes');
@@ -248,9 +247,6 @@ app.use(
   })
 );
 
-// Keep Pulse out of the public kiosk surface.
-app.use('/pulse', auth.requireAuth);
-
 // Static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -263,7 +259,7 @@ setTreeDatabase(db);
 
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
-app.use('/api/pulse', auth.requireAuth, pulseRoutes);
+app.use('/api/pulse', pulseRoutes);
 app.use('/api/tree', treeRoutes);
 
 app.get('/api/parameters', (req, res) => {
@@ -385,7 +381,7 @@ app.get('/3dTree', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/3dTree/3dTree.html'));
 });
 
-app.get('/pulse', auth.requireAuth, (req, res) => {
+app.get('/pulse', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 

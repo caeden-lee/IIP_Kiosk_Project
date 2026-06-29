@@ -111,19 +111,39 @@ async function checkDatabase(baseUrl) {
     ok(`/api/test-db connected to database "${body.database}"`);
 }
 
-async function checkPulseRequiresAuth(baseUrl) {
+async function checkPulsePublicSummary(baseUrl) {
     const response = await request(baseUrl, '/api/pulse/summary');
-    const body = await readJson(response, '/api/pulse/summary without login');
+    const body = await readJson(response, '/api/pulse/summary');
 
-    if (response.status !== 401) {
-        fail(`/api/pulse/summary should require login, but returned HTTP ${response.status}`);
+    if (!response.ok || body.success !== true) {
+        fail(`/api/pulse/summary failed with HTTP ${response.status}: ${body.error || 'unknown error'}`);
     }
 
-    if (!body.error) {
-        fail('/api/pulse/summary auth failure did not include an error message');
-    }
+    requireFields(body, [
+        'success',
+        'generatedAt',
+        'stats',
+        'newestPledges',
+        'topBadgeEarners',
+        'badgeBreakdown',
+        'treeVisitors'
+    ], '/api/pulse/summary');
 
-    ok('/api/pulse/summary is protected by authentication');
+    requireFields(body.stats, [
+        'pledgesToday',
+        'pledgesThisMonth',
+        'totalPledges',
+        'campaignGoal',
+        'progressPercent',
+        'treeLeaves'
+    ], '/api/pulse/summary stats');
+
+    checkArray(body.newestPledges, 'newestPledges');
+    checkArray(body.topBadgeEarners, 'topBadgeEarners');
+    checkArray(body.badgeBreakdown, 'badgeBreakdown');
+    checkArray(body.treeVisitors, 'treeVisitors');
+
+    ok('/api/pulse/summary is public and returned the expected dashboard payload');
 }
 
 async function login(baseUrl) {
@@ -171,34 +191,10 @@ async function checkPulseSummary(baseUrl, cookie) {
     const body = await readJson(response, '/api/pulse/summary with login');
 
     if (!response.ok || body.success !== true) {
-        fail(`/api/pulse/summary failed with HTTP ${response.status}: ${body.error || 'unknown error'}`);
+        fail(`/api/pulse/summary with login failed with HTTP ${response.status}: ${body.error || 'unknown error'}`);
     }
 
-    requireFields(body, [
-        'success',
-        'generatedAt',
-        'stats',
-        'newestPledges',
-        'topBadgeEarners',
-        'badgeBreakdown',
-        'treeVisitors'
-    ], '/api/pulse/summary');
-
-    requireFields(body.stats, [
-        'pledgesToday',
-        'pledgesThisMonth',
-        'totalPledges',
-        'campaignGoal',
-        'progressPercent',
-        'treeLeaves'
-    ], '/api/pulse/summary stats');
-
-    checkArray(body.newestPledges, 'newestPledges');
-    checkArray(body.topBadgeEarners, 'topBadgeEarners');
-    checkArray(body.badgeBreakdown, 'badgeBreakdown');
-    checkArray(body.treeVisitors, 'treeVisitors');
-
-    ok('/api/pulse/summary returned the expected dashboard payload');
+    ok('/api/pulse/summary also works with an admin session');
 }
 
 async function main() {
@@ -206,7 +202,7 @@ async function main() {
 
     await checkStatus(baseUrl);
     await checkDatabase(baseUrl);
-    await checkPulseRequiresAuth(baseUrl);
+    await checkPulsePublicSummary(baseUrl);
 
     const cookie = await login(baseUrl);
     await checkPulseSummary(baseUrl, cookie);

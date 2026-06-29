@@ -1,0 +1,187 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 5162 >>
+stream
+BT /F1 16 Tf 1 0 0 1 48 794.00 Tm (IIP Kiosk Final Year Project Change Summary) Tj ET
+BT /F1 10 Tf 1 0 0 1 48 774.00 Tm (Generated on 29 June 2026.) Tj ET
+BT /F1 10 Tf 1 0 0 1 48 761.00 Tm (This report combines the previous requested changes with the latest public Pulse display and) Tj ET
+BT /F1 10 Tf 1 0 0 1 48 748.00 Tm (  feedback leaf-flight animation updates.) Tj ET
+BT /F1 10 Tf 1 0 0 1 48 735.00 Tm (The goal is to document what was changed, what bugs were fixed, and how the code supports the) Tj ET
+BT /F1 10 Tf 1 0 0 1 48 722.00 Tm (  kiosk system.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 702.00 Tm (Latest Changes in This Update) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 686.00 Tm (- Reworked the Pulse screen for a 7m by 2m style display so the tree, metrics, campaign) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 673.00 Tm (  progress, badge board, pledge feed, and badge mix are visible without page scrolling.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 660.00 Tm (- Kept Pulse public across backend/server.js, backend/adminServer.js, and) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 647.00 Tm (  backend/kioskServer.js by removing Pulse auth middleware from the page and API routes.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 634.00 Tm (- Updated admin wording from admin-only Pulse to public display Pulse so the interface) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 621.00 Tm (  matches the route behavior.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 608.00 Tm (- Improved the feedback completion animation with real tree leaf images, badge-specific) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 595.00 Tm (  flight paths, motion trails, and a canopy glow when the leaf lands.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 582.00 Tm (- Updated the PDF documentation to explain the code and system behavior for final year) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 569.00 Tm (  project review.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 549.00 Tm (Previous Feedback Screen Changes) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 533.00 Tm (- Removed the Quick Consent page from the visitor feedback flow.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 520.00 Tm (- All feedback submissions now save with long-term retention from both frontend and) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 507.00 Tm (  backend.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 494.00 Tm (- Removed Data Retention and Primary Consent from the Confirm Submission page list.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 481.00 Tm (- Added an admin feature switch called Thank You Social Buttons to hide or show social) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 468.00 Tm (  media buttons on the Thank You page.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 455.00 Tm (- Merged the separate badge email and thank-you/photo email into one combined visitor) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 442.00 Tm (  email response.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 429.00 Tm (- The combined thank-you email can still include or hide badge details using the badge) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 416.00 Tm (  email feature flag.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 396.00 Tm (Visitor Passport Feature) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 380.00 Tm (- Added POST /api/feedback/visitor-passport in backend/feedbackRoutes.js.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 367.00 Tm (- The endpoint maps a visitor passport to the submitted email address by decrypting) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 354.00 Tm (  stored encrypted emails and matching the current visitor email.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 341.00 Tm (- The response includes masked email, holder name, visit count, feedback count, pledge) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 328.00 Tm (  count, photo keepsakes, badge collection, passport stamps, and recent visits.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 315.00 Tm (- The Thank You page calls the passport endpoint after submission and renders collected) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 302.00 Tm (  badges and recent visit stamps.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 289.00 Tm (- The current visit is shown immediately, then merged with backend history after) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 276.00 Tm (  database save. The frontend prevents duplicate current-visit entries.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 256.00 Tm (Pulse Screen Public Ultrawide Layout) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 240.00 Tm (- frontend/pulse/pulse.css now uses height: 100vh and overflow: hidden so the public) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 227.00 Tm (  screen cannot scroll.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 214.00 Tm (- For ultrawide screens, CSS grid areas place the tree on the left, metrics and bottom) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 201.00 Tm (  pulse panels in the middle, and campaign/badge panels on the right.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 188.00 Tm (- The layout is designed for the physical 7m by 2m display ratio while still preserving) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 175.00 Tm (  the same data from /api/pulse/summary.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 162.00 Tm (- frontend/pulse/pulse.js continues to fetch live data every 20 seconds and render) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 149.00 Tm (  metrics, pledges, badge earners, badge mix, and tree visitors.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 136.00 Tm (- backend/pulseRoutes.js returns public dashboard data without exposing visitor emails.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 123.00 Tm (  Names are shown only where long-term display consent is saved.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 5131 >>
+stream
+BT /F1 13 Tf 1 0 0 1 48 794.00 Tm (Feedback Leaf-Flight Animation) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 778.00 Tm (- frontend/feedback/feedback.html adds target and trail elements inside the Thank You) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 765.00 Tm (  celebration tree preview.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 752.00 Tm (- frontend/feedback/feedback.css animates a real leaf image along a curved path into the) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 739.00 Tm (  mini tree using celebrationFlyLeaf, celebrationFlyLeafTrail, and celebrationTreeCatch) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 726.00 Tm (  keyframes.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 713.00 Tm (- frontend/feedback/feedback.js maps each badge type to a leaf image and landing target,) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 700.00 Tm (  so Climate Champion, Ocean Guardian, Social Champion, and other badges fly into slightly) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 687.00 Tm (  different canopy positions.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 674.00 Tm (- The animation starts when setupCelebrationMoment adds the is-ready class after a) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 661.00 Tm (  successful feedback submission.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 648.00 Tm (- The result gives the visitor visual proof that their feedback has become part of the) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 635.00 Tm (  digital tree.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 615.00 Tm (Tree Screen Changes) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 599.00 Tm (- Removed the feedback box below each Tree screen leaf.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 586.00 Tm (- Added a leaf appearance animation when leaves are created.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 573.00 Tm (- Kept the leaf dropping animation and connected timing to CSS variables so the behavior) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 560.00 Tm (  can be tuned safely.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 540.00 Tm (Bugs Found and Fixed) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 524.00 Tm (- Fixed backend/feedbackRoutes.js existing-user email update bug where encryptedEmail) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 511.00 Tm (  could be referenced outside its scope.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 498.00 Tm (- Fixed backend/kioskServer.js still requiring authentication for Pulse even after Pulse) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 485.00 Tm (  was meant to be public.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 472.00 Tm (- Updated tests/pulse-backend-check.js so automated checks expect Pulse to be public.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 459.00 Tm (- Fixed visitor passport refresh logic so the current visit is not duplicated when) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 446.00 Tm (  backend history already includes it.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 433.00 Tm (- Fixed retry-email behavior so retried thank-you emails use the same merged badge) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 420.00 Tm (  include flag, badge key, and badge color as normal submissions.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 407.00 Tm (- Removed stale active-path response/UI references to badgeEmailSent, badgeEmailError,) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 394.00 Tm (  and badgeEmailBadgeKeys.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 381.00 Tm (- Confirmed axios is present in package.json, which resolves the earlier Cannot find) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 368.00 Tm (  module axios error after dependencies are installed.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 355.00 Tm (- Checked port 3000 after testing; no listener remained. If EADDRINUSE returns later, it) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 342.00 Tm (  means another local process is already using port 3000.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 322.00 Tm (How the Main Code Flow Works) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 306.00 Tm (- A visitor completes feedback in frontend/feedback/feedback.js. finalSubmit sends user) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 293.00 Tm (  data, answers, photo details, theme, and long-term retention to) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 280.00 Tm (  /api/feedback/submit-feedback.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 267.00 Tm (- backend/feedbackRoutes.js validates the request, immediately returns a success) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 254.00 Tm (  response for a fast kiosk experience, then saves user and feedback records in the) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 241.00 Tm (  background.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 228.00 Tm (- After the database save, the backend queues the combined thank-you/photo/badge email) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 215.00 Tm (  if email and photo data are available.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 202.00 Tm (- The Thank You page calls setupCelebrationMoment for the badge and tree animation,) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 189.00 Tm (  setupJourneyPassport for visit stamps, and setupSocialShare only if the admin social) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 176.00 Tm (  toggle is enabled.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 163.00 Tm (- Pulse uses frontend/pulse/pulse.js to call /api/pulse/summary. backend/pulseRoutes.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 150.00 Tm (  aggregates counts and visitor display data from feedback and users tables.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 137.00 Tm (- Tree display uses frontend/tree/tree.js and backend/treeRoutes.js to render active,) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 124.00 Tm (  non-archived visitor leaves.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 3132 >>
+stream
+BT /F1 13 Tf 1 0 0 1 48 794.00 Tm (Verification Run) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 778.00 Tm (- node --check passed for the changed frontend and backend JavaScript files.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 765.00 Tm (- Full non-node_modules JavaScript syntax sweep previously passed for 34 files.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 752.00 Tm (- npm.cmd run test:pulse passed against a temporary backend/server.js process.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 739.00 Tm (- The Pulse smoke test confirmed backend status, database connection, and public) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 726.00 Tm (  /api/pulse/summary payload.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 713.00 Tm (- Confirmed the temporary server was stopped afterward and no node.exe process remained) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 700.00 Tm (  running.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 687.00 Tm (- git diff --check previously passed with line-ending warnings only.) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 667.00 Tm (Files Changed) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 651.00 Tm (- backend/feedbackRoutes.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 638.00 Tm (- backend/emailService.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 625.00 Tm (- backend/server.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 612.00 Tm (- backend/adminServer.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 599.00 Tm (- backend/kioskServer.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 586.00 Tm (- backend/pulseRoutes.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 573.00 Tm (- frontend/feedback/feedback.html) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 560.00 Tm (- frontend/feedback/feedback.css) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 547.00 Tm (- frontend/feedback/feedback.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 534.00 Tm (- frontend/pulse/pulse.html) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 521.00 Tm (- frontend/pulse/pulse.css) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 508.00 Tm (- frontend/pulse/pulse.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 495.00 Tm (- frontend/admin/admin.html) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 482.00 Tm (- frontend/admin/admin.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 469.00 Tm (- frontend/tree/tree.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 456.00 Tm (- frontend/tree/tree.css) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 443.00 Tm (- tests/pulse-backend-check.js) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 430.00 Tm (- docs/change-summary-2026-06-29.pdf) Tj ET
+BT /F1 13 Tf 1 0 0 1 48 410.00 Tm (FYP Notes) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 394.00 Tm (- The system separates visitor-facing routes from admin-only routes. Pulse is public) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 381.00 Tm (  because it is meant for a public display screen.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 368.00 Tm (- Personal visitor passport lookup uses the submitted email as the key, but the stored) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 355.00 Tm (  database email remains encrypted and the returned email is masked.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 342.00 Tm (- The Pulse display is read-only and does not provide admin actions, so public access is) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 329.00 Tm (  limited to dashboard data.) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 316.00 Tm (- The animation and passport features improve user feedback by showing immediate impact) Tj ET
+BT /F1 10 Tf 1 0 0 1 56 303.00 Tm (  after form submission.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000005467 00000 n 
+0000005593 00000 n 
+0000010776 00000 n 
+0000010902 00000 n 
+0000014086 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+14156
+%%EOF

@@ -179,9 +179,19 @@ router.get('/summary', async (req, res) => {
                 LIMIT 300
             `),
             queryAll(`
-                SELECT u.name, u.visit_count, u.created_at
-                FROM users u
-                ORDER BY u.created_at DESC
+                SELECT
+                    f.id,
+                    u.name,
+                    u.visit_count,
+                    f.created_at,
+                    f.comment,
+                    f.data_retention,
+                    f.metadata
+                FROM feedback f
+                JOIN users u ON f.user_id = u.id
+                WHERE f.is_active = 1
+                  AND f.archive_status = 'not_archived'
+                ORDER BY f.created_at DESC, f.id DESC
                 LIMIT 80
             `)
         ]);
@@ -213,11 +223,20 @@ router.get('/summary', async (req, res) => {
             newestPledges: recentPledges.map(anonymizePledge),
             topBadgeEarners: buildBadgeEarners(badgeRows),
             badgeBreakdown: buildBadgeBreakdown(badgeRows, activeCampaign),
-            treeVisitors: treeVisitors.map((visitor, index) => ({
-                name: visitor.name || `Visitor ${index + 1}`,
-                visit_count: Number(visitor.visit_count) || 1,
-                created_at: visitor.created_at
-            }))
+            treeVisitors: treeVisitors.map((visitor, index) => {
+                const metadata = parseMetadata(visitor.metadata);
+                const retention = String(visitor.data_retention || '').toLowerCase();
+                const canShowName = retention === 'longterm' || retention === 'indefinite';
+                const badge = topicToBadge(metadata.pledgeTopic, Boolean(visitor.comment && String(visitor.comment).trim()));
+
+                return {
+                    id: visitor.id,
+                    name: canShowName ? (visitor.name || `Visitor ${index + 1}`) : `Visitor ${index + 1}`,
+                    visit_count: Number(visitor.visit_count) || 1,
+                    created_at: visitor.created_at,
+                    badge
+                };
+            })
         });
     } catch (error) {
         console.error('Pulse summary error:', error);

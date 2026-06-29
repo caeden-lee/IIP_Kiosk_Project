@@ -258,59 +258,7 @@
 </div>
     </div>
 
-    <!-- Consent Page -->
-    <div id="consent-page" class="container" style="display: none;">
-        <div class="consent-card">
-            <div class="consent-icon">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="20" fill="#6366F1"/>
-                    <path d="M20 10C17.8 10 16 11.8 16 14V16H14C12.9 16 12 16.9 12 18V28C12 29.1 12.9 30 14 30H26C27.1 30 28 29.1 28 28V18C28 16.9 27.1 16 26 16H24V14C24 11.8 22.2 10 20 10ZM20 12C21.1 12 22 12.9 22 14V16H18V14C18 12.9 18.9 12 20 12ZM14 18H26V28H14V18ZM20 21C18.9 21 18 21.9 18 23C18 24.1 18.9 25 20 25C21.1 25 22 24.1 22 23C22 21.9 21.1 21 20 21Z" fill="white"/>
-                </svg>
-            </div>
-            
-            <h2 class="consent-title" id="consent-title">Quick Consent</h2>
-            <p class="consent-description" id="consent-description">Pick how long we should keep your submission.</p>
-            
-            <div class="retention-options">
-                <div class="retention-option" onclick="selectOption('7days', this)">
-                    <div class="option-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="10" stroke="#6366F1" stroke-width="2"/>
-                            <path d="M12 6V12L16 14" stroke="#6366F1" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <h3 class="option-title" id="option-7days-title">7 Days</h3>
-                    <p class="option-description" id="option-7days-description">Your feedback data will be deleted after 7 days.</p>
-                </div>
-                
-                <div class="retention-option" onclick="selectOption('longterm', this)">
-                    <div class="option-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3.5 12H8.5M15.5 12H20.5M12 3.5V8.5M12 15.5V20.5" stroke="#A855F7" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M12 12L12 12.01" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <h3 class="option-title" id="option-longterm-title">Long-Term</h3>
-                    <p class="option-description" id="option-longterm-description">Keep my data long-term for extended impact tracking</p>
-                </div>
-            </div>
-            
-            <div class="privacy-notice">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="8" cy="8" r="7" stroke="#94A3B8" stroke-width="1.5"/>
-                    <path d="M8 4V8M8 11V11.5" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-                <p id="privacy-notice-text">7 day Retention: Your photo and email is retained for 7 days then deleted. Your name and pledge may be displayed publicly.</p>
-            </div>
-            
-            <button class="consent-button" onclick="showDetailsPage()" disabled id="proceedBtn">
-                <span id="continue-feedback-form-text">Continue to Feedback Form</span>
-                <span class="arrow">→</span>
-            </button>
-            <p id="consent-form-alert" class="form-alert" role="alert"></p>
-        </div> 
-    </div>
-
+    <!-- Feedback flow starts at Details; retention is saved as long-term automatically. -->
     <!-- Details Page -->
     <div id="details-page" class="container" style="display: none;">
         <div class="consent-card">
@@ -743,10 +691,6 @@
                     <span class="detail-value" id="confirm-theme"></span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label" id="confirm-retention-label">Data Retention:</span>
-                    <span class="detail-value" id="confirm-retention"></span>
-                </div>
-                <div class="detail-row">
                     <span class="detail-label" id="confirm-pledge-label">Pledge:</span>
                     <span class="detail-value" id="confirm-pledge"></span>
                 </div>
@@ -757,10 +701,6 @@
                 <div class="detail-row">
                     <span class="detail-label" id="confirm-email-photo-label">Email Photo:</span>
                     <span class="detail-value" id="confirm-email-photo-ready">✅ Will be sent to your email</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label" id="confirm-primary-consent-label">Primary Consent:</span>
-                    <span class="detail-value" id="confirm-primary-consent-ready">✅ Given</span>
                 </div>
             </div>
             
@@ -804,6 +744,9 @@
                     </div>
 
                     <div class="celebration-tree-wrap">
+                        <span class="celebration-tree-target" aria-hidden="true"></span>
+                        <span class="celebration-leaf-trail trail-one" aria-hidden="true"></span>
+                        <span class="celebration-leaf-trail trail-two" aria-hidden="true"></span>
                         <div id="celebration-flying-leaf" class="celebration-flying-leaf"></div>
                         <img class="celebration-tree" src="/assets/Tree/stage4.png" alt="Digital tree preview">
                         <div id="celebration-tree-leaves" class="celebration-tree-leaves" aria-hidden="true"></div>
@@ -876,6 +819,17 @@
                         </span>
                     </div>
                 </div>
+                <div id="passport-history" class="passport-history" hidden>
+                    <div id="passport-summary" class="passport-summary"></div>
+                    <div>
+                        <strong class="passport-section-title">Collected badges</strong>
+                        <div id="passport-collected-badges" class="passport-badge-grid"></div>
+                    </div>
+                    <div>
+                        <strong class="passport-section-title">Recent visit stamps</strong>
+                        <div id="passport-recent-visits" class="passport-visit-list"></div>
+                    </div>
+                </div>
             </section>
             
             <div class="success-notice">
@@ -897,7 +851,7 @@
             <div id="thankyou-share-section" class="social-share-section" style="margin-bottom: 20px; display: none;">
                 <h3 style="font-size: 18px; margin-bottom: 12px; color: #1f2937;">Share your pledge on social media</h3>
                 <p id="thankyou-share-status" style="font-size: 14px; color: #475569; margin-bottom: 16px; line-height: 1.6;">
-                    Invite others to join the sustainability movement after your badge email is confirmed.
+                    Invite others to join the sustainability movement after your thank-you email is queued.
                 </p>
                 <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
                     <button type="button" onclick="sharePledge('twitter')"
