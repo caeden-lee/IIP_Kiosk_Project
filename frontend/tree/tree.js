@@ -1135,7 +1135,7 @@ class TreeManager {
         }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
-        leaf.style.animationDuration = `${this.leafAnimationDuration}ms`;
+        leaf.style.setProperty('--leaf-appear-duration', `${this.leafAnimationDuration}ms`);
         leaf.style.setProperty('--leaf-fall-duration', `${this.leafFallDuration}ms`);
         leaf.style.setProperty('--leaf-fall-delay', `${Math.min(index * 90, 1200)}ms`);
         leaf.style.setProperty('--leaf-fall-distance', `${360 + (seededRandom() * 260)}px`);
@@ -1179,13 +1179,6 @@ class TreeManager {
         nameElement.textContent = visitor.name || 'Anonymous';
         nameElement.style.setProperty('--leaf-name-font-size', `${this.getLeafNameFontSize(visitor.name || 'Anonymous', leafSize)}px`);
         leaf.appendChild(nameElement);
-
-        if (visitor.badgeName && !isVip) {
-            const badgeElement = document.createElement('div');
-            badgeElement.className = 'leaf-badge';
-            badgeElement.textContent = badgeProfile.shortLabel;
-            leaf.appendChild(badgeElement);
-        }
 
         leaf.addEventListener('click', (event) => {
             event.stopPropagation();

@@ -113,6 +113,10 @@ body {
     transform-style: preserve-3d;
     contain: layout paint;
     overflow: hidden;
+    animation-name: leafAppear;
+    animation-duration: var(--leaf-appear-duration, 700ms);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-fill-mode: both;
 }
 
 .leaf::before {
@@ -193,6 +197,21 @@ body {
 
 .leaf.leaf-greenified:not(.vip) {
     filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+@keyframes leafAppear {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, -18px, 0) rotate(-8deg) scale(0.78);
+    }
+    58% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(0, 3px, 0) rotate(2deg) scale(1.04);
+    }
+    100% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
 }
 
 @keyframes leafFall {

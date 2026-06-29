@@ -16,7 +16,7 @@
 // ============================================================
 //
 // 1. LIVE PULSE ADMIN ACCESS
-//    function openPulsePage()         - Open protected Live Pulse dashboard from admin page (DONE BY XY)
+//    function openPulsePage()         - Open public Live Pulse dashboard from admin page (DONE BY XY)
 //    showPage('pulse')                - Added admin Live Pulse launcher page navigation (DONE BY XY)
 //
 // 2. BADGE EMAIL TEMPLATE MANAGEMENT

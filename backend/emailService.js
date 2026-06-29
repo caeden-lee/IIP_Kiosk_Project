@@ -777,10 +777,13 @@ function formatRetentionSummary(retention, retentionDays) {
 
 function buildVisitSummary(options = {}) {
     const topicLabel = formatTopic(options.pledgeTopic) || 'General ESG feedback';
-    const badgeName = options.badgeName || getBadgeSummary({
-        pledge: options.pledgeText,
-        pledgeTopic: options.pledgeTopic
-    }).badgeName;
+    const includeBadge = options.includeBadge !== false;
+    const badgeName = includeBadge
+        ? (options.badgeName || getBadgeSummary({
+            pledge: options.pledgeText,
+            pledgeTopic: options.pledgeTopic
+        }).badgeName)
+        : '';
 
     return {
         visitDate: formatVisitDate(options.visitDate),
@@ -798,7 +801,7 @@ function buildSummaryRows(summary, emailContent = {}) {
         [emailContent.visitSummaryBadgeLabel || 'Badge earned', summary.badgeName],
         [emailContent.visitSummaryRetentionLabel || 'Data retention', summary.retention],
         [emailContent.visitSummaryTreeLabel || 'Digital tree', summary.treeLeafMessage]
-    ];
+    ].filter(([, value]) => value);
 }
 
 function applyEmailPlaceholders(text, badgeConfig, userData) {

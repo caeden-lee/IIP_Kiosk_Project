@@ -10,6 +10,7 @@
 //
 // 2. DIGITAL TREE PREVIEW
 //    leafPositions                    - Fixed pulse leaf positions so leaves stay connected visually (DONE BY XY)
+//    ultrawide no-scroll layout        - Supports 7m by 2m public display screens (DONE BY XY)
 //
 // FIND COMMAND
 //    rg -n "XY CHANGE SUMMARY|DONE BY XY" frontend backend
@@ -29,14 +30,25 @@ const leafImages = [
     '/assets/Tree/leaf/OldRightLeaf.png'
 ];
 
+const branchAnchors = [
+    { left: 42, top: 36 },
+    { left: 50, top: 31 },
+    { left: 58, top: 36 },
+    { left: 36, top: 45 },
+    { left: 48, top: 43 },
+    { left: 62, top: 45 },
+    { left: 43, top: 53 },
+    { left: 56, top: 53 }
+];
+
 const leafPositions = Array.from({ length: MAX_TREE_LEAVES }, (_, index) => {
-    const angle = (index / MAX_TREE_LEAVES) * Math.PI * 2;
-    const ring = index % 3;
-    const radiusX = 14 + (ring * 9) + ((index * 7) % 10);
-    const radiusY = 7 + (ring * 5) + ((index * 5) % 7);
+    const anchor = branchAnchors[index % branchAnchors.length];
+    const lap = Math.floor(index / branchAnchors.length);
+    const spreadX = (((index * 17) % 9) - 4) + ((lap % 3) - 1) * 2;
+    const spreadY = (((index * 11) % 7) - 3) + (lap % 2 ? 2 : -1);
     return {
-        left: 50 + Math.cos(angle) * radiusX + (((index * 13) % 9) - 4),
-        top: 38 + Math.sin(angle) * radiusY + (((index * 11) % 7) - 3),
+        left: anchor.left + spreadX,
+        top: anchor.top + spreadY,
         rotation: ((index * 37) % 50) - 25
     };
 });
@@ -174,7 +186,7 @@ function renderTree(visitors) {
         return `
             <div
                 class="pulse-leaf${isNew ? ' new' : ''}"
-                title="${escapeHtml(visitor.name || 'Visitor')}"
+                title="${escapeHtml(visitor.name || 'Visitor')} - ${escapeHtml(visitor.badge || 'Feedback Contributor')}"
                 style="
                     left: ${position.left}%;
                     top: ${position.top}%;
@@ -182,7 +194,9 @@ function renderTree(visitors) {
                     --leaf-rotate: ${position.rotation}deg;
                     animation-delay: ${delay}s;
                 "
-            ></div>
+            >
+                <span class="pulse-leaf-name">${escapeHtml(visitor.name || 'Visitor')}</span>
+            </div>
         `;
     }).join('');
 }
