@@ -220,6 +220,44 @@ class TreeManager {
         this.debugOval = false;
 
         this.init();
+
+    }
+
+    // ==================== TREE TITLE BOX ====================
+    applyTreeTitleSettings() {
+
+        if (!this.treeTitleBox) return;
+
+        const settings = this.visualAssets?.treeTitleBox;
+
+        if (!settings) return;
+
+        // Show / Hide
+        this.treeTitleBox.style.display =
+            settings.showTitleBox ? 'block' : 'none';
+
+        // Position
+        this.treeTitleBox.style.top =
+            `${settings.top || 20}px`;
+
+        // Padding
+        this.treeTitleBox.style.padding =
+            `${settings.paddingY || 15}px ${settings.paddingX || 30}px`;
+
+        // Border radius
+        this.treeTitleBox.style.borderRadius =
+            `${settings.radius || 25}px`;
+
+        // Glass background
+        this.treeTitleBox.style.background =
+            `rgba(255,255,255,${settings.opacity ?? 0.25})`;
+
+        // Blur effect
+        this.treeTitleBox.style.backdropFilter =
+            `blur(${settings.blur || 6}px)`;
+
+        this.treeTitleBox.style.webkitBackdropFilter =
+            `blur(${settings.blur || 6}px)`;
     }
 
     // ==================== INIT ====================
@@ -281,6 +319,9 @@ class TreeManager {
 
             this.applyTreeStageAssets(this.treeStage);
 
+            this.visualAssets = data.visualAssets || {};
+            this.applyTreeTitleSettings();
+
             if (this.demoFallEnabled) {
                 this.leafFallThreshold = this.demoFallLeafCount || this.leafFallThreshold;
                 this.leafFallDuration = Math.min(Number(this.urlParams.get('duration')) || this.leafFallDuration, 10000);
@@ -308,10 +349,10 @@ class TreeManager {
     }
 
     applyTitleBoxVisibility() {
-    if (this.treeTitleBox) {
-        this.treeTitleBox.style.display = 'block';
+        if (this.treeTitleBox) {
+            this.treeTitleBox.style.display = 'block';
+        }
     }
-}
 
     normalizeTreeStage(rawStage) {
         const parsed = Number(rawStage);

@@ -8610,7 +8610,8 @@ async function saveTreeParameters() {
             treeStage,
             showTitleBox,
             leafDisplayScale,
-            leafThresholds: thresholds   // save thresholds for later
+            leafThresholds: thresholds,   // save thresholds for later
+            treeTitleBox: collectTreeTitleSettings()  // collect title box settings if needed
         };
 
         const response = await fetch('/api/admin/parameters/treeParameters', {
@@ -9243,8 +9244,11 @@ async function selectParameterLeaf() {
 
 
 // Refresh tree data
-function refreshTreeData() {
-    loadDigitalTreeData();
+async function refreshTreeData() {
+    await loadDigitalTreeData();
+
+    // Reload existing leaf images
+    await loadAvailableLeafImages(window.currentLeafImagePath || '');
 }
 
 // Helper function to escape HTML
@@ -9254,6 +9258,31 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Collect tree title settings from the form
+function collectTreeTitleSettings() {
+    return {
+        showTitleBox: document.getElementById('param-showTitleBox').checked,
+        opacity: parseFloat(document.getElementById('param-titleOpacity').value),
+        blur: parseInt(document.getElementById('param-titleBlur').value),
+        radius: parseInt(document.getElementById('param-titleRadius').value),
+        top: parseInt(document.getElementById('param-titleTop').value),
+        paddingX: parseInt(document.getElementById('param-titlePaddingX').value),
+        paddingY: parseInt(document.getElementById('param-titlePaddingY').value)
+    };
+}
+
+// Save tree title settings
+async function saveTreeTitleSettings() {
+    const titleSettings = collectTreeTitleSettings();
+
+    config.visualAssets = {
+        ...config.visualAssets,
+        treeTitleBox: titleSettings
+    };
+
+    await saveTreeParameters();
+};
 
 // ==================== 25. INITIALIZATION & EVENT HANDLERS ====================
 

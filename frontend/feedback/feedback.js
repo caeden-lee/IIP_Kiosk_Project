@@ -3688,7 +3688,7 @@ async function loadCountdownTimer() {
 
 const translations = {
     en: {
-        brandText: "Community Feedback Portal",
+        brandText: "ESG Feedback Portal",
         landingTitle: "Let's turn your ideas into reality",
         landingSubtitle: "Share your thoughts and help us improve our services. Your feedback matters.",
         startButton: "Start Feedback Form",
