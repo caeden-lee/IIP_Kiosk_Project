@@ -15,8 +15,7 @@ const parametersConfigStore = require('./parametersConfigStore');
 
 const CAMPAIGN_GOAL = Number(process.env.PULSE_CAMPAIGN_GOAL || 100);
 
-function getActiveCampaign() {
-    const config = parametersConfigStore.readParametersConfig();
+function getActiveCampaign(config = parametersConfigStore.readParametersConfig()) {
     const campaign = config.campaignSettings || {};
     return campaign.enabled === true ? campaign : null;
 }
@@ -58,17 +57,32 @@ function topicToBadge(topic, hasPledge) {
         'community-impact': 'Social Champion'
     };
 
-    return topic && map[topic] ? map[topic] : 'Feedback Contributor';
+    return hasPledge && topic && map[topic] ? map[topic] : 'Feedback Contributor';
+}
+
+function topicToBadgeKey(topic, hasPledge) {
+    const map = {
+        'climate-change': 'climate-champion',
+        'renewable-energy': 'renewable-innovator',
+        'sustainable-living': 'sustainable-living-advocate',
+        'ocean-conservation': 'ocean-guardian',
+        'ethical-governance': 'governance-guardian',
+        'community-impact': 'social-champion'
+    };
+
+    return hasPledge && topic && map[topic] ? map[topic] : 'feedback-completer';
 }
 
 function anonymizePledge(row, index) {
     const metadata = parseMetadata(row.metadata);
+    const hasPledge = Boolean(row.comment && String(row.comment).trim());
     return {
         id: row.id,
         pledge: row.comment || '',
         created_at: row.created_at,
         displayName: `Visitor ${index + 1}`,
-        badge: topicToBadge(metadata.pledgeTopic, Boolean(row.comment))
+        badge: topicToBadge(metadata.pledgeTopic, hasPledge),
+        badgeKey: topicToBadgeKey(metadata.pledgeTopic, hasPledge)
     };
 }
 
@@ -130,7 +144,14 @@ function buildBadgeBreakdown(rows, activeCampaign) {
 
 router.get('/summary', async (req, res) => {
     try {
-        const activeCampaign = getActiveCampaign();
+        const parameterConfig = parametersConfigStore.readParametersConfig();
+        const activeCampaign = getActiveCampaign(parameterConfig);
+        const badgeLeafStyles = parameterConfig.badgeLeafStyles || {};
+        const badgeLeafColors = badgeLeafStyles.colors || {};
+        const badgeLeafScale = Number(badgeLeafStyles.leafScale);
+        const safeBadgeLeafScale = Number.isFinite(badgeLeafScale)
+            ? Math.min(2, Math.max(0.4, badgeLeafScale))
+            : 1;
         const [today, month, total, recentPledges, badgeRows, treeVisitors] = await Promise.all([
             queryOne(`
                 SELECT COUNT(*) AS count
@@ -227,14 +248,19 @@ router.get('/summary', async (req, res) => {
                 const metadata = parseMetadata(visitor.metadata);
                 const retention = String(visitor.data_retention || '').toLowerCase();
                 const canShowName = retention === 'longterm' || retention === 'indefinite';
-                const badge = topicToBadge(metadata.pledgeTopic, Boolean(visitor.comment && String(visitor.comment).trim()));
+                const hasPledge = Boolean(visitor.comment && String(visitor.comment).trim());
+                const badgeKey = topicToBadgeKey(metadata.pledgeTopic, hasPledge);
+                const badge = topicToBadge(metadata.pledgeTopic, hasPledge);
 
                 return {
                     id: visitor.id,
                     name: canShowName ? (visitor.name || `Visitor ${index + 1}`) : `Visitor ${index + 1}`,
                     visit_count: Number(visitor.visit_count) || 1,
                     created_at: visitor.created_at,
-                    badge
+                    badge,
+                    badgeKey,
+                    badgeColor: badgeLeafColors[badgeKey] || '#4a7c59',
+                    leafScale: safeBadgeLeafScale
                 };
             })
         });

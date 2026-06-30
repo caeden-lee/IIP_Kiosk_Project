@@ -217,6 +217,19 @@ h2 {
     overflow: hidden;
 }
 
+.pulse-leaf-tinted {
+    background-image: none !important;
+    background-color: var(--pulse-leaf-color, #4a7c59);
+    -webkit-mask-image: var(--pulse-leaf-image);
+    mask-image: var(--pulse-leaf-image);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .pulse-leaf.new {
     width: 52px;
     height: 52px;

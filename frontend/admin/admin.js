@@ -12852,6 +12852,16 @@ const DEFAULT_BADGE_EMAIL_BADGES = [
     { key: 'governance-guardian', name: 'Governance Guardian', description: 'For ethics and governance pledges', color: '#6366f1' }
 ];
 
+const DEFAULT_BADGE_LEAF_COLORS = {
+    'feedback-completer': '#4a7c59',
+    'climate-champion': '#0f766e',
+    'renewable-innovator': '#f59e0b',
+    'sustainable-living-advocate': '#16a34a',
+    'ocean-guardian': '#0284c7',
+    'governance-guardian': '#7c3aed',
+    'social-champion': '#d97706'
+};
+
 function escapeBadgeTemplateHtml(value) {
     return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
@@ -13102,6 +13112,121 @@ function clampNumber(value, min, max, fallback) {
     return Math.min(max, Math.max(min, safeNumber));
 }
 
+function getDefaultBadgeLeafColors() {
+    return { ...DEFAULT_BADGE_LEAF_COLORS };
+}
+
+function normalizeHexColor(value, fallback = '#4a7c59') {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function getBadgeLeafColorInputId(key) {
+    return `badge-leaf-color-${key}`;
+}
+
+function getBadgeLeafStyleColors(configColors = {}) {
+    return {
+        ...getDefaultBadgeLeafColors(),
+        ...(configColors || {})
+    };
+}
+
+function collectSharedLeafScale() {
+    const rawValue = getInputValue('param-sharedLeafScale') || getInputValue('param-leafDisplayScale');
+    return clampNumber(rawValue, 0.4, 2, 1);
+}
+
+function setSharedLeafScale(value) {
+    const scale = clampNumber(value, 0.4, 2, 1);
+    const normalized = Number(scale.toFixed(2));
+    setInputValue('param-sharedLeafScale', normalized);
+    setInputValue('param-leafDisplayScale', normalized);
+
+    const sharedOutput = document.getElementById('param-sharedLeafScaleValue');
+    if (sharedOutput) sharedOutput.textContent = `${normalized.toFixed(2)}x`;
+
+    const oldOutput = document.getElementById('param-leafDisplayScaleValue');
+    if (oldOutput) oldOutput.textContent = String(normalized);
+
+    document.querySelectorAll('.badge-leaf-preview').forEach(preview => {
+        preview.style.setProperty('--badge-preview-scale', normalized);
+    });
+
+    const previewBox = document.getElementById('previewLeafBox');
+    if (previewBox) {
+        previewBox.style.transform = `scale(${normalized})`;
+    }
+}
+
+function collectBadgeLeafStyleColors() {
+    const defaults = getDefaultBadgeLeafColors();
+    return DEFAULT_BADGE_EMAIL_BADGES.reduce((colors, badge) => {
+        colors[badge.key] = normalizeHexColor(getInputValue(getBadgeLeafColorInputId(badge.key)), defaults[badge.key]);
+        return colors;
+    }, {});
+}
+
+function updateBadgeLeafPreviews() {
+    const colors = collectBadgeLeafStyleColors();
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        const preview = document.querySelector(`[data-preview-badge-leaf="${badge.key}"]`);
+        if (preview) {
+            preview.style.setProperty('--badge-preview-color', colors[badge.key]);
+        }
+    });
+    setSharedLeafScale(collectSharedLeafScale());
+}
+
+function updateFeedbackStylePreview() {
+    const opacity = clampNumber(getInputValue('param-feedbackCardOpacity'), 0.55, 1, 0.9);
+    const accentColor = normalizeHexColor(getInputValue('param-feedbackAccentColor'), '#4a7c59');
+
+    const opacityOutput = document.getElementById('param-feedbackCardOpacityValue');
+    if (opacityOutput) opacityOutput.textContent = opacity.toFixed(2);
+
+    const preview = document.getElementById('feedback-style-preview');
+    if (preview) {
+        preview.style.setProperty('--feedback-preview-color', accentColor);
+        preview.textContent = `Card opacity ${opacity.toFixed(2)}`;
+    }
+}
+
+function bindFeedbackAndLeafStyleControls() {
+    [
+        'param-feedbackCardOpacity',
+        'param-feedbackAccentColor'
+    ].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.feedbackStyleBound) {
+            input.addEventListener('input', updateFeedbackStylePreview);
+            input.dataset.feedbackStyleBound = 'true';
+        }
+    });
+
+    [
+        'param-sharedLeafScale',
+        'param-leafDisplayScale'
+    ].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.sharedLeafBound) {
+            input.addEventListener('input', () => {
+                setSharedLeafScale(input.value);
+                updateBadgeLeafPreviews();
+            });
+            input.dataset.sharedLeafBound = 'true';
+        }
+    });
+
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        const input = document.getElementById(getBadgeLeafColorInputId(badge.key));
+        if (input && !input.dataset.badgeLeafBound) {
+            input.addEventListener('input', updateBadgeLeafPreviews);
+            input.dataset.badgeLeafBound = 'true';
+        }
+    });
+}
+
 function getLandingLayoutValues() {
     return {
         landingTextScale: clampNumber(getInputValue('layout-landingTextScale'), 0.75, 1.4, 1),
@@ -13215,6 +13340,8 @@ function populateParameterForm(config) {
     const flags = config.featureFlags || {};
     const rules = config.validationRules || {};
     const tree = config.treeParameters || {};
+    const feedbackStyle = config.feedbackPageStyle || {};
+    const badgeLeafStyles = config.badgeLeafStyles || {};
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
     const assets = config.visualAssets || {};
@@ -13295,20 +13422,34 @@ function populateParameterForm(config) {
     }
     setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
     // Leaf display scale (new) - Done by Yu Kang
-    const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
+    const badgeLeafScale = Number(badgeLeafStyles.leafScale);
+    const leafScale = typeof tree.leafDisplayScale !== 'undefined'
+        ? tree.leafDisplayScale
+        : (Number.isFinite(badgeLeafScale) ? badgeLeafScale : 1);
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
     if (leafScaleEl) {
         leafScaleEl.value = leafScale;
         const valEl = document.getElementById('param-leafDisplayScaleValue');
         if (valEl) valEl.textContent = String(leafScale);
     }
+    setSharedLeafScale(leafScale);
+    const badgeLeafColors = getBadgeLeafStyleColors(badgeLeafStyles.colors);
+    const defaultBadgeLeafColors = getDefaultBadgeLeafColors();
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        setInputValue(
+            getBadgeLeafColorInputId(badge.key),
+            normalizeHexColor(badgeLeafColors[badge.key], defaultBadgeLeafColors[badge.key])
+        );
+    });
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
     setCheckboxValues('photo-format', photo.supportedFormats || ['jpeg', 'png']);
     setRadioValue('overlay-upload', overlay.enableOverlayUpload);
     setInputValue('param-maxOverlayFileSize', bytesToMegabytes(overlay.maxOverlayFileSize, 10));
-    setInputValue('param-feedbackBackground', assets.feedbackBackground);
+    setInputValue('param-feedbackBackground', feedbackStyle.backgroundCss || assets.feedbackBackground);
+    setInputValue('param-feedbackCardOpacity', clampNumber(feedbackStyle.cardOpacity, 0.55, 1, 0.9).toFixed(2));
+    setInputValue('param-feedbackAccentColor', normalizeHexColor(feedbackStyle.accentColor, '#4a7c59'));
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
     setInputValue('layout-landingTextScale', layout.landingTextScale ?? 1);
@@ -13327,6 +13468,9 @@ function populateParameterForm(config) {
     setInputValue('layout-pledgeboardButtonHeight', layout.pledgeboardButtonHeight ?? 64);
     bindLandingLayoutPreview();
     updateLandingLayoutPreview();
+    bindFeedbackAndLeafStyleControls();
+    updateFeedbackStylePreview();
+    updateBadgeLeafPreviews();
     // Leaf image preview - Done by Yu Kang
     const previewBox = document.getElementById('previewLeafBox');
     if (previewBox) {
@@ -13354,6 +13498,9 @@ function populateParameterForm(config) {
 }
 
 function collectParameterForm() {
+    const sharedLeafScale = collectSharedLeafScale();
+    const feedbackBackground = getInputValue('param-feedbackBackground');
+
     return {
         feedbackMessages: {
             thankYouTitle: getInputValue('param-thankYouTitle'),
@@ -13432,8 +13579,17 @@ function collectParameterForm() {
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
-            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1,
+            leafDisplayScale: sharedLeafScale,
             showTitleBox: getCheckedValue('param-showTitleBox')
+        },
+        feedbackPageStyle: {
+            backgroundCss: feedbackBackground,
+            cardOpacity: clampNumber(getInputValue('param-feedbackCardOpacity'), 0.55, 1, 0.9),
+            accentColor: normalizeHexColor(getInputValue('param-feedbackAccentColor'), '#4a7c59')
+        },
+        badgeLeafStyles: {
+            leafScale: sharedLeafScale,
+            colors: collectBadgeLeafStyleColors()
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
@@ -13447,7 +13603,7 @@ function collectParameterForm() {
             supportedFormats: ['png', 'jpg', 'jpeg']
         },
         visualAssets: {
-            feedbackBackground: getInputValue('param-feedbackBackground'),
+            feedbackBackground: feedbackBackground,
             treeBackground: getInputValue('param-treeBackground'),
             defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
         },

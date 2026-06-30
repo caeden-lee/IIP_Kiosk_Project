@@ -6595,6 +6595,77 @@ input:checked + .slider:before {
     line-height: 1.4;
 }
 
+.feedback-style-control {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+}
+
+#parameter-adjustment-page .feedback-style-control input[type="color"],
+#parameter-adjustment-page .badge-leaf-style-card input[type="color"] {
+    width: 54px;
+    height: 42px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.feedback-style-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--feedback-preview-color, #4a7c59);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--feedback-preview-color, #4a7c59) 30%, transparent);
+}
+
+.badge-leaf-style-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.badge-leaf-style-card {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 64px;
+    gap: 12px;
+    align-items: center;
+    min-height: 82px;
+    padding: 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.badge-leaf-style-card strong,
+.badge-leaf-style-card small {
+    display: block;
+}
+
+.badge-leaf-style-card small {
+    margin-top: 4px;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.badge-leaf-preview {
+    width: calc(32px * var(--badge-preview-scale, 1));
+    height: calc(40px * var(--badge-preview-scale, 1));
+    justify-self: center;
+    border-radius: 999px 0 999px 0;
+    background: var(--badge-preview-color, #4a7c59);
+    box-shadow: 0 8px 16px color-mix(in srgb, var(--badge-preview-color, #4a7c59) 35%, transparent);
+    transform: rotate(-24deg);
+    transform-origin: center;
+    transition: width 0.15s ease, height 0.15s ease, background 0.15s ease;
+}
+
 .landing-layout-editor {
     display: grid;
     grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);

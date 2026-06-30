@@ -107,6 +107,13 @@ RESPONSIVE DESIGN
     box-sizing: border-box;
 }
 
+:root {
+    --feedback-card-opacity: 0.85;
+    --feedback-accent-color: #4a7c59;
+    --feedback-accent-dark: #2f6f45;
+    --celebration-leaf-scale: 1;
+}
+
 /* Body layout and gradient background */
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -156,7 +163,7 @@ h1 {
 
 /* Card shell */
 .card {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, var(--feedback-card-opacity, 0.85));
     backdrop-filter: blur(20px);
     border-radius: 24px;
     padding: 60px;
@@ -264,7 +271,7 @@ h1 {
 
 /* Consent card and header */
 .consent-card {
-    background: white;
+    background: rgba(255, 255, 255, var(--feedback-card-opacity, 1));
     border-radius: 24px;
     padding: 60px;
     width: 600px;
@@ -560,7 +567,7 @@ h1 {
     width: 0%;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #4a7c59, #10b981);
+    background: linear-gradient(90deg, var(--feedback-accent-color, #4a7c59), #10b981);
     transition: width 0.22s ease;
 }
 
@@ -593,7 +600,7 @@ h1 {
 
 .pledge-coach-suggestion {
     padding: 14px 16px;
-    border-left: 4px solid #4a7c59;
+    border-left: 4px solid var(--feedback-accent-color, #4a7c59);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.78);
 }
@@ -630,7 +637,7 @@ h1 {
     border: 1px solid rgba(47, 111, 69, 0.28);
     border-radius: 8px;
     color: white;
-    background: #2f6f45;
+    background: var(--feedback-accent-dark, #2f6f45);
     font-size: 13px;
     font-weight: 800;
     cursor: pointer;
@@ -1373,7 +1380,7 @@ textarea::placeholder {
     gap: 10px;
     width: 100%;
     padding: 16px 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45));
     color: white;
     text-decoration: none;
     font-size: 16px;
@@ -1382,7 +1389,7 @@ textarea::placeholder {
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 20px rgba(47, 111, 69, 0.3);
     position: relative;
     overflow: hidden;
 }
@@ -1415,7 +1422,7 @@ textarea::placeholder {
 
 .consent-button:not(:disabled):hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 25px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 12px 25px rgba(47, 111, 69, 0.32);
 }
 
 .consent-button:not(:disabled):hover .arrow {
@@ -1764,7 +1771,7 @@ body::after {
 .feedback-form-card,
 .photo-card,
 .style-card {
-    background: rgba(10, 19, 26, 0.84) !important;
+    background: rgb(10 19 26 / var(--feedback-card-opacity, 0.84)) !important;
     border: 1px solid rgba(255, 255, 255, 0.16) !important;
     border-radius: 8px !important;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34) !important;
@@ -2088,7 +2095,7 @@ body::after {
 .feedback-form-card,
 .photo-card,
 .style-card {
-    background: rgba(255, 255, 248, 0.9) !important;
+    background: rgb(255 255 248 / var(--feedback-card-opacity, 0.9)) !important;
     border: 1px solid rgba(74, 124, 89, 0.2) !important;
     box-shadow: 0 20px 48px rgba(24, 57, 43, 0.14) !important;
 }
@@ -2339,21 +2346,21 @@ h1 {
 }
 
 .celebration-flying-leaf {
-    width: 50px;
-    height: 50px;
+    width: calc(50px * var(--celebration-leaf-scale, 1));
+    height: calc(50px * var(--celebration-leaf-scale, 1));
     filter: drop-shadow(0 12px 18px rgba(24, 57, 43, 0.28));
 }
 
 .celebration-leaf-trail {
-    width: 34px;
-    height: 34px;
+    width: calc(34px * var(--celebration-leaf-scale, 1));
+    height: calc(34px * var(--celebration-leaf-scale, 1));
     z-index: 3;
     filter: blur(0.3px) saturate(1.1) drop-shadow(0 8px 10px rgba(24, 57, 43, 0.14));
 }
 
 .celebration-leaf-trail.trail-two {
-    width: 25px;
-    height: 25px;
+    width: calc(25px * var(--celebration-leaf-scale, 1));
+    height: calc(25px * var(--celebration-leaf-scale, 1));
     z-index: 2;
 }
 
@@ -2876,20 +2883,20 @@ textarea:focus,
 .rating-btn.selected,
 .cta-button,
 .consent-button {
-    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
     border-color: #7fb069 !important;
     color: #ffffff !important;
     box-shadow: 0 12px 26px rgba(74, 124, 89, 0.22) !important;
 }
 
 .pledgeboard-button {
-    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
     box-shadow: 0 12px 26px rgba(74, 124, 89, 0.2) !important;
 }
 
 .secondary-button {
     background: rgba(255, 255, 248, 0.9) !important;
-    color: #2f6f45 !important;
+    color: var(--feedback-accent-dark, #2f6f45) !important;
     border-color: rgba(74, 124, 89, 0.34) !important;
 }
 
@@ -2898,7 +2905,7 @@ textarea:focus,
 }
 
 .themed-select::after {
-    border-color: #2f6f45;
+    border-color: var(--feedback-accent-dark, #2f6f45);
 }
 
 .themed-select select {
@@ -2964,7 +2971,7 @@ textarea:focus,
 }
 
 #land-page-no-qrcode #start-feedback-btn,
-#land-page-qrcode #start-feedback-btn {
+#land-page-qrcode [data-text-target="start-feedback-btn"] {
     justify-content: center !important;
     width: var(--start-button-width, 280px) !important;
     min-height: var(--start-button-height, 64px) !important;
@@ -2974,7 +2981,7 @@ textarea:focus,
 }
 
 #land-page-no-qrcode #view-pledgeboards-btn,
-#land-page-qrcode #view-pledgeboards-btn {
+#land-page-qrcode [data-text-target="view-pledgeboards-btn"] {
     width: min(100%, var(--pledgeboard-button-width, 600px)) !important;
     min-height: var(--pledgeboard-button-height, 64px) !important;
     margin-left: var(--pledgeboard-button-x, 0px) !important;
@@ -2994,13 +3001,13 @@ textarea:focus,
     }
 
     #land-page-no-qrcode #start-feedback-btn,
-    #land-page-qrcode #start-feedback-btn {
+    #land-page-qrcode [data-text-target="start-feedback-btn"] {
         width: var(--start-button-mobile-width, 210px) !important;
         min-height: var(--start-button-mobile-height, 54px) !important;
     }
 
     #land-page-no-qrcode #view-pledgeboards-btn,
-    #land-page-qrcode #view-pledgeboards-btn {
+    #land-page-qrcode [data-text-target="view-pledgeboards-btn"] {
         width: min(100%, var(--pledgeboard-button-mobile-width, 450px)) !important;
         min-height: var(--pledgeboard-button-mobile-height, 54px) !important;
     }
