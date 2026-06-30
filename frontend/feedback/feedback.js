@@ -2683,8 +2683,8 @@ function getCelebrationBadgeKey(data) {
     return data?.badgeKey || 'feedback-completer';
 }
 
-function getCelebrationBadgeColor(badgeKey, data) {
-    const colorMap = {
+function getConfiguredBadgeLeafStyles() {
+    const fallbackColors = {
         'climate-champion': '#0f766e',
         'renewable-innovator': '#f59e0b',
         'sustainable-living-advocate': '#4a7c59',
@@ -2693,8 +2693,22 @@ function getCelebrationBadgeColor(badgeKey, data) {
         'social-champion': '#d97706',
         'feedback-completer': '#2f6f45'
     };
+    const styles = kioskParameters.badgeLeafStyles || {};
+    const leafScale = Number(styles.leafScale);
 
-    return data?.badgeColor || colorMap[badgeKey] || colorMap['feedback-completer'];
+    return {
+        colors: {
+            ...fallbackColors,
+            ...(styles.colors || {})
+        },
+        leafScale: Number.isFinite(leafScale) ? Math.min(2, Math.max(0.4, leafScale)) : 1
+    };
+}
+
+function getCelebrationBadgeColor(badgeKey, data) {
+    const colorMap = getConfiguredBadgeLeafStyles().colors;
+
+    return colorMap[badgeKey] || data?.badgeColor || colorMap['feedback-completer'];
 }
 
 const CELEBRATION_LEAF_IMAGES = {
@@ -2827,9 +2841,11 @@ function setupCelebrationMoment(data) {
     const badgeKey = getCelebrationBadgeKey(data);
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
     const color = getCelebrationBadgeColor(badgeKey, data);
+    const badgeLeafStyles = getConfiguredBadgeLeafStyles();
     const flightTarget = getCelebrationFlightTarget(badgeKey);
 
     celebration.style.setProperty('--celebration-badge-color', color);
+    celebration.style.setProperty('--celebration-leaf-scale', badgeLeafStyles.leafScale);
     celebration.style.setProperty('--celebration-leaf-image', `url('${getCelebrationLeafImage(badgeKey)}')`);
     celebration.style.setProperty('--celebration-flight-x', `${flightTarget.x}px`);
     celebration.style.setProperty('--celebration-flight-y', `${flightTarget.y}px`);
@@ -3521,12 +3537,29 @@ function applyLandingLayoutSettings(layout = {}) {
     root.style.setProperty('--pledgeboard-button-mobile-height', `${Math.round(pledgeButtonHeight * 0.85)}px`);
 }
 
+function normalizeStyleHexColor(value, fallback = '#4a7c59') {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function shadeHexColor(hex, amount) {
+    const safeHex = normalizeStyleHexColor(hex);
+    const raw = safeHex.slice(1);
+    const channels = [0, 2, 4].map((offset) => {
+        const value = parseInt(raw.slice(offset, offset + 2), 16);
+        return Math.max(0, Math.min(255, value + amount));
+    });
+    return `#${channels.map(value => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
     const content = kioskParameters.contentSettings || {};
     const campaign = kioskParameters.campaignSettings || {};
+    const feedbackStyle = kioskParameters.feedbackPageStyle || {};
     const assets = kioskParameters.visualAssets || {};
     const layout = kioskParameters.layoutSettings || {};
+    const badgeLeafStyles = getConfiguredBadgeLeafStyles();
     const flags = getFeatureFlags();
     const rules = getValidationRules();
     const retentionDays = getTemporaryRetentionDays();
@@ -3534,9 +3567,16 @@ function applyParameterOverrides() {
 
     applyLandingLayoutSettings(layout);
 
-    if (assets.feedbackBackground) {
-        document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
+    const feedbackBackground = feedbackStyle.backgroundCss || assets.feedbackBackground;
+    if (feedbackBackground) {
+        document.documentElement.style.setProperty('--form-bg', feedbackBackground);
     }
+    const cardOpacity = Math.min(1, Math.max(0.55, Number(feedbackStyle.cardOpacity) || 0.9));
+    const accentColor = normalizeStyleHexColor(feedbackStyle.accentColor, '#4a7c59');
+    document.documentElement.style.setProperty('--feedback-card-opacity', cardOpacity.toFixed(2));
+    document.documentElement.style.setProperty('--feedback-accent-color', accentColor);
+    document.documentElement.style.setProperty('--feedback-accent-dark', shadeHexColor(accentColor, -36));
+    document.documentElement.style.setProperty('--celebration-leaf-scale', badgeLeafStyles.leafScale);
 
     const pledgePage = document.getElementById('pledge-page');
     if (pledgePage) pledgePage.dataset.featureEnabled = String(flags.pledgeEnabled !== false);
@@ -4126,7 +4166,7 @@ function translateKnownDynamicText(text) {
 }
 
 function setText(id, value) {
-    document.querySelectorAll(`#${id}`).forEach(el => {
+    document.querySelectorAll(`#${id}, [data-text-target="${id}"]`).forEach(el => {
         el.textContent = value;
     });
 }

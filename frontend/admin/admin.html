@@ -2597,6 +2597,60 @@
                             <input type="time" id="param-leafGreenResetTime" value="00:00">
                             <small class="text-muted">Daily time when badge-coloured leaves become green (00:00 = midnight)</small>
                         </div>
+
+                        <div class="divider"></div>
+
+                        <div class="parameter-field-heading">
+                            <h4>Badge Leaf Styling</h4>
+                            <p>These settings control badge-coloured leaves on the public tree, pulse display, and feedback celebration animation.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-sharedLeafScale">Shared Leaf Size</label>
+                            <div class="range-control">
+                                <input type="range" id="param-sharedLeafScale" min="0.4" max="2" step="0.05" value="1">
+                                <output id="param-sharedLeafScaleValue">1.00x</output>
+                            </div>
+                            <small class="text-muted">The same scale is saved to normal green leaves and badge-coloured leaves so both change together.</small>
+                        </div>
+
+                        <div class="badge-leaf-style-grid">
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="feedback-completer"></span>
+                                <span><strong>Feedback Contributor</strong><small>Default feedback leaf</small></span>
+                                <input type="color" id="badge-leaf-color-feedback-completer" value="#4a7c59">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="climate-champion"></span>
+                                <span><strong>Climate Champion</strong><small>Climate action badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-climate-champion" value="#0f766e">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="renewable-innovator"></span>
+                                <span><strong>Renewable Innovator</strong><small>Clean energy badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-renewable-innovator" value="#f59e0b">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="sustainable-living-advocate"></span>
+                                <span><strong>Sustainable Living Advocate</strong><small>Sustainable lifestyle badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-sustainable-living-advocate" value="#16a34a">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="ocean-guardian"></span>
+                                <span><strong>Ocean Guardian</strong><small>Ocean conservation badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-ocean-guardian" value="#0284c7">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="governance-guardian"></span>
+                                <span><strong>Governance Guardian</strong><small>Ethics and governance badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-governance-guardian" value="#7c3aed">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="social-champion"></span>
+                                <span><strong>Social Champion</strong><small>Community impact badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-social-champion" value="#d97706">
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Photo Settings Tab -->
@@ -2686,7 +2740,12 @@
                     <div id="assets-tab" class="parameter-section">
                         <div class="section-header">
                             <h3>Backgrounds & Digital Overlays</h3>
-                            <p class="section-description">Select active image paths and default overlay behavior</p>
+                            <p class="section-description">Select active image paths, feedback page styling, and default overlay behavior</p>
+                        </div>
+
+                        <div class="parameter-field-heading">
+                            <h4>Feedback Page Styling</h4>
+                            <p>Admins can adjust the visitor feedback page background and card appearance without editing CSS.</p>
                         </div>
 
                         <div class="form-group">
@@ -2700,6 +2759,26 @@
                             <input type="file" id="param-backgroundUpload" accept="image/png,image/jpeg,image/webp">
                             <small class="text-muted">Uploads a PNG, JPG, or WebP and sets it as the active feedback background</small>
                         </div>
+
+                        <div class="form-group">
+                            <label for="param-feedbackCardOpacity">Feedback Card Opacity</label>
+                            <div class="range-control">
+                                <input type="range" id="param-feedbackCardOpacity" min="0.55" max="1" step="0.05" value="0.9">
+                                <output id="param-feedbackCardOpacityValue">0.90</output>
+                            </div>
+                            <small class="text-muted">Controls how much of the selected background image is visible through feedback cards</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-feedbackAccentColor">Feedback Accent Colour</label>
+                            <div class="feedback-style-control">
+                                <input type="color" id="param-feedbackAccentColor" value="#4a7c59">
+                                <span class="feedback-style-preview" id="feedback-style-preview">Feedback preview</span>
+                            </div>
+                            <small class="text-muted">Used for focus rings, selected states, and main feedback action buttons</small>
+                        </div>
+
+                        <div class="divider"></div>
 
                         <div class="form-group">
                             <label for="param-treeBackground">Digital Tree Background Path</label>

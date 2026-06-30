@@ -203,6 +203,8 @@ class TreeManager {
         this.leafFallThreshold = 15;
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
+        this.leafDisplayScale = 1;
+        this.badgeLeafColors = {};
         this.treeStage = 0;
         this.showTitleBox = true;
         this.activeCampaign = null;
@@ -261,6 +263,7 @@ class TreeManager {
             const tree = data.parameters?.treeParameters || {};
             const assets = data.parameters?.visualAssets || {};
             const campaign = data.parameters?.campaignSettings || {};
+            const badgeLeafStyles = data.parameters?.badgeLeafStyles || {};
 
             this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
             this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
@@ -286,8 +289,16 @@ class TreeManager {
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
-            // Leaf override image and display scale
-            this.leafDisplayScale = Number(tree.leafDisplayScale) || 1;
+            // Leaf override image and shared display scale
+            const configuredLeafScale = Number(tree.leafDisplayScale);
+            const configuredBadgeLeafScale = Number(badgeLeafStyles.leafScale);
+            this.leafDisplayScale = Number.isFinite(configuredLeafScale)
+                ? configuredLeafScale
+                : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
+            this.badgeLeafColors = {
+                ...Object.fromEntries(Object.keys(this.badgeLeafProfiles).map(key => [key, '#4a7c59'])),
+                ...(badgeLeafStyles.colors || {})
+            };
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;
@@ -419,6 +430,11 @@ class TreeManager {
     getBadgeLeafProfile(visitor) {
         const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
         return this.badgeLeafProfiles[badgeKey] || this.badgeLeafProfiles['feedback-completer'];
+    }
+
+    getBadgeLeafColor(visitor) {
+        const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
+        return this.badgeLeafColors[badgeKey] || visitor?.badgeColor || '#4a7c59';
     }
 
     normalizeResetTime(value) {
@@ -1097,12 +1113,17 @@ class TreeManager {
         if (isVip) {
             leaf.classList.add('vip');
         }
-        if (this.shouldLeafBeGreen(visitor, isVip)) {
+        const isGreenified = this.shouldLeafBeGreen(visitor, isVip);
+        if (isGreenified) {
             leaf.classList.add('leaf-greenified');
         }
 
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
+        if (!isVip && !isGreenified) {
+            leaf.classList.add('leaf-tinted');
+            leaf.style.setProperty('--leaf-badge-color', this.getBadgeLeafColor(visitor));
+        }
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
         leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
         leaf.setAttribute('role', 'button');

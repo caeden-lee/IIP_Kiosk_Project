@@ -30,6 +30,16 @@ const leafImages = [
     '/assets/Tree/leaf/OldRightLeaf.png'
 ];
 
+const DEFAULT_PULSE_BADGE_COLORS = {
+    'feedback-completer': '#4a7c59',
+    'climate-champion': '#0f766e',
+    'renewable-innovator': '#f59e0b',
+    'sustainable-living-advocate': '#16a34a',
+    'ocean-guardian': '#0284c7',
+    'governance-guardian': '#7c3aed',
+    'social-champion': '#d97706'
+};
+
 const branchAnchors = [
     { left: 42, top: 36 },
     { left: 50, top: 31 },
@@ -81,6 +91,21 @@ function escapeHtml(value) {
     const div = document.createElement('div');
     div.textContent = value == null ? '' : String(value);
     return div.innerHTML;
+}
+
+function normalizeHexColor(value, fallback) {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function getPulseLeafScale(visitor) {
+    const scale = Number(visitor?.leafScale);
+    return Number.isFinite(scale) ? Math.min(2, Math.max(0.4, scale)) : 1;
+}
+
+function getPulseBadgeColor(visitor) {
+    const badgeKey = visitor?.badgeKey || 'feedback-completer';
+    return normalizeHexColor(visitor?.badgeColor, DEFAULT_PULSE_BADGE_COLORS[badgeKey] || DEFAULT_PULSE_BADGE_COLORS['feedback-completer']);
 }
 
 function updateClock() {
@@ -182,15 +207,21 @@ function renderTree(visitors) {
         const position = leafPositions[index];
         const isNew = index < 8;
         const image = leafImages[index % leafImages.length];
+        const scale = getPulseLeafScale(visitor);
+        const leafSize = Math.round((isNew ? 52 : 42) * scale);
+        const badgeColor = getPulseBadgeColor(visitor);
         const delay = (index % 8) * -0.35;
         return `
             <div
-                class="pulse-leaf${isNew ? ' new' : ''}"
+                class="pulse-leaf pulse-leaf-tinted${isNew ? ' new' : ''}"
                 title="${escapeHtml(visitor.name || 'Visitor')} - ${escapeHtml(visitor.badge || 'Feedback Contributor')}"
                 style="
                     left: ${position.left}%;
                     top: ${position.top}%;
-                    background-image: url('${image}');
+                    width: ${leafSize}px;
+                    height: ${leafSize}px;
+                    --pulse-leaf-image: url('${image}');
+                    --pulse-leaf-color: ${badgeColor};
                     --leaf-rotate: ${position.rotation}deg;
                     animation-delay: ${delay}s;
                 "
