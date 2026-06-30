@@ -100,7 +100,7 @@ class TreeManager {
 
     constructor() {
         // DOM Elements
-        this.treeImage = document.getElementById('treeImage');
+        //this.treeImage = document.getElementById('treeImage');
         this.treeImageLeaves = document.getElementById('treeImageLeaves');
         this.leavesContainer = document.getElementById('leavesContainer');
         this.loadingMessage = document.getElementById('loadingMessage');
@@ -298,8 +298,8 @@ class TreeManager {
 
     applyTitleBoxVisibility() {
         if (this.treeTitleBox) {
-            this.treeTitleBox.style.display = this.showTitleBox ? 'block' : 'none';
-        }
+        this.treeTitleBox.style.display = 'block';
+    }
     }
 
     normalizeTreeStage(rawStage) {
@@ -1047,6 +1047,7 @@ class TreeManager {
         const { ctx, w, h } = this.maskData;
         const random = this.createSeededRandom(seed);
 
+        const treeModel = document.getElementById('treeModel');
         const rect = this.treeImageLeaves.getBoundingClientRect();
         const containerRect = this.leavesContainer.getBoundingClientRect();
 

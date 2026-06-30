@@ -98,6 +98,15 @@
       "stage2": 10,
       "stage3": 25,
       "stage4": 50
+    },
+    "treeTitleBox": {
+      "showTitleBox": false,
+      "opacity": 0.6,
+      "blur": 6,
+      "radius": 25,
+      "top": 20,
+      "paddingX": 30,
+      "paddingY": 15
     }
   },
   "photoSettings": {
@@ -123,7 +132,7 @@
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
     "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/GoldRightLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
