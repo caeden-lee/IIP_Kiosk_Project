@@ -1,6 +1,6 @@
-# ESG KIOSK PROJECT
+# DP KIOSK - ESG Feedback & Digital Tree System
 
-> Comprehensive onboarding and developer guide for the ESG Feedback Kiosk & Digital Tree Final Year Project.
+> Comprehensive onboarding and developer guide for the ESG Feedback Kiosk & Digital Tree.
 
 ## Overview
 
@@ -304,7 +304,7 @@ ollama run phi3
 curl http://localhost:11434/api/generate
 ```
 
-# Backend Cache
+## Backend Cache
 
 AI analysis cache:
 
@@ -313,8 +313,6 @@ backend/cache/feedback-analysis-cache.json
 ```
 
 Used to reduce repeated AI inference.
-
----
 
 ---
 
@@ -472,4 +470,4 @@ Terminate the process using the port before restarting.
 
 # License
 
-Final Year Project – Republic Polytechnic
+Republic Polytechnic - Team(SOI-2026-0096)
