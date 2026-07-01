@@ -92,7 +92,7 @@
     "leafFallDuration": 4200,
     "leafGreenResetTime": "00:00",
     "leafDisplayScale": 1,
-    "showTitleBox": false,
+    "showTitleBox": true,
     "leafThresholds": {
       "stage1": 1,
       "stage2": 10,
@@ -100,13 +100,16 @@
       "stage4": 50
     },
     "treeTitleBox": {
-      "showTitleBox": false,
-      "opacity": 0.6,
+      "showTitleBox": true,
+      "opacity": 0.25,
       "blur": 6,
       "radius": 25,
       "top": 20,
       "paddingX": 30,
-      "paddingY": 15
+      "paddingY": 15,
+      "position": "top-center",
+      "titleText": "🌳 ESG Digital Tree RP",
+      "subtitleText": "Growing with every visitor's contribution this year"
     }
   },
   "photoSettings": {
@@ -132,7 +135,7 @@
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
     "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/GoldRightLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {

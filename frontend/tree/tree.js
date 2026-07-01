@@ -225,39 +225,82 @@ class TreeManager {
 
     // ==================== TREE TITLE BOX ====================
     applyTreeTitleSettings() {
-
         if (!this.treeTitleBox) return;
 
         const settings = this.visualAssets?.treeTitleBox;
+        // If no settings, hide the title box
+        this.treeTitleBox.style.display = 'block';
 
-        if (!settings) return;
+        // Update text content
+        const titleEl = document.getElementById('treeTitle');
+        const subtitleEl = document.getElementById('treeSubtitle');
+        if (titleEl) titleEl.textContent = settings?.titleText || '🌳 ESG Digital Tree';
+        if (subtitleEl) subtitleEl.textContent = settings?.subtitleText || 'Growing with every visitor\'s contribution this year';
 
-        // Show / Hide
-        this.treeTitleBox.style.display =
-            settings.showTitleBox ? 'block' : 'none';
+        // Defaults
+        const opacity = settings?.opacity ?? 0.25;
+        const blur = settings?.blur ?? 6;
+        const radius = settings?.radius ?? 25;
+        const position = settings?.position ?? 'top-center';
+        const padX = settings?.paddingX ?? 30;
+        const padY = settings?.paddingY ?? 15;
 
-        // Position
-        this.treeTitleBox.style.top =
-            `${settings.top || 20}px`;
+        // --- Fixed positioning relative to viewport ---
+        this.treeTitleBox.style.position = 'fixed';
+        this.treeTitleBox.style.margin = '0';
+        this.treeTitleBox.style.boxSizing = 'border-box';
+        this.treeTitleBox.style.maxWidth = 'calc(100% - 40px)';   // always leaves 20px on each side
+        this.treeTitleBox.style.wordBreak = 'break-word';         // prevent overflow from long words
 
-        // Padding
-        this.treeTitleBox.style.padding =
-            `${settings.paddingY || 15}px ${settings.paddingX || 30}px`;
+        // Reset all positioning properties
+        this.treeTitleBox.style.top = 'auto';
+        this.treeTitleBox.style.bottom = 'auto';
+        this.treeTitleBox.style.left = 'auto';
+        this.treeTitleBox.style.right = 'auto';
+        this.treeTitleBox.style.transform = '';
 
-        // Border radius
-        this.treeTitleBox.style.borderRadius =
-            `${settings.radius || 25}px`;
+        const MARGIN = 20; // consistent gap from edges
 
-        // Glass background
-        this.treeTitleBox.style.background =
-            `rgba(255,255,255,${settings.opacity ?? 0.25})`;
+        switch (position) {
+            case 'top-left':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = MARGIN + 'px';
+                break;
+            case 'top-center':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+                break;
+            case 'top-right':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.right = MARGIN + 'px';
+                break;
+            case 'bottom-left':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.left = MARGIN + 'px';
+                break;
+            case 'bottom-center':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+                break;
+            case 'bottom-right':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.right = MARGIN + 'px';
+                break;
+            default:
+                // fallback to top-center
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+        }
 
-        // Blur effect
-        this.treeTitleBox.style.backdropFilter =
-            `blur(${settings.blur || 6}px)`;
-
-        this.treeTitleBox.style.webkitBackdropFilter =
-            `blur(${settings.blur || 6}px)`;
+        // Apply other styles
+        this.treeTitleBox.style.padding = `${padY}px ${padX}px`;
+        this.treeTitleBox.style.borderRadius = `${radius}px`;
+        this.treeTitleBox.style.background = `rgba(255,255,255,${opacity})`;
+        this.treeTitleBox.style.backdropFilter = `blur(${blur}px)`;
+        this.treeTitleBox.style.webkitBackdropFilter = `blur(${blur}px)`;
     }
 
     // ==================== INIT ====================
@@ -319,7 +362,12 @@ class TreeManager {
 
             this.applyTreeStageAssets(this.treeStage);
 
-            this.visualAssets = data.visualAssets || {};
+            // treeTitleBox is saved under treeParameters by admin.js
+            this.visualAssets = assets || {};
+            if (tree.treeTitleBox) {
+                this.visualAssets.treeTitleBox = tree.treeTitleBox;
+            }
+
             this.applyTreeTitleSettings();
 
             if (this.demoFallEnabled) {
