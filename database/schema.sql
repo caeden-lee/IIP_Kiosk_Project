@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS pledge_likes;
 DROP TABLE IF EXISTS saved_themes;
 DROP TABLE IF EXISTS feedback_answers;
 DROP TABLE IF EXISTS feedback;
+DROP TABLE IF EXISTS feedback_analysis_cache;
 DROP TABLE IF EXISTS question_options;
 DROP TABLE IF EXISTS questions;
 DROP TABLE IF EXISTS users;
@@ -99,6 +100,25 @@ CREATE TABLE feedback_answers (
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
     INDEX idx_feedback_id (feedback_id),
     INDEX idx_question_id (question_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- FEEDBACK ANALYSIS CACHE TABLE (OLLAMA/OFFLINE ANALYSIS CACHE)
+-- ============================================================
+CREATE TABLE feedback_analysis_cache (
+    cache_key VARCHAR(255) PRIMARY KEY,
+    analysis_mode VARCHAR(50) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    normalized_text TEXT NOT NULL,
+    source_text TEXT NOT NULL,
+    sentiment ENUM('positive', 'neutral', 'negative') NOT NULL,
+    hit_count INT NOT NULL DEFAULT 1,
+    analyzed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_analysis_mode (analysis_mode),
+    INDEX idx_model_name (model_name),
+    INDEX idx_last_used_at (last_used_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

@@ -4145,6 +4145,17 @@ function closeQAPopup() {
 
 // ==================== Feedback Sentiment Analysis ====================
 
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+
 async function loadFlaggedFeedback() {
     const tbody = document.getElementById('flagged-feedback-table-body');
     const summary = document.getElementById('flagged-feedback-summary');
@@ -4417,9 +4428,35 @@ function closeFeedbackInsightsModal() {
     }
 }
 
+// Filter feedback items by date range (Done by Yu Kang)
+function filterFeedbackItemsByDate(items, fromDate, toDate) {
+    return items.filter(item => {
+        if (!item.date) return false;
+
+        const itemDate = new Date(item.date);
+
+        if (fromDate) {
+            const start = new Date(fromDate);
+            start.setHours(0, 0, 0, 0);
+
+            if (itemDate < start) return false;
+        }
+
+        if (toDate) {
+            const end = new Date(toDate);
+            end.setHours(23, 59, 59, 999);
+
+            if (itemDate > end) return false;
+        }
+
+        return true;
+    });
+}
+
+// Open modal to view feedback insights by sentiment (Done by Yu Kang)
 function openFeedbackInsightsModal(sentiment) {
     const normalizedSentiment = String(sentiment || '').toLowerCase();
-    const items = getFeedbackInsightsBySentiment(normalizedSentiment);
+    let items = getFeedbackInsightsBySentiment(normalizedSentiment);
     const titleMap = {
         positive: 'Positive Feedback',
         neutral: 'Neutral Feedback',
@@ -4468,7 +4505,32 @@ function openFeedbackInsightsModal(sentiment) {
                 </div>
                 <button type="button" onclick="closeFeedbackInsightsModal()" style="background: transparent; border: 0; color: #64748b; font-size: 28px; line-height: 1; cursor: pointer; padding: 4px 8px;">&times;</button>
             </div>
-            <div style="padding: 20px 22px 22px; overflow: auto; background: #ffffff;">
+
+            <div style="padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; gap:14px; align-items:end; flex-wrap:wrap;">
+                <div>
+                    <label style="display:block; font-size:12px; color:#64748b; margin-bottom:4px;">
+                        From
+                    </label>
+                    <input type="date" id="feedbackDateFrom" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+
+                <div>
+                    <label style="display:block; font-size:12px; color:#64748b; margin-bottom:4px;">
+                        To
+                    </label>
+                    <input type="date" id="feedbackDateTo" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+
+                <button id="applyFeedbackDateFilter" class="btn-primary">
+                    Apply
+                </button>
+
+                <button id="clearFeedbackDateFilter" class="btn-primary">
+                    Clear
+                </button>
+            </div>
+
+            <div id="feedbackModalContent" style="padding:20px 22px 22px; overflow:auto; background:#fff;">
                 ${content}
             </div>
         </div>
@@ -4481,6 +4543,47 @@ function openFeedbackInsightsModal(sentiment) {
     });
 
     document.body.appendChild(modal);
+
+    // Add event listener for the "Apply" button to filter feedback items by date 
+    modal.querySelector('#applyFeedbackDateFilter').addEventListener('click', () => {
+        const from = modal.querySelector('#feedbackDateFrom').value;
+        const to = modal.querySelector('#feedbackDateTo').value;
+        const filtered = filterFeedbackItemsByDate(items, from, to);
+
+        renderItems(filtered);
+
+        const count = modal.querySelector('h3')
+            .nextElementSibling;
+
+        count.textContent = `${filtered.length} item(s)`;
+    });
+
+    // Add event listener for the "Clear" button to reset the date filters
+    modal.querySelector('#clearFeedbackDateFilter').addEventListener('click', () => {
+        modal.querySelector('#feedbackDateFrom').value = '';
+        modal.querySelector('#feedbackDateTo').value = '';
+
+        renderItems(items);
+
+        modal.querySelector('h3').nextElementSibling.textContent = `${items.length} item(s)`;
+    });
+
+    // Add event listeners for date filter buttons
+    const contentContainer = modal.querySelector('#feedbackModalContent');
+    const renderItems = (filteredItems) => {
+
+        contentContainer.innerHTML = filteredItems.length
+            ? filteredItems.map(item => `
+                <div style="padding: 14px 0; border-top: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                        <strong style="color: #0f172a;">${escapeHtml(item.source || 'Feedback')}</strong>
+                        <span style="font-size: 12px; color: #64748b;">${escapeHtml(item.date || '')}</span>
+                    </div>
+
+                    ${item.question ? `<div style="margin-bottom: 6px; color: #1d4ed8; font-size: 13px; font-weight: 600;">${escapeHtml(item.question)}</div>`: ''}
+                    <div style="color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(item.text || '')}</div>
+                </div>`).join(''): `<div style="padding:20px;color:#64748b;text-align:center;">No feedback found.</div>`;
+    };
 }
 
 // Analyze feedback into AI Insight Summary (Done by Yu Kang)
@@ -9242,7 +9345,6 @@ async function selectParameterLeaf() {
     }
 }
 
-
 // Refresh tree data
 async function refreshTreeData() {
     await loadDigitalTreeData();
@@ -9251,38 +9353,91 @@ async function refreshTreeData() {
     await loadAvailableLeafImages(window.currentLeafImagePath || '');
 }
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+
+// Default values for tree title box settings
+const TITLE_DEFAULTS = {
+    showTitleBox: true,
+    titleText: '🌳 ESG Digital Tree',
+    subtitleText: 'Growing with every visitor\'s contribution this year',
+    opacity: 0.25,
+    blur: 6,
+    radius: 25,
+    position: 'top-center',
+    paddingX: 30,
+    paddingY: 15
+};
+
+function resetTreeTitleSettings(autoSave = true) {
+    // Reset all input fields to default values
+    document.getElementById('param-showTitleBox').checked = TITLE_DEFAULTS.showTitleBox;
+    document.getElementById('param-titleText').value = TITLE_DEFAULTS.titleText;
+    document.getElementById('param-subtitleText').value = TITLE_DEFAULTS.subtitleText;
+    document.getElementById('param-titleOpacity').value = TITLE_DEFAULTS.opacity;
+    document.getElementById('param-titleOpacityValue').textContent = TITLE_DEFAULTS.opacity;
+    document.getElementById('param-titleBlur').value = TITLE_DEFAULTS.blur;
+    document.getElementById('param-titleBlurValue').textContent = TITLE_DEFAULTS.blur + 'px';
+    document.getElementById('param-titleRadius').value = TITLE_DEFAULTS.radius;
+    document.getElementById('param-titleRadiusValue').textContent = TITLE_DEFAULTS.radius + 'px';
+    document.getElementById('param-titlePosition').value = TITLE_DEFAULTS.position;
+    document.getElementById('param-titlePaddingX').value = TITLE_DEFAULTS.paddingX;
+    document.getElementById('param-titlePaddingY').value = TITLE_DEFAULTS.paddingY;
+
+    // The live preview updates automatically via oninput events.
+
+    // Optionally save immediately to persist the defaults on the server
+    if (autoSave) {
+        saveTreeTitleSettings();  // calls the existing save function
+        showNotification('Title box settings reset to defaults and saved.', 'success');
+    } else {
+        showNotification('Title box settings reset to defaults. Click Save to persist.', 'info');
+    }
 }
 
 // Collect tree title settings from the form
 function collectTreeTitleSettings() {
     return {
         showTitleBox: document.getElementById('param-showTitleBox').checked,
+        titleText: document.getElementById('param-titleText').value,
+        subtitleText: document.getElementById('param-subtitleText').value,
         opacity: parseFloat(document.getElementById('param-titleOpacity').value),
         blur: parseInt(document.getElementById('param-titleBlur').value),
         radius: parseInt(document.getElementById('param-titleRadius').value),
-        top: parseInt(document.getElementById('param-titleTop').value),
+        position: document.getElementById('param-titlePosition').value,
         paddingX: parseInt(document.getElementById('param-titlePaddingX').value),
         paddingY: parseInt(document.getElementById('param-titlePaddingY').value)
     };
+    console.log('Collected title settings:', settings); 
+    return settings;
 }
 
 // Save tree title settings
 async function saveTreeTitleSettings() {
-    const titleSettings = collectTreeTitleSettings();
-
-    config.visualAssets = {
-        ...config.visualAssets,
-        treeTitleBox: titleSettings
-    };
-
     await saveTreeParameters();
-};
+}
+
+// Load tree title settings from the backend and populate the form
+async function loadTreeTitleSettings() {
+    const response = await fetch('/api/parameters');
+    const data = await response.json();
+    const tree = data.parameters?.treeParameters || {};
+    const settings = tree.treeTitleBox;
+    if (settings) {
+        document.getElementById('param-showTitleBox').checked = settings.showTitleBox ?? true;
+        document.getElementById('param-titleText').value = settings.titleText || '🌳 ESG Digital Tree';
+        document.getElementById('param-subtitleText').value = settings.subtitleText || 'Growing with every visitor\'s contribution this year';
+        document.getElementById('param-titleOpacity').value = settings.opacity ?? 0.25;
+        document.getElementById('param-titleOpacityValue').textContent = settings.opacity ?? 0.25;
+        document.getElementById('param-titleBlur').value = settings.blur ?? 6;
+        document.getElementById('param-titleBlurValue').textContent = (settings.blur ?? 6) + 'px';
+        document.getElementById('param-titleRadius').value = settings.radius ?? 25;
+        document.getElementById('param-titleRadiusValue').textContent = (settings.radius ?? 25) + 'px';
+        document.getElementById('param-titlePosition').value = settings.position || 'top-center';
+        document.getElementById('param-titlePaddingX').value = settings.paddingX ?? 30;
+        document.getElementById('param-titlePaddingY').value = settings.paddingY ?? 15;
+    }
+}
+// Call when DOM is ready
+document.addEventListener('DOMContentLoaded', loadTreeTitleSettings);
 
 // ==================== 25. INITIALIZATION & EVENT HANDLERS ====================
 

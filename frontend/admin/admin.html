@@ -979,27 +979,17 @@
                     <div class="tree-adjustment-section">
                         <div class="section-header">
                             <h3>Tree Title Box Settings</h3>
-                            <button class="btn-primary" onclick="saveTreeTitleSettings()">
-                                Save Title Box
-                            </button>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button class="btn-primary" onclick="saveTreeTitleSettings()">
+                                    Save Tree Title Box
+                                </button>
+                                <button class="btn-primary" onclick="resetTreeTitleSettings()">
+                                    Reset to Defaults
+                                </button>
+                            </div>
                         </div>
-
                         <div class="section-body">
-
-                            <div style="display:grid;
-                                        grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-                                        gap:18px;">
-
-                                <!-- Visibility -->
-                                <div>
-                                    <label style="display:flex;align-items:center;gap:10px;font-weight:600;">
-                                        <input type="checkbox"
-                                            id="param-showTitleBox"
-                                            checked>
-                                        Show Title Box
-                                    </label>
-                                </div>
-
+                            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:16px 24px;">
                                 <!-- Background opacity -->
                                 <div>
                                     <label>Background Opacity</label>
@@ -1016,20 +1006,12 @@
                                         <span id="param-titleOpacityValue">0.25</span>
                                     </div>
                                 </div>
-
                                 <!-- Blur -->
                                 <div>
                                     <label>Blur Amount (px)</label>
 
                                     <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="range"
-                                            id="param-titleBlur"
-                                            min="0"
-                                            max="25"
-                                            step="1"
-                                            value="6"
-                                            oninput="document.getElementById('param-titleBlurValue').textContent=this.value + 'px'">
-
+                                        <input type="range" id="param-titleBlur" min="0" max="25" step="1" value="6" oninput="document.getElementById('param-titleBlurValue').textContent=this.value + 'px'">
                                         <span id="param-titleBlurValue">6px</span>
                                     </div>
                                 </div>
@@ -1048,21 +1030,6 @@
                                             oninput="document.getElementById('param-titleRadiusValue').textContent=this.value + 'px'">
 
                                         <span id="param-titleRadiusValue">25px</span>
-                                    </div>
-                                </div>
-
-                                <!-- Top Position -->
-                                <div>
-                                    <label>Top Position (px)</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="number"
-                                            id="param-titleTop"
-                                            value="20"
-                                            min="0"
-                                            max="300">
-
-                                        <span>px</span>
                                     </div>
                                 </div>
 
@@ -1096,32 +1063,37 @@
                                     </div>
                                 </div>
 
-                            </div>
+                                <!-- Position -->
+                                <div>
+                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                        Position
+                                    </label>
+                                    <select id="param-titlePosition" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                        <option value="top-left">Top Left</option>
+                                        <option value="top-center" selected>Top Center</option>
+                                        <option value="top-right">Top Right</option>
+                                        <option value="bottom-left">Bottom Left</option>
+                                        <option value="bottom-center">Bottom Center</option>
+                                        <option value="bottom-right">Bottom Right</option>
+                                    </select>
+                                </div>
 
-                            <hr style="margin:20px 0;">
+                                <!-- Title Text -->
+                                <div style="grid-column: 1 / -1;"> <!-- spans full width -->
+                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                        Title Text
+                                    </label>
+                                    <input type="text" id="param-titleText" value="🌳 ESG Digital Tree"
+                                        style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                </div>
 
-                            <div>
-                                <strong>Live Preview</strong>
-
-                                <div id="treeTitlePreview"
-                                    style="
-                                        margin-top:15px;
-                                        display:inline-block;
-                                        background:rgba(255,255,255,0.25);
-                                        backdrop-filter:blur(6px);
-                                        border-radius:25px;
-                                        padding:15px 30px;
-                                        border:1px solid rgba(255,255,255,.25);
-                                        text-align:center;">
-
-                                    <h3 style="margin:0;color:#2d5016;">
-                                        🌳 ESG Digital Tree
-                                    </h3>
-
-                                    <p style="margin:5px 0 0;color:#64748b;">
-                                        Growing with every visitor's contribution this year
-                                    </p>
-
+                                <!-- Subtitle Text -->
+                                <div style="grid-column: 1 / -1;">
+                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                        Subtitle Text
+                                    </label>
+                                    <input type="text" id="param-subtitleText" value="Growing with every visitor's contribution this year"
+                                        style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
                                 </div>
                             </div>
                         </div>
