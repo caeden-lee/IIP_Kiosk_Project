@@ -1,10 +1,10 @@
-# ESG_KIOSK_PROJECT
+# ESG KIOSK PROJECT
 
 > Comprehensive onboarding and developer guide for the ESG Feedback Kiosk & Digital Tree Final Year Project.
 
 ## Overview
 
-The **ESG_KIOSK_PROJECT** is an ESG visitor engagement platform that combines visitor feedback collection, AI-powered sentiment analysis, digital badges, a Digital Tree visualization (2D & 3D), Pulse dashboard, and Pledgeboard into a kiosk experience.
+The **ESG KIOSK PROJECT** is an ESG visitor engagement platform that combines visitor feedback collection, AI-powered sentiment analysis, digital badges, a Digital Tree visualization (2D & 3D), Pulse dashboard, and Pledgeboard into a kiosk experience.
 
 The system consists of:
 
@@ -47,37 +47,118 @@ ollama --version
 
 ```text
 ESG_KIOSK_PROJECT
+│
 ├── .agents/
-├── assets/
+├── assets/ 
 │   ├── overlays/
+│   │   ├── AnimatedTestOverlay/
+│   │   ├── DesktopOverlay/
+│   │   └── MobileOverlay/
 │   ├── static/
-│   └── Tree/
+│   ├── Tree/
 │       ├── background/
 │       └── leaf/
-├── backend/
+│  
+├── backend/ 
 │   ├── cache/
-│   ├── certs/
-│   ├── config/
-│   ├── Procedural_Orchestration_Module/
-│   ├── server.js
-│   ├── kioskServer.js
+│   │   └── feedback-analysis-cache.json
+│   ├── certs/ 
+│   │   ├── selfsigned.key
+│   │   └── selfsigned.pem
+│   ├── config /
+│   │   ├── badgeEmailTemplates.json
+│   │   ├── emailConfig.json
+│   │   ├── form-ui.json
+│   │   ├── parametersConfig.json
+│   │   ├── pledge-topics.json
+│   │   └── schedule-Setup.sh
+│   ├── Procedural_Orchestration_Module/ 
+│   │   ├── AuthLayer_Reconstitution.js
+│   │   ├── check_database.js
+│   │   ├── Datastore_Assembly.js 
+│   │   ├── Purge_Actuator.js
+│   │   └── Simulation_Generator.js 
+│   ├── .env
+│   ├── adminRoutes.js
 │   ├── adminServer.js
+│   ├── auth.js
+│   ├── badgeEmailTemplateStore.js
+│   ├── badgeSystem.js
+│   ├── bluetooth.js
+│   ├── dataExportRoutes.js
+│   ├── dataRetentionCleanup.js
+│   ├── db.js
+│   ├── emailConfigStore.js
+│   ├── emailQueue.js
+│   ├── emailService.js
+│   ├── feedbackAnalysisCacheStore.js
+│   ├── feedbackRoutes.js
+│   ├── flaggedFeedback.js
 │   ├── gatewayServer.js
-│   └── ...
+│   ├── kiosk-schedules.json
+│   ├── kioskServer.js
+│   ├── parametersConfigStore.js
+│   ├── pledgeboardRoutes.js
+│   ├── pledgeSentiment.js
+│   ├── pulseRoutes.js
+│   ├── scheduleRunner.js
+│   ├── server.js 
+│   ├── server-control-mode.json
+│   ├── treeRoutes.js
+│   └── validationRules.js 
+│
 ├── database/
-├── frontend/
-│   ├── admin/
-│   ├── feedback/
-│   ├── tree/
+│   └── schema.sql
+│
+├── frontend/ 
 │   ├── 3dTree/
-│   ├── pulse/
+│   │   ├── 3dTree.css
+│   │   ├── 3dTree.html
+│   │   └── 3dTree.js 
+│   ├── admin/
+│   │   ├── admin.css
+│   │   ├── admin.html
+│   │   └── admin.js
+│   ├── connect/
+│   │   ├── connect.css
+│   │   ├── connect.html
+│   │   └── connect.js
+│   ├── feedback/
+│   │   ├── bluetooth-client.js
+│   │   ├── feedback.css
+│   │   ├── feedback.html
+│   │   └── feedback.js
+│   ├── offline/
+│   │   └── offline.html
 │   ├── Pledgeboard/
-│   └── connect/
-├── uploads/
-├── tests/
+│   │   ├── Pledgeboard.css
+│   │   ├── Pledgeboard.html
+│   │   └── Pledgeboard.js
+│   ├── pulse/
+│   │   ├── pulse.css
+│   │   ├── pulse.html
+│   │   └── pulse.js
+│   ├── tree/ 
+│   │   ├── tree.css
+│   │   ├── tree.html
+│   │   └── tree.js
+│   └── bluetooth-test.html 
+│
+├── node_modules/ 
 ├── Team_Documentation/
-├── startAll.js
-└── package.json
+│
+├── tests/
+│   └── pulse-backend-check.js
+│
+├── uploads/
+│   ├── photos/
+│   └── processed/
+│
+├── hibernate.bat 
+├── package.json
+├── package-lock.json
+├── server.log
+└── startAll.js
 ```
 
 ## Important Folders
@@ -223,6 +304,18 @@ ollama run phi3
 curl http://localhost:11434/api/generate
 ```
 
+# Backend Cache
+
+AI analysis cache:
+
+```
+backend/cache/feedback-analysis-cache.json
+```
+
+Used to reduce repeated AI inference.
+
+---
+
 ---
 
 # Starting the Project
@@ -326,18 +419,6 @@ Displays:
 ## Pledgeboard
 
 Displays visitor pledges.
-
----
-
-# Backend Cache
-
-AI analysis cache:
-
-```
-backend/cache/feedback-analysis-cache.json
-```
-
-Used to reduce repeated AI inference.
 
 ---
 
