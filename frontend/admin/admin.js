@@ -8864,6 +8864,26 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
     }
 }*/
 
+// Switch between tree management tabs
+function switchTreeTab(tabId) {
+
+    // Hide all contents
+    document.querySelectorAll('.tree-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active from buttons
+    document.querySelectorAll('.tree-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+
+    // Activate clicked button
+    event.currentTarget.classList.add('active');
+}
+
 
 async function loadTreeStageSelection() {
     const stageSelect = document.getElementById('param-treeStage');

@@ -817,11 +817,22 @@
                     </div>
                 </div>
 
-                <!-- Tree Adjustment Page (DONE BY Yu Kang)-->
+                <!-- Digital Tree Adjustment Page (DONE BY Yu Kang)-->
                 <div id="tree-adjustment-page" class="page">
                     <div class="page-header">
-                        <h2>Tree Adjustment</h2>
+                        <h2>Digital Tree Adjustment</h2>
                         <p>Adjust tree growth parameters and background settings</p>
+                    </div>
+
+                    <!-- Tab Contents for Digital Tree Adjustment -->
+                     <div class="tree-tabs">
+                        <button class="tree-tab active" onclick="switchTreeTab('tree-elements-tab')">
+                            🖼️ Tree Elements Settings
+                        </button>
+
+                        <button class="tree-tab" onclick="switchTreeTab('tree-parameters-tab')">
+                            🌳 Tree Parameters Settings
+                        </button>
                     </div>
 
                     <!--<div class="tree-adjustment-section">
@@ -855,250 +866,449 @@
 
                     <br>-->
 
-                    <div class="tree-adjustment-section">
-                        <div class="section-header">
-                            <h3>Tree Display</h3>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
-                                <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
-                            </div>
-                        </div>
-                        <div class="section-body">
-                            <!-- Auto / Manual toggle -->
-                            <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
-                                <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
-                                    <input type="radio" name="stageMode" value="auto" checked> Auto (based on leaf count)
-                                </label>
-                                <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
-                                    <input type="radio" name="stageMode" value="manual"> Manual override
-                                </label>
-                            </div>
-
-                            <!-- Manual stage selection (enabled only when manual mode is chosen) -->
-                            <div id="manualStageContainer" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-                                <label for="param-treeStage" style="font-weight:600;">Current stage:</label>
-                                <select id="param-treeStage" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
-                                    <option value="0">Stage 0 - Bare Trunk</option>
-                                    <option value="1">Stage 1 - Early Growth</option>
-                                    <option value="2">Stage 2 - Young Canopy</option>
-                                    <option value="3">Stage 3 - Mature Canopy</option>
-                                    <option value="4">Stage 4 - Full Canopy</option>
-                                </select>
-                                <span id="tree-stage-status" style="font-size:13px;color:#64748b;">Shown on /tree after apply.</span>
-                            </div>
-
-                            <!-- Automatic thresholds configuration -->
-                            <div id="autoThresholdsContainer" style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px;">
-                                <div style="font-weight:600; margin-bottom:12px;">⚙️ Leaf count thresholds for automatic stage</div>
-                                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px;">
-                                    <div><label>Stage 1 (Early Growth) min leaves:</label> <input type="number" id="threshold-stage1" min="0" step="1" value="1" style="width:100px;"></div>
-                                    <div><label>Stage 2 (Young Canopy) min leaves:</label> <input type="number" id="threshold-stage2" min="0" step="1" value="10" style="width:100px;"></div>
-                                    <div><label>Stage 3 (Mature Canopy) min leaves:</label> <input type="number" id="threshold-stage3" min="0" step="1" value="25" style="width:100px;"></div>
-                                    <div><label>Stage 4 (Full Canopy) min leaves:</label> <input type="number" id="threshold-stage4" min="0" step="1" value="50" style="width:100px;"></div>
+                    <div id="tree-elements-tab" class="tree-tab-content active">
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Tree Display</h3>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
+                                    <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
                                 </div>
-                                <p style="font-size:12px; color:#64748b; margin-top:8px;">Current leaf count: <span id="currentLeafCount">—</span> → automatic stage: <strong id="autoStagePreview">—</strong></p>
                             </div>
-
-                            <label style="display:flex; align-items:center; gap:10px; font-weight:600; color:#334155; margin-top:16px;">
-                                <input type="checkbox" id="param-showTitleBox"> Show title box on tree display
-                            </label>
-                            <p style="font-size:12px; color:#666; margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
-                        </div>
-                    </div>
-
-                    <br>
-                    <div class="tree-adjustment-section">
-                        <div class="section-header">
-                            <h3>Tree Background</h3>
-                            <button class="btn-primary" onclick="selectTreeBackground()">Apply Selected</button>
-                        </div>
-                        <div class="section-body" style="display:flex;gap:20px;align-items:flex-start;margin-top:12px;">
-                            <div style="flex:1;">
-                                <label for="param-treeBackgroundUpload">Upload custom background image</label><br>
-                                <input type="file" id="param-treeBackgroundUpload" accept="image/png,image/jpeg,image/webp">
-                                <div style="display:flex;gap:8px;margin-top:6px;">
-                                    <button class="btn-primary" onclick="uploadTreeBackground()">Upload Background</button>
-                                </div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded background will be saved to <em>/assets/Tree/background</em> and applied to the tree.</p>
-                            </div>
-                            <div style="flex:1;">
-                                <label for="param-treeBackgroundList">Or select from existing background</label><br>
-                                <div id="param-treeBackgroundList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:240px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
-                                
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing background images with thumbnails and labels.</p>
-                            </div>
-                            <div style="width:240px;">
-                                <div id="treeBackgroundPreview" style="width:100%;height:140px;border:1px solid #e6e9ef;border-radius:8px;background:#eef2f7 center/cover no-repeat;"></div>
-                                <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Selected.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <br>
-                    <div class="tree-adjustment-section">
-                        <div class="section-header">
-                            <h3>Leaf Adjustments</h3>
-                            <button class="btn-primary" onclick="saveTreeParameters()">Save Changes</button>
-
-
-                        </div>
-                        <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
-                            <div style="flex:1;">
-                                <label for="param-leafUpload">Upload custom leaf image</label><br>
-                                <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
-                                <div style="display:flex;gap:8px;margin-top:6px;">
-                                    <button class="btn-primary" onclick="uploadParameterLeaf()">Upload Leaf</button>
-                                    <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
-                                </div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>
-                            </div>
-                            <div style="flex:1;">
-                                <label for="param-existingLeafList">Or select from existing leaf</label><br>
-                                <div id="param-existingLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
-                                <div style="margin-top:8px;display:flex;justify-content:flex-end;">
-                                    <button class="btn-secondary" onclick="selectParameterLeaf()">Apply Selected</button>
-                                </div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing leaf images with thumbnails and labels.</p>
-                            </div>
-                            <div style="width:260px;">
-                                <label for="param-leafDisplayScale">Leaf display scale</label>
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <input type="range" id="param-leafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-leafDisplayScaleValue').textContent = v; const p=document.getElementById('previewLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
-                                    <span id="param-leafDisplayScaleValue">1</span>
-                                </div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base leaf size on the tree.</p>
-                            </div>
-                            <div style="width:120px;text-align:center;">
-                                <div class="preview-leaf-box" id="previewLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
-                                <p style="font-size:12px;color:#666;margin-top:6px;">Preview</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <br>
-                    <div class="tree-adjustment-section">
-                        <div class="section-header">
-                            <h3>Tree Title Box Settings</h3>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <button class="btn-primary" onclick="saveTreeTitleSettings()">
-                                    Save Tree Title Box
-                                </button>
-                                <button class="btn-primary" onclick="resetTreeTitleSettings()">
-                                    Reset to Defaults
-                                </button>
-                            </div>
-                        </div>
-                        <div class="section-body">
-                            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:16px 24px;">
-                                <!-- Background opacity -->
-                                <div>
-                                    <label>Background Opacity</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="range"
-                                            id="param-titleOpacity"
-                                            min="0"
-                                            max="1"
-                                            step="0.05"
-                                            value="0.25"
-                                            oninput="document.getElementById('param-titleOpacityValue').textContent=this.value">
-
-                                        <span id="param-titleOpacityValue">0.25</span>
-                                    </div>
-                                </div>
-                                <!-- Blur -->
-                                <div>
-                                    <label>Blur Amount (px)</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="range" id="param-titleBlur" min="0" max="25" step="1" value="6" oninput="document.getElementById('param-titleBlurValue').textContent=this.value + 'px'">
-                                        <span id="param-titleBlurValue">6px</span>
-                                    </div>
-                                </div>
-
-                                <!-- Border Radius -->
-                                <div>
-                                    <label>Border Radius (px)</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="range"
-                                            id="param-titleRadius"
-                                            min="0"
-                                            max="60"
-                                            step="1"
-                                            value="25"
-                                            oninput="document.getElementById('param-titleRadiusValue').textContent=this.value + 'px'">
-
-                                        <span id="param-titleRadiusValue">25px</span>
-                                    </div>
-                                </div>
-
-                                <!-- Horizontal Padding -->
-                                <div>
-                                    <label>Horizontal Padding (px)</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="number"
-                                            id="param-titlePaddingX"
-                                            value="30"
-                                            min="0"
-                                            max="100">
-
-                                        <span>px</span>
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Padding -->
-                                <div>
-                                    <label>Vertical Padding (px)</label>
-
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <input type="number"
-                                            id="param-titlePaddingY"
-                                            value="15"
-                                            min="0"
-                                            max="100">
-
-                                        <span>px</span>
-                                    </div>
-                                </div>
-
-                                <!-- Position -->
-                                <div>
-                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
-                                        Position
+                            <div class="section-body">
+                                <!-- Auto / Manual toggle -->
+                                <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+                                    <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                                        <input type="radio" name="stageMode" value="auto" checked> Auto (based on leaf count)
                                     </label>
-                                    <select id="param-titlePosition" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
-                                        <option value="top-left">Top Left</option>
-                                        <option value="top-center" selected>Top Center</option>
-                                        <option value="top-right">Top Right</option>
-                                        <option value="bottom-left">Bottom Left</option>
-                                        <option value="bottom-center">Bottom Center</option>
-                                        <option value="bottom-right">Bottom Right</option>
+                                    <label style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                                        <input type="radio" name="stageMode" value="manual"> Manual override
+                                    </label>
+                                </div>
+
+                                <!-- Manual stage selection (enabled only when manual mode is chosen) -->
+                                <div id="manualStageContainer" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                                    <label for="param-treeStage" style="font-weight:600;">Current stage:</label>
+                                    <select id="param-treeStage" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
+                                        <option value="0">Stage 0 - Bare Trunk</option>
+                                        <option value="1">Stage 1 - Early Growth</option>
+                                        <option value="2">Stage 2 - Young Canopy</option>
+                                        <option value="3">Stage 3 - Mature Canopy</option>
+                                        <option value="4">Stage 4 - Full Canopy</option>
                                     </select>
+                                    <span id="tree-stage-status" style="font-size:13px;color:#64748b;">Shown on /tree after apply.</span>
                                 </div>
 
-                                <!-- Title Text -->
-                                <div style="grid-column: 1 / -1;"> <!-- spans full width -->
-                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
-                                        Title Text
-                                    </label>
-                                    <input type="text" id="param-titleText" value="🌳 ESG Digital Tree"
-                                        style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                <!-- Automatic thresholds configuration -->
+                                <div id="autoThresholdsContainer" style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                                    <div style="font-weight:600; margin-bottom:12px;">⚙️ Leaf count thresholds for automatic stage</div>
+                                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px;">
+                                        <div><label>Stage 1 (Early Growth) min leaves:</label> <input type="number" id="threshold-stage1" min="0" step="1" value="1" style="width:100px;"></div>
+                                        <div><label>Stage 2 (Young Canopy) min leaves:</label> <input type="number" id="threshold-stage2" min="0" step="1" value="10" style="width:100px;"></div>
+                                        <div><label>Stage 3 (Mature Canopy) min leaves:</label> <input type="number" id="threshold-stage3" min="0" step="1" value="25" style="width:100px;"></div>
+                                        <div><label>Stage 4 (Full Canopy) min leaves:</label> <input type="number" id="threshold-stage4" min="0" step="1" value="50" style="width:100px;"></div>
+                                    </div>
+                                    <p style="font-size:12px; color:#64748b; margin-top:8px;">Current leaf count: <span id="currentLeafCount">—</span> → automatic stage: <strong id="autoStagePreview">—</strong></p>
                                 </div>
 
-                                <!-- Subtitle Text -->
-                                <div style="grid-column: 1 / -1;">
-                                    <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
-                                        Subtitle Text
-                                    </label>
-                                    <input type="text" id="param-subtitleText" value="Growing with every visitor's contribution this year"
-                                        style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                <label style="display:flex; align-items:center; gap:10px; font-weight:600; color:#334155; margin-top:16px;">
+                                    <input type="checkbox" id="param-showTitleBox"> Display Tree Title Box
+                                </label>
+                                <p style="font-size:12px; color:#666; margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
+                            </div>
+                        </div>
+
+                        <br>
+                        
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Tree Background</h3>
+                                <button class="btn-primary" onclick="selectTreeBackground()">Apply Selected</button>
+                            </div>
+                            <div class="section-body" style="display:flex;gap:20px;align-items:flex-start;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-treeBackgroundUpload">Upload custom background image</label><br>
+                                    <input type="file" id="param-treeBackgroundUpload" accept="image/png,image/jpeg,image/webp">
+                                    <div style="display:flex;gap:8px;margin-top:6px;">
+                                        <button class="btn-primary" onclick="uploadTreeBackground()">Upload Background</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded background will be saved to <em>/assets/Tree/background</em> and applied to the tree.</p>
+                                </div>
+                                <div style="flex:1;">
+                                    <label for="param-treeBackgroundList">Or select from existing background</label><br>
+                                    <div id="param-treeBackgroundList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:240px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                    
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing background images with thumbnails and labels.</p>
+                                </div>
+                                <div style="width:240px;">
+                                    <div id="treeBackgroundPreview" style="width:100%;height:140px;border:1px solid #e6e9ef;border-radius:8px;background:#eef2f7 center/cover no-repeat;"></div>
+                                    <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Selected.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <br>
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Leaf Adjustments</h3>
+                                <button class="btn-primary" onclick="saveTreeParameters()">Save Changes</button>
+
+
+                            </div>
+                            <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-leafUpload">Upload custom leaf image</label><br>
+                                    <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
+                                    <div style="display:flex;gap:8px;margin-top:6px;">
+                                        <button class="btn-primary" onclick="uploadParameterLeaf()">Upload Leaf</button>
+                                        <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>
+                                </div>
+                                <div style="flex:1;">
+                                    <label for="param-existingLeafList">Or select from existing leaf</label><br>
+                                    <div id="param-existingLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                                        <button class="btn-secondary" onclick="selectParameterLeaf()">Apply Selected</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing leaf images with thumbnails and labels.</p>
+                                </div>
+                                <div style="width:260px;">
+                                    <label for="param-leafDisplayScale">Leaf display scale</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="range" id="param-leafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-leafDisplayScaleValue').textContent = v; const p=document.getElementById('previewLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
+                                        <span id="param-leafDisplayScaleValue">1</span>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base leaf size on the tree.</p>
+                                </div>
+                                <div style="width:120px;text-align:center;">
+                                    <div class="preview-leaf-box" id="previewLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Preview</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <br>
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Tree Title Box Settings</h3>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <button class="btn-primary" onclick="saveTreeTitleSettings()">
+                                        Save Tree Title Box
+                                    </button>
+                                    <button class="btn-primary" onclick="resetTreeTitleSettings()">
+                                        Reset to Defaults
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="section-body">
+                                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:16px 24px;">
+                                    <!-- Background opacity -->
+                                    <div>
+                                        <label>Background Opacity</label>
+
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <input type="range"
+                                                id="param-titleOpacity"
+                                                min="0"
+                                                max="1"
+                                                step="0.05"
+                                                value="0.25"
+                                                oninput="document.getElementById('param-titleOpacityValue').textContent=this.value">
+
+                                            <span id="param-titleOpacityValue">0.25</span>
+                                        </div>
+                                    </div>
+                                    <!-- Blur -->
+                                    <div>
+                                        <label>Blur Amount (px)</label>
+
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <input type="range" id="param-titleBlur" min="0" max="25" step="1" value="6" oninput="document.getElementById('param-titleBlurValue').textContent=this.value + 'px'">
+                                            <span id="param-titleBlurValue">6px</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Border Radius -->
+                                    <div>
+                                        <label>Border Radius (px)</label>
+
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <input type="range"
+                                                id="param-titleRadius"
+                                                min="0"
+                                                max="60"
+                                                step="1"
+                                                value="25"
+                                                oninput="document.getElementById('param-titleRadiusValue').textContent=this.value + 'px'">
+
+                                            <span id="param-titleRadiusValue">25px</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Horizontal Padding -->
+                                    <div>
+                                        <label>Horizontal Padding (px)</label>
+
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <input type="number"
+                                                id="param-titlePaddingX"
+                                                value="30"
+                                                min="0"
+                                                max="100">
+
+                                            <span>px</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vertical Padding -->
+                                    <div>
+                                        <label>Vertical Padding (px)</label>
+
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <input type="number"
+                                                id="param-titlePaddingY"
+                                                value="15"
+                                                min="0"
+                                                max="100">
+
+                                            <span>px</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Position -->
+                                    <div>
+                                        <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                            Position
+                                        </label>
+                                        <select id="param-titlePosition" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                            <option value="top-left">Top Left</option>
+                                            <option value="top-center" selected>Top Center</option>
+                                            <option value="top-right">Top Right</option>
+                                            <option value="bottom-left">Bottom Left</option>
+                                            <option value="bottom-center">Bottom Center</option>
+                                            <option value="bottom-right">Bottom Right</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Title Text -->
+                                    <div style="grid-column: 1 / -1;"> <!-- spans full width -->
+                                        <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                            Title Text
+                                        </label>
+                                        <input type="text" id="param-titleText" value="🌳 ESG Digital Tree"
+                                            style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                    </div>
+
+                                    <!-- Subtitle Text -->
+                                    <div style="grid-column: 1 / -1;">
+                                        <label style="display:block; font-size:0.9rem; font-weight:500; color:#334155; margin-bottom:4px;">
+                                            Subtitle Text
+                                        </label>
+                                        <input type="text" id="param-subtitleText" value="Growing with every visitor's contribution this year"
+                                            style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <br>
+
+                    <div id="tree-assets-tab" class="tree-tab-content">
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Tree Background</h3>
+                                <button class="btn-primary" onclick="selectTreeBackground()">Apply Selected</button>
+                            </div>
+                            <div class="section-body" style="display:flex;gap:20px;align-items:flex-start;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-treeBackgroundUpload">Upload custom background image</label><br>
+                                    <input type="file" id="param-treeBackgroundUpload" accept="image/png,image/jpeg,image/webp">
+                                    <div style="display:flex;gap:8px;margin-top:6px;">
+                                        <button class="btn-primary" onclick="uploadTreeBackground()">Upload Background</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded background will be saved to <em>/assets/Tree/background</em> and applied to the tree.</p>
+                                </div>
+                                <div style="flex:1;">
+                                    <label for="param-treeBackgroundList">Or select from existing background</label><br>
+                                    <div id="param-treeBackgroundList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-height:240px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                    
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing background images with thumbnails and labels.</p>
+                                </div>
+                                <div style="width:240px;">
+                                    <div id="treeBackgroundPreview" style="width:100%;height:140px;border:1px solid #e6e9ef;border-radius:8px;background:#eef2f7 center/cover no-repeat;"></div>
+                                    <p id="tree-background-status" style="font-size:12px;color:#64748b;margin-top:8px;">Choose a background and click Apply Selected.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <br>
+
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Leaf Adjustments</h3>
+                                <button class="btn-primary" onclick="saveTreeParameters()">Save Changes</button>
+                            </div>
+                            <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-leafUpload">Upload custom leaf image</label><br>
+                                    <input type="file" id="param-leafUpload" accept="image/png,image/jpeg,image/webp">
+                                    <div style="display:flex;gap:8px;margin-top:6px;">
+                                        <button class="btn-primary" onclick="uploadParameterLeaf()">Upload Leaf</button>
+                                        <button class="btn-secondary" id="revert-leaf-btn" onclick="revertParameterLeaf()" style="display:none;">↶ Revert</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded leaf will be saved to <em>/assets/Tree</em> and applied to the tree.</p>
+                                </div>
+                                <div style="flex:1;">
+                                    <label for="param-existingLeafList">Or select from existing leaf</label><br>
+                                    <div id="param-existingLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                                        <button class="btn-secondary" onclick="selectParameterLeaf()">Apply Selected</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing leaf images with thumbnails and labels.</p>
+                                </div>
+                                <div style="width:260px;">
+                                    <label for="param-leafDisplayScale">Leaf display scale</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="range" id="param-leafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-leafDisplayScaleValue').textContent = v; const p=document.getElementById('previewLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
+                                        <span id="param-leafDisplayScaleValue">1</span>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base leaf size on the tree.</p>
+                                </div>
+                                <div style="width:120px;text-align:center;">
+                                    <div class="preview-leaf-box" id="previewLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Preview</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tree-parameters-tab" class="tree-tab-content">
+                        <div class="section-header">
+                            <h3>Digital Tree Visualization Parameters</h3>
+                            <p class="section-description">Configure leaf placement and animation settings</p>
+
+                            <div class="parameter-actions">
+                                <button class="btn-primary" onclick="saveParameters()">
+                                    <span class="btn-icon">💾</span> Save All Changes
+                                </button>
+                                <button class="btn-secondary" onclick="loadParameters()">
+                                    <span class="btn-icon">🔄</span> Reload
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalWidth">Leaf Canopy Width (pixels)</label>
+                            <input type="number" id="param-ovalWidth" min="100" max="2000" step="10" placeholder="850">
+                            <small class="text-muted">Width of the area where leaves can appear</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalHeight">Leaf Canopy Height (pixels)</label>
+                            <input type="number" id="param-ovalHeight" min="50" max="1000" step="10" placeholder="300">
+                            <small class="text-muted">Height of the area where leaves can appear</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-ovalTopOffset">Canopy Top Offset (pixels)</label>
+                            <input type="number" id="param-ovalTopOffset" min="-500" max="500" step="10" placeholder="-100">
+                            <small class="text-muted">Vertical position adjustment (negative = move up)</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-leafRefreshInterval">Leaf Refresh Interval (milliseconds)</label>
+                            <input type="number" id="param-leafRefreshInterval" min="5000" max="120000" step="1000" placeholder="30000">
+                            <small class="text-muted">How often the tree updates (30000 = 30 seconds)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafOpacity">Leaf Opacity (0-1)</label>
+                            <input type="number" id="param-leafOpacity" min="0" max="1" step="0.1" placeholder="0.9">
+                            <small class="text-muted">Transparency of leaf elements (1 = fully opaque)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafAnimationDuration">Leaf Animation Duration (milliseconds)</label>
+                            <input type="number" id="param-leafAnimationDuration" min="100" max="5000" step="100" placeholder="500">
+                            <small class="text-muted">Duration of leaf appearance animation</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="form-group">
+                            <label for="param-leafFallThreshold">Leaf Fall Threshold</label>
+                            <input type="number" id="param-leafFallThreshold" min="1" max="500" step="1" placeholder="15">
+                            <small class="text-muted">Start the falling animation when the live tree reaches this many leaves</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafFallDuration">Leaf Fall Duration (milliseconds)</label>
+                            <input type="number" id="param-leafFallDuration" min="500" max="10000" step="100" placeholder="4200">
+                            <small class="text-muted">How long the falling animation takes</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-leafGreenResetTime">Turn Badge Leaves Green At</label>
+                            <input type="time" id="param-leafGreenResetTime" value="00:00">
+                            <small class="text-muted">Daily time when badge-coloured leaves become green (00:00 = midnight)</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="parameter-field-heading">
+                            <h4>Badge Leaf Styling</h4>
+                            <p>These settings control badge-coloured leaves on the public tree, pulse display, and feedback celebration animation.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="param-sharedLeafScale">Shared Leaf Size</label>
+                            <div class="range-control">
+                                <input type="range" id="param-sharedLeafScale" min="0.4" max="2" step="0.05" value="1">
+                                <output id="param-sharedLeafScaleValue">1.00x</output>
+                            </div>
+                            <small class="text-muted">The same scale is saved to normal green leaves and badge-coloured leaves so both change together.</small>
+                        </div>
+
+                        <div class="badge-leaf-style-grid">
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="feedback-completer"></span>
+                                <span><strong>Feedback Contributor</strong><small>Default feedback leaf</small></span>
+                                <input type="color" id="badge-leaf-color-feedback-completer" value="#4a7c59">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="climate-champion"></span>
+                                <span><strong>Climate Champion</strong><small>Climate action badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-climate-champion" value="#0f766e">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="renewable-innovator"></span>
+                                <span><strong>Renewable Innovator</strong><small>Clean energy badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-renewable-innovator" value="#f59e0b">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="sustainable-living-advocate"></span>
+                                <span><strong>Sustainable Living Advocate</strong><small>Sustainable lifestyle badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-sustainable-living-advocate" value="#16a34a">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="ocean-guardian"></span>
+                                <span><strong>Ocean Guardian</strong><small>Ocean conservation badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-ocean-guardian" value="#0284c7">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="governance-guardian"></span>
+                                <span><strong>Governance Guardian</strong><small>Ethics and governance badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-governance-guardian" value="#7c3aed">
+                            </label>
+                            <label class="badge-leaf-style-card">
+                                <span class="badge-leaf-preview" data-preview-badge-leaf="social-champion"></span>
+                                <span><strong>Social Champion</strong><small>Community impact badge leaf</small></span>
+                                <input type="color" id="badge-leaf-color-social-champion" value="#d97706">
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
 
@@ -2244,9 +2454,7 @@
                         <button class="param-tab" onclick="switchParameterTab('validation-tab')">
                             <span class="tab-icon">Rules</span> Validation Rules
                         </button>
-                        <button class="param-tab" onclick="switchParameterTab('tree-tab')">
-                            <span class="tab-icon">🌳</span> Tree Parameters
-                        </button>
+                        
                         <button class="param-tab" onclick="switchParameterTab('photo-tab')">
                             <span class="tab-icon">📸</span> Photo Settings
                         </button>
@@ -2656,125 +2864,7 @@
                         </div>
                     </div>
 
-                    <!-- Tree Parameters Tab -->
-                    <div id="tree-tab" class="parameter-section">
-                        <div class="section-header">
-                            <h3>Digital Tree Visualization Parameters</h3>
-                            <p class="section-description">Configure leaf placement and animation settings</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-ovalWidth">Leaf Canopy Width (pixels)</label>
-                            <input type="number" id="param-ovalWidth" min="100" max="2000" step="10" placeholder="850">
-                            <small class="text-muted">Width of the area where leaves can appear</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-ovalHeight">Leaf Canopy Height (pixels)</label>
-                            <input type="number" id="param-ovalHeight" min="50" max="1000" step="10" placeholder="300">
-                            <small class="text-muted">Height of the area where leaves can appear</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-ovalTopOffset">Canopy Top Offset (pixels)</label>
-                            <input type="number" id="param-ovalTopOffset" min="-500" max="500" step="10" placeholder="-100">
-                            <small class="text-muted">Vertical position adjustment (negative = move up)</small>
-                        </div>
-
-                        <div class="divider"></div>
-
-                        <div class="form-group">
-                            <label for="param-leafRefreshInterval">Leaf Refresh Interval (milliseconds)</label>
-                            <input type="number" id="param-leafRefreshInterval" min="5000" max="120000" step="1000" placeholder="30000">
-                            <small class="text-muted">How often the tree updates (30000 = 30 seconds)</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-leafOpacity">Leaf Opacity (0-1)</label>
-                            <input type="number" id="param-leafOpacity" min="0" max="1" step="0.1" placeholder="0.9">
-                            <small class="text-muted">Transparency of leaf elements (1 = fully opaque)</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-leafAnimationDuration">Leaf Animation Duration (milliseconds)</label>
-                            <input type="number" id="param-leafAnimationDuration" min="100" max="5000" step="100" placeholder="500">
-                            <small class="text-muted">Duration of leaf appearance animation</small>
-                        </div>
-
-                        <div class="divider"></div>
-
-                        <div class="form-group">
-                            <label for="param-leafFallThreshold">Leaf Fall Threshold</label>
-                            <input type="number" id="param-leafFallThreshold" min="1" max="500" step="1" placeholder="15">
-                            <small class="text-muted">Start the falling animation when the live tree reaches this many leaves</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-leafFallDuration">Leaf Fall Duration (milliseconds)</label>
-                            <input type="number" id="param-leafFallDuration" min="500" max="10000" step="100" placeholder="4200">
-                            <small class="text-muted">How long the falling animation takes</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-leafGreenResetTime">Turn Badge Leaves Green At</label>
-                            <input type="time" id="param-leafGreenResetTime" value="00:00">
-                            <small class="text-muted">Daily time when badge-coloured leaves become green (00:00 = midnight)</small>
-                        </div>
-
-                        <div class="divider"></div>
-
-                        <div class="parameter-field-heading">
-                            <h4>Badge Leaf Styling</h4>
-                            <p>These settings control badge-coloured leaves on the public tree, pulse display, and feedback celebration animation.</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-sharedLeafScale">Shared Leaf Size</label>
-                            <div class="range-control">
-                                <input type="range" id="param-sharedLeafScale" min="0.4" max="2" step="0.05" value="1">
-                                <output id="param-sharedLeafScaleValue">1.00x</output>
-                            </div>
-                            <small class="text-muted">The same scale is saved to normal green leaves and badge-coloured leaves so both change together.</small>
-                        </div>
-
-                        <div class="badge-leaf-style-grid">
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="feedback-completer"></span>
-                                <span><strong>Feedback Contributor</strong><small>Default feedback leaf</small></span>
-                                <input type="color" id="badge-leaf-color-feedback-completer" value="#4a7c59">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="climate-champion"></span>
-                                <span><strong>Climate Champion</strong><small>Climate action badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-climate-champion" value="#0f766e">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="renewable-innovator"></span>
-                                <span><strong>Renewable Innovator</strong><small>Clean energy badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-renewable-innovator" value="#f59e0b">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="sustainable-living-advocate"></span>
-                                <span><strong>Sustainable Living Advocate</strong><small>Sustainable lifestyle badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-sustainable-living-advocate" value="#16a34a">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="ocean-guardian"></span>
-                                <span><strong>Ocean Guardian</strong><small>Ocean conservation badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-ocean-guardian" value="#0284c7">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="governance-guardian"></span>
-                                <span><strong>Governance Guardian</strong><small>Ethics and governance badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-governance-guardian" value="#7c3aed">
-                            </label>
-                            <label class="badge-leaf-style-card">
-                                <span class="badge-leaf-preview" data-preview-badge-leaf="social-champion"></span>
-                                <span><strong>Social Champion</strong><small>Community impact badge leaf</small></span>
-                                <input type="color" id="badge-leaf-color-social-champion" value="#d97706">
-                            </label>
-                        </div>
-                    </div>
+                    
 
                     <!-- Photo Settings Tab -->
                     <div id="photo-tab" class="parameter-section">

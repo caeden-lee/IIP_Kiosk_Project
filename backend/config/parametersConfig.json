@@ -1,13 +1,13 @@
 {
   "feedbackMessages": {
-    "thankYouTitle": "Thank You! ☀️",
-    "thankYouMessage": "Your feedback has been recorded and a new leaf has been added to our digital tree!",
-    "thankYouSubtitle": "Your feedback makes a difference",
-    "thankYouFooter": "Thank you for contributing to our sustainability journey at Republic Polytechnic!",
-    "consentPrompt": "Your feedback helps us create a more sustainable future. Your responses will be kept confidential.",
-    "detailsPrompt": "Please provide your details so we can track your contributions.",
-    "feedbackPrompt": "Share your thoughts on our sustainability initiatives.",
-    "pledgePrompt": "Would you like to make a pledge to support sustainability?"
+    "thankYouTitle": "",
+    "thankYouMessage": "",
+    "thankYouSubtitle": "",
+    "thankYouFooter": "",
+    "consentPrompt": "",
+    "detailsPrompt": "",
+    "feedbackPrompt": "",
+    "pledgePrompt": ""
   },
   "contentSettings": {
     "temporaryRetentionDays": 7,
@@ -37,11 +37,11 @@
     ]
   },
   "emailContent": {
-    "thankYouSubject": "Thank you for visiting RP ESG Centre, {name}!",
-    "thankYouIntro": "Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback. Attached below is your commemorative photo from your visit.",
-    "thankYouClosing": "We hope your experience has inspired you to take meaningful steps towards sustainability. Your feedback helps us improve and create better experiences for future visitors.",
-    "senderName": "ESG Centre Team",
-    "footerNote": "This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.",
+    "thankYouSubject": "",
+    "thankYouIntro": "",
+    "thankYouClosing": "",
+    "senderName": "",
+    "footerNote": "",
     "visitSummaryTitle": "Your Visit Summary",
     "visitSummaryDateLabel": "Visit date",
     "visitSummaryTopicLabel": "Pledge topic",
@@ -62,23 +62,18 @@
   },
   "validationRules": {
     "nameRequired": true,
-    "nameMinLength": 2,
+    "nameMinLength": 0,
     "nameMaxLength": 80,
     "emailRequired": true,
     "emailPattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
     "requiredQuestionsEnabled": true,
     "pledgeRequired": true,
-    "pledgeMinLength": 5,
+    "pledgeMinLength": 0,
     "pledgeMaxLength": 500,
     "pledgeTopicRequired": true,
     "photoRequired": true,
     "maxPhotoFileSizeMb": 5,
-    "allowedPhotoFormats": [
-      "jpeg",
-      "jpg",
-      "png",
-      "webp"
-    ]
+    "allowedPhotoFormats": []
   },
   "treeParameters": {
     "treeStage": 4,
@@ -108,22 +103,38 @@
       "paddingX": 30,
       "paddingY": 15,
       "position": "top-center",
-      "titleText": "🌳 ESG Digital Tree RP",
+      "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
     }
   },
+  "feedbackPageStyle": {
+    "backgroundCss": "",
+    "cardOpacity": 0.9,
+    "accentColor": "#4a7c59"
+  },
+  "badgeLeafStyles": {
+    "leafScale": 1,
+    "colors": {
+      "feedback-completer": "#4a7c59",
+      "climate-champion": "#0f766e",
+      "renewable-innovator": "#f59e0b",
+      "sustainable-living-advocate": "#16a34a",
+      "ocean-guardian": "#0284c7",
+      "governance-guardian": "#7c3aed",
+      "social-champion": "#d97706"
+    }
+  },
   "photoSettings": {
-    "beautyFilterEnabled": true,
+    "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
     "maxPhotoFileSize": 5242880,
     "supportedFormats": [
       "jpeg",
-      "png",
-      "webp"
+      "png"
     ]
   },
   "overlaySettings": {
-    "enableOverlayUpload": true,
+    "enableOverlayUpload": false,
     "maxOverlayFileSize": 10485760,
     "supportedFormats": [
       "png",
@@ -153,5 +164,9 @@
     "pledgeboardButtonOffsetY": 0,
     "pledgeboardButtonWidth": 600,
     "pledgeboardButtonHeight": 64
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
   }
 }

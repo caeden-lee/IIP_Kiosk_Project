@@ -228,7 +228,12 @@ class TreeManager {
         if (!this.treeTitleBox) return;
 
         const settings = this.visualAssets?.treeTitleBox;
-        // If no settings, hide the title box
+        // Respect the admin visibility toggle before applying any styling.
+        if (!this.showTitleBox) {
+            this.treeTitleBox.style.display = 'none';
+            return;
+        }
+
         this.treeTitleBox.style.display = 'block';
 
         // Update text content
@@ -257,7 +262,7 @@ class TreeManager {
         this.treeTitleBox.style.bottom = 'auto';
         this.treeTitleBox.style.left = 'auto';
         this.treeTitleBox.style.right = 'auto';
-        this.treeTitleBox.style.transform = '';
+        this.treeTitleBox.style.transform = 'none';
 
         const MARGIN = 20; // consistent gap from edges
 
@@ -398,7 +403,7 @@ class TreeManager {
 
     applyTitleBoxVisibility() {
         if (this.treeTitleBox) {
-            this.treeTitleBox.style.display = 'block';
+            this.treeTitleBox.style.display = this.showTitleBox ? 'block' : 'none';
         }
     }
 
@@ -858,16 +863,20 @@ class TreeManager {
             return;
         }
 
+        const settings = this.visualAssets?.treeTitleBox;
+        const configTitle = settings?.titleText || '🌳 ESG Digital Tree';
+        const configSubtitle = settings?.subtitleText || `Growing with every visitor's contribution in ${this.currentYear}`;
+
         if (this.treeTitle) {
             this.treeTitle.textContent = this.isReviewMode
                 ? `${this.selectedYear} ESG Tree Review`
-                : '🌳 ESG Digital Tree';
+                : configTitle;
         }
 
         if (this.treeSubtitle) {
             this.treeSubtitle.textContent = this.isReviewMode
                 ? `Completed yearly tree with ${this.visitors.length} contribution${this.visitors.length === 1 ? '' : 's'}`
-                : (this.activeCampaign?.treeSubtitle || `Growing with every visitor's contribution in ${this.currentYear}`);
+                : (this.activeCampaign?.treeSubtitle || configSubtitle);
         }
     }
 

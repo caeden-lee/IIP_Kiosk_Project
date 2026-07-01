@@ -449,12 +449,12 @@ body {
 }
  
 /* Login form elements and buttons */
-.form-group {
+#login-page .form-group {
     margin-bottom: 20px;
     text-align: left;
 }
  
-.form-group label {
+#login-page .form-group label {
     display: block;
     font-size: 11px;
     font-weight: 500;
@@ -464,7 +464,7 @@ body {
     text-transform: uppercase;
 }
  
-.form-group input {
+#login-page .form-group input {
     width: 100%;
     padding: 12px 16px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -478,11 +478,11 @@ body {
     caret-color: rgba(140, 100, 255, 0.9);
 }
  
-.form-group input::placeholder {
+#login-page .form-group input::placeholder {
     color: rgba(255, 255, 255, 0.2);
 }
  
-.form-group input:focus {
+#login-page .form-group input:focus {
     outline: none;
     border-color: rgba(140, 100, 255, 0.5);
     background: rgba(255, 255, 255, 0.09);
@@ -2373,6 +2373,42 @@ body {
     border-radius: 16px;
     padding: 25px;
     border: 2px solid var(--theme-border-color);
+}
+
+/* Tabs for different tree adjustment options */
+.tree-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.tree-tab {
+    padding: 10px 18px;
+    border: none;
+    background: #f5f5f5;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: 0.2s;
+    font-weight: 500;
+}
+
+.tree-tab:hover {
+    background: #e8e8e8;
+}
+
+.tree-tab.active {
+    background: #4CAF50;
+    color: white;
+}
+
+.tree-tab-content {
+    display: none;
+}
+
+.tree-tab-content.active {
+    display: block;
 }
 
 /* ==================== OVERLAY MANAGEMENT PAGE STYLES ==================== */
@@ -6251,6 +6287,7 @@ input:checked + .slider:before {
 }
 
 .form-group input[type="text"],
+.form-group input[type="number"],
 .form-group input[type="time"],
 .form-group input[type="date"],
 .form-group select {
