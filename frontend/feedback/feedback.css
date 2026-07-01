@@ -954,16 +954,82 @@ textarea::placeholder {
     transform: scaleX(-1);
 }
 
-/* Beauty filter styles done by nick */
-.beauty-filter-live {
-    filter: brightness(1.2) contrast(0.82) saturate(1.28) blur(0.8px);
+/* Visitor beauty filter setting - changes made by nick */
+.beauty-filter-setting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: min(420px, 100%);
+    margin: 0 auto 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(139, 215, 193, 0.42);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
 }
 
-.beauty-filter-toggle.active {
-    background: linear-gradient(135deg, #f472b6, #8b5cf6) !important;
-    border-color: transparent !important;
-    color: #ffffff !important;
-    box-shadow: 0 12px 26px rgba(139, 92, 246, 0.22) !important;
+.beauty-filter-setting label {
+    color: #2f6f45;
+    font-weight: 800;
+}
+
+.filter-setting-select {
+    min-height: 42px;
+    min-width: 150px;
+    border: 2px solid rgba(139, 215, 193, 0.6);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1f4f35;
+    font-weight: 800;
+    padding: 0 12px;
+}
+
+.filter-setting-select:focus {
+    outline: none;
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.face-accessory-selector {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    width: min(620px, 100%);
+    margin: 0 auto 18px;
+}
+
+.face-accessory-btn {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 2px solid rgba(99, 102, 241, 0.24);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.face-accessory-btn:hover {
+    transform: translateY(-1px);
+    border-color: #6366f1;
+}
+
+.face-accessory-btn.active {
+    color: #ffffff;
+    border-color: transparent;
+    background: linear-gradient(135deg, #6366f1, #0f766e);
+    box-shadow: 0 12px 26px rgba(79, 70, 229, 0.18);
+}
+
+.face-accessory-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
 }
 
 /* Photo or boomerang capture selector - changes made by nick */
@@ -1441,6 +1507,17 @@ textarea::placeholder {
     border-color: #10b981;
     transform: translateY(-2px);
     box-shadow: 0 8px 18px rgba(16, 185, 129, 0.16);
+}
+
+/* Photo choice actions - changes made by nick */
+.photo-choice-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.photo-choice-actions .secondary-button {
+    margin-top: 0;
 }
 
 /* Secondary outline button */

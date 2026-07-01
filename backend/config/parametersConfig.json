@@ -108,11 +108,13 @@
       "jpeg",
       "png",
       "webp"
-    ]
+    ],
+    "boomerangFrameDelayMs": 90
   },
   "overlaySettings": {
     "enableOverlayUpload": true,
     "maxOverlayFileSize": 10485760,
+    "gifOverlaySpeed": 1,
     "supportedFormats": [
       "png",
       "jpg",
@@ -141,5 +143,9 @@
     "pledgeboardButtonOffsetY": 0,
     "pledgeboardButtonWidth": 600,
     "pledgeboardButtonHeight": 64
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
   }
 }

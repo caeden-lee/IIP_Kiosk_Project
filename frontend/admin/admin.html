@@ -2636,6 +2636,15 @@
 
                         <div class="divider"></div>
 
+                        <!-- Boomerang animation speed control - changes made by nick -->
+                        <div class="form-group">
+                            <label for="param-boomerangFrameDelayMs">Boomerang Animation Speed (ms per frame)</label>
+                            <input type="number" id="param-boomerangFrameDelayMs" min="40" max="300" step="10" placeholder="90">
+                            <small class="text-muted">Lower values make the Boomerang animation faster. Default is 90ms.</small>
+                        </div>
+
+                        <div class="divider"></div>
+
                         <div class="form-group">
                             <label for="param-maxPhotoFileSize">Max Photo File Size (MB)</label>
                             <input type="number" id="param-maxPhotoFileSize" min="1" max="100" step="1" placeholder="5">
@@ -2682,6 +2691,13 @@
                             <label for="param-maxOverlayFileSize">Max Overlay File Size (MB)</label>
                             <input type="number" id="param-maxOverlayFileSize" min="1" max="100" step="1" placeholder="10">
                             <small class="text-muted">Maximum allowed overlay size in megabytes</small>
+                        </div>
+
+                        <!-- GIF overlay speed control - changes made by nick -->
+                        <div class="form-group">
+                            <label for="param-gifOverlaySpeed">GIF Overlay Speed</label>
+                            <input type="number" id="param-gifOverlaySpeed" min="0.25" max="4" step="0.25" placeholder="1">
+                            <small class="text-muted">Playback multiplier for animated GIF overlays. 1 is normal, 2 is twice as fast.</small>
                         </div>
                     </div>
 
