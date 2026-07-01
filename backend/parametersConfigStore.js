@@ -145,12 +145,14 @@ const DEFAULT_CONFIG = {
   photoSettings: {
     beautyFilterEnabled: true,
     beautyFilterStrength: "medium",
+    boomerangFrameDelayMs: 90, // changes made by nick
     maxPhotoFileSize: 5242880,
     supportedFormats: ["jpeg", "png", "webp"]
   },
   overlaySettings: {
     enableOverlayUpload: true,
     maxOverlayFileSize: 10485760,
+    gifOverlaySpeed: 1, // GIF overlay playback speed multiplier - changes made by nick
     supportedFormats: ["png", "jpg", "jpeg"]
   },
   visualAssets: {

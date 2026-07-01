@@ -13304,10 +13304,12 @@ function populateParameterForm(config) {
     }
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
+    setInputValue('param-boomerangFrameDelayMs', photo.boomerangFrameDelayMs || 90); // changes made by nick
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
     setCheckboxValues('photo-format', photo.supportedFormats || ['jpeg', 'png']);
     setRadioValue('overlay-upload', overlay.enableOverlayUpload);
     setInputValue('param-maxOverlayFileSize', bytesToMegabytes(overlay.maxOverlayFileSize, 10));
+    setInputValue('param-gifOverlaySpeed', overlay.gifOverlaySpeed || 1); // changes made by nick
     setInputValue('param-feedbackBackground', assets.feedbackBackground);
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
@@ -13438,12 +13440,14 @@ function collectParameterForm() {
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
             beautyFilterStrength: getInputValue('param-beautyFilterStrength') || 'medium',
+            boomerangFrameDelayMs: Math.max(40, Math.min(300, Number(getInputValue('param-boomerangFrameDelayMs')) || 90)), // changes made by nick
             maxPhotoFileSize: megabytesToBytes(getInputValue('param-maxPhotoFileSize'), 5),
             supportedFormats: getCheckboxValues('photo-format')
         },
         overlaySettings: {
             enableOverlayUpload: getRadioBoolean('overlay-upload'),
             maxOverlayFileSize: megabytesToBytes(getInputValue('param-maxOverlayFileSize'), 10),
+            gifOverlaySpeed: Math.max(0.25, Math.min(4, Number(getInputValue('param-gifOverlaySpeed')) || 1)), // changes made by nick
             supportedFormats: ['png', 'jpg', 'jpeg']
         },
         visualAssets: {

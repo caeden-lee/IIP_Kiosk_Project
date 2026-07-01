@@ -180,7 +180,7 @@ let captureMode = 'photo';
 let boomerangFrames = [];
 let boomerangPreviewInterval = null;
 const BOOMERANG_FRAME_COUNT = 10;
-const BOOMERANG_FRAME_DELAY = 90;
+const DEFAULT_BOOMERANG_FRAME_DELAY_MS = 90; // Admin-controlled boomerang default - changes made by nick
 let currentDevice = 'desktop'; // 'desktop' or 'mobile'
 let inactivityTimer = null;
 let idleWarningTimer = null;
@@ -193,12 +193,55 @@ let kioskParameters = {};
 let kioskParametersLoadPromise = null;
 let isMirrored = false; // to invert camera done by nick
 let beautyFilterEnabled = true; // beauty filter toggle done by nick
+let beautyFilterStrength = 'medium'; // visitor beauty filter strength - changes made by nick
+let selectedFaceAccessory = 'none';
+let faceLandmarker = null;
+let faceLandmarkerLoadPromise = null;
+let faceAccessoryAnimationFrame = null;
+let latestFaceAccessoryLandmarks = null;
+let latestFaceAccessoryVideoTime = -1;
+const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
+const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
+const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
 let qrRefreshTimer = null;
-const BEAUTY_FILTER_CSS = 'brightness(1.2) contrast(0.82) saturate(1.28)'; // stronger beauty filter effect done by nick
-const BEAUTY_SMOOTH_FILTER_CSS = 'blur(7px) brightness(1.18) contrast(0.78) saturate(1.2)'; // stronger smoothing done by nick
-const BEAUTY_DETAIL_FILTER_CSS = 'contrast(1.02) saturate(1.08)'; // detail recovery done by nick
-const BEAUTY_FACE_SMOOTH_FILTER_CSS = 'blur(12px) brightness(1.16) contrast(0.78) saturate(1.12)'; // feathered acne cover smoothing done by nick
-const BEAUTY_FACE_SLIM_RATIO = 0.84; // cleaner face slimming strength done by nick
+const BEAUTY_FILTER_PRESETS = {
+    light: {
+        liveFilter: 'brightness(1.08) contrast(0.92) saturate(1.12)',
+        baseFilter: 'brightness(1.08) contrast(0.92) saturate(1.12)',
+        smoothFilter: 'blur(3px) brightness(1.08) contrast(0.88) saturate(1.08)',
+        detailFilter: 'contrast(1.02) saturate(1.04)',
+        faceSmoothFilter: 'blur(6px) brightness(1.08) contrast(0.88) saturate(1.06)',
+        smoothAlpha: 0.18,
+        faceSmoothAlpha: 0.1,
+        detailAlpha: 0.08,
+        tintAlpha: 0.04,
+        faceSlimRatio: 0.94
+    },
+    medium: {
+        liveFilter: 'brightness(1.2) contrast(0.82) saturate(1.28) blur(0.8px)',
+        baseFilter: 'brightness(1.2) contrast(0.82) saturate(1.28)',
+        smoothFilter: 'blur(7px) brightness(1.18) contrast(0.78) saturate(1.2)',
+        detailFilter: 'contrast(1.02) saturate(1.08)',
+        faceSmoothFilter: 'blur(12px) brightness(1.16) contrast(0.78) saturate(1.12)',
+        smoothAlpha: 0.38,
+        faceSmoothAlpha: 0.18,
+        detailAlpha: 0.12,
+        tintAlpha: 0.08,
+        faceSlimRatio: 0.84
+    },
+    strong: {
+        liveFilter: 'brightness(1.28) contrast(0.74) saturate(1.38) blur(1.1px)',
+        baseFilter: 'brightness(1.28) contrast(0.74) saturate(1.38)',
+        smoothFilter: 'blur(10px) brightness(1.24) contrast(0.72) saturate(1.28)',
+        detailFilter: 'contrast(1.03) saturate(1.1)',
+        faceSmoothFilter: 'blur(16px) brightness(1.22) contrast(0.72) saturate(1.16)',
+        smoothAlpha: 0.48,
+        faceSmoothAlpha: 0.24,
+        detailAlpha: 0.14,
+        tintAlpha: 0.1,
+        faceSlimRatio: 0.78
+    }
+}; // visitor-adjustable beauty filter presets - changes made by nick
 const PLEDGE_COACH_TOPIC_SUGGESTIONS = {
     'climate-change': 'Take public transport or walk for 2 trips this week.',
     'renewable-energy': 'Switch off unused lights and chargers every day this week.',
@@ -214,7 +257,7 @@ const FLOW_STEPS = [
     { key: 'details', label: 'Details', pageIds: ['details-page'] },
     { key: 'feedback', label: 'Feedback', pageIds: ['feedback-page'] },
     { key: 'pledge', label: 'Pledge', pageIds: ['pledge-page'] },
-    { key: 'photo', label: 'Photo', pageIds: ['photo-page', 'file-upload-page', 'style-page'] },
+    { key: 'photo', label: 'Photo', pageIds: ['photo-choice-page', 'photo-page', 'file-upload-page', 'style-page'] },
     { key: 'confirm', label: 'Confirm', pageIds: ['confirmation-page'] }
 ];
 const FLOW_PAGE_IDS = FLOW_STEPS.flatMap(step => step.pageIds).concat(['thankyou-page']);
@@ -255,6 +298,9 @@ function showFlowPage(pageId) {
     // Stop boomerang animation when leaving the style preview - changes made by nick
     if (pageId !== 'style-page') {
         stopBoomerangPreview();
+    }
+    if (pageId !== 'photo-page') {
+        stopFaceAccessoryPreview();
     }
 
     hideLandingPages();
@@ -416,6 +462,359 @@ async function detectFaceInImageData(dataUrl) {
     return detection; // return face box for beauty filter done by nick
 }
 
+async function ensureFaceLandmarkerReady() {
+    if (faceLandmarker) {
+        return faceLandmarker;
+    }
+
+    if (faceLandmarkerLoadPromise) {
+        return faceLandmarkerLoadPromise;
+    }
+
+    faceLandmarkerLoadPromise = import(MEDIAPIPE_TASKS_VISION_URL)
+        .then(async ({ FaceLandmarker, FilesetResolver }) => {
+            updateFaceDetectionStatus('Loading AR face effects...', 'loading');
+            const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
+            faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: FACE_LANDMARKER_MODEL_URL,
+                    delegate: 'GPU'
+                },
+                runningMode: 'VIDEO',
+                numFaces: 1,
+                minFaceDetectionConfidence: 0.5,
+                minFacePresenceConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            updateFaceDetectionStatus('Face detection ready.', 'success');
+            return faceLandmarker;
+        })
+        .catch((error) => {
+            console.error('Failed to load MediaPipe Face Landmarker:', error);
+            updateFaceDetectionStatus('Face effects unavailable. Photo capture still works.', 'error');
+            throw error;
+        })
+        .finally(() => {
+            faceLandmarkerLoadPromise = null;
+        });
+
+    return faceLandmarkerLoadPromise;
+}
+
+function getFaceAccessoryLandmarksFromResult(result) {
+    return result?.faceLandmarks?.[0] || result?.face_landmarks?.[0] || null;
+}
+
+function detectFaceAccessoryLandmarks(video) {
+    if (!faceLandmarker || !video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        return null;
+    }
+
+    const result = faceLandmarker.detectForVideo(video, performance.now());
+    return getFaceAccessoryLandmarksFromResult(result);
+}
+
+function clearFaceAccessoryCanvas() {
+    const canvas = document.getElementById('face-accessory-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width || canvas.clientWidth, canvas.height || canvas.clientHeight);
+}
+
+function resizeFaceAccessoryCanvas(video, canvas) {
+    if (!video || !canvas) return false;
+
+    const width = video.videoWidth || canvas.clientWidth;
+    const height = video.videoHeight || canvas.clientHeight;
+    if (!width || !height) return false;
+
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    return true;
+}
+
+function getLandmarkPoint(landmarks, index, width, height) {
+    const landmark = landmarks?.[index];
+    if (!landmark) return null;
+
+    return {
+        x: landmark.x * width,
+        y: landmark.y * height,
+        z: landmark.z || 0
+    };
+}
+
+function getFaceAccessoryGeometry(landmarks, width, height) {
+    const leftEyeOuter = getLandmarkPoint(landmarks, 33, width, height);
+    const rightEyeOuter = getLandmarkPoint(landmarks, 263, width, height);
+    const noseTip = getLandmarkPoint(landmarks, 1, width, height);
+    const upperLip = getLandmarkPoint(landmarks, 13, width, height);
+    const forehead = getLandmarkPoint(landmarks, 10, width, height);
+    const chin = getLandmarkPoint(landmarks, 152, width, height);
+
+    if (!leftEyeOuter || !rightEyeOuter || !noseTip) {
+        return null;
+    }
+
+    const eyeCenter = {
+        x: (leftEyeOuter.x + rightEyeOuter.x) / 2,
+        y: (leftEyeOuter.y + rightEyeOuter.y) / 2
+    };
+    const eyeDistance = Math.hypot(rightEyeOuter.x - leftEyeOuter.x, rightEyeOuter.y - leftEyeOuter.y);
+    const angle = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+    const faceHeight = forehead && chin ? Math.max(eyeDistance * 1.9, Math.abs(chin.y - forehead.y)) : eyeDistance * 2.2;
+
+    return {
+        angle,
+        eyeCenter,
+        eyeDistance,
+        faceHeight,
+        noseTip,
+        upperLip: upperLip || { x: noseTip.x, y: noseTip.y + eyeDistance * 0.35 },
+        forehead: forehead || { x: eyeCenter.x, y: eyeCenter.y - eyeDistance * 0.85 }
+    };
+}
+
+function withAccessoryTransform(ctx, center, angle, drawFn) {
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate(angle);
+    drawFn();
+    ctx.restore();
+}
+
+function drawGlassesAccessory(ctx, geometry) {
+    const lensWidth = geometry.eyeDistance * 0.52;
+    const lensHeight = geometry.eyeDistance * 0.34;
+    const gap = geometry.eyeDistance * 0.18;
+    const center = {
+        x: geometry.eyeCenter.x,
+        y: geometry.eyeCenter.y + geometry.eyeDistance * 0.03
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        ctx.lineWidth = Math.max(5, geometry.eyeDistance * 0.055);
+        ctx.strokeStyle = '#111827';
+        ctx.fillStyle = 'rgba(191, 219, 254, 0.22)';
+
+        const leftX = -gap / 2 - lensWidth;
+        const rightX = gap / 2;
+        const y = -lensHeight / 2;
+        ctx.beginPath();
+        ctx.roundRect(leftX, y, lensWidth, lensHeight, lensHeight * 0.22);
+        ctx.roundRect(rightX, y, lensWidth, lensHeight, lensHeight * 0.22);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-gap / 2, 0);
+        ctx.quadraticCurveTo(0, -lensHeight * 0.18, gap / 2, 0);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(3, geometry.eyeDistance * 0.035);
+        ctx.beginPath();
+        ctx.moveTo(leftX, -lensHeight * 0.06);
+        ctx.lineTo(leftX - lensWidth * 0.32, -lensHeight * 0.2);
+        ctx.moveTo(rightX + lensWidth, -lensHeight * 0.06);
+        ctx.lineTo(rightX + lensWidth + lensWidth * 0.32, -lensHeight * 0.2);
+        ctx.stroke();
+    });
+}
+
+function drawMoustacheAccessory(ctx, geometry) {
+    const width = geometry.eyeDistance * 0.84;
+    const height = geometry.eyeDistance * 0.23;
+    const center = {
+        x: geometry.noseTip.x,
+        y: geometry.upperLip.y + geometry.eyeDistance * 0.1
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-width * 0.2, -height, -width * 0.48, -height * 0.65, -width * 0.5, height * 0.12);
+        ctx.bezierCurveTo(-width * 0.35, height * 0.35, -width * 0.15, height * 0.18, 0, height * 0.04);
+        ctx.bezierCurveTo(width * 0.15, height * 0.18, width * 0.35, height * 0.35, width * 0.5, height * 0.12);
+        ctx.bezierCurveTo(width * 0.48, -height * 0.65, width * 0.2, -height, 0, 0);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.beginPath();
+        ctx.ellipse(-width * 0.2, -height * 0.12, width * 0.13, height * 0.1, -0.35, 0, Math.PI * 2);
+        ctx.ellipse(width * 0.2, -height * 0.12, width * 0.13, height * 0.1, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawHatAccessory(ctx, geometry) {
+    const brimWidth = geometry.eyeDistance * 1.42;
+    const brimHeight = geometry.eyeDistance * 0.18;
+    const crownWidth = geometry.eyeDistance * 0.88;
+    const crownHeight = geometry.faceHeight * 0.3;
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * 0.34
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        ctx.fillStyle = '#111827';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        ctx.lineWidth = Math.max(2, geometry.eyeDistance * 0.025);
+
+        ctx.beginPath();
+        ctx.roundRect(-crownWidth / 2, -crownHeight, crownWidth, crownHeight, crownWidth * 0.08);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#4f46e5';
+        ctx.fillRect(-crownWidth / 2, -crownHeight * 0.28, crownWidth, crownHeight * 0.14);
+
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, brimWidth / 2, brimHeight / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+}
+
+function drawFaceAccessory(ctx, landmarks, width, height) {
+    if (selectedFaceAccessory === 'none' || !landmarks) {
+        return;
+    }
+
+    const geometry = getFaceAccessoryGeometry(landmarks, width, height);
+    if (!geometry) {
+        return;
+    }
+
+    if (selectedFaceAccessory === 'glasses') {
+        drawGlassesAccessory(ctx, geometry);
+    } else if (selectedFaceAccessory === 'moustache') {
+        drawMoustacheAccessory(ctx, geometry);
+    } else if (selectedFaceAccessory === 'hat') {
+        drawHatAccessory(ctx, geometry);
+    }
+}
+
+function drawFaceAccessoryForCameraView(ctx, landmarks, width, height) {
+    ctx.save();
+    if (isMirrored) {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+    }
+    drawFaceAccessory(ctx, landmarks, width, height);
+    ctx.restore();
+}
+
+function renderLiveFaceAccessory() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('face-accessory-canvas');
+    if (!video || !canvas || !stream) {
+        clearFaceAccessoryCanvas();
+        faceAccessoryAnimationFrame = null;
+        return;
+    }
+
+    if (resizeFaceAccessoryCanvas(video, canvas)) {
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (selectedFaceAccessory !== 'none') {
+            if (video.currentTime !== latestFaceAccessoryVideoTime) {
+                latestFaceAccessoryLandmarks = detectFaceAccessoryLandmarks(video);
+                latestFaceAccessoryVideoTime = video.currentTime;
+            }
+            drawFaceAccessoryForCameraView(ctx, latestFaceAccessoryLandmarks, canvas.width, canvas.height);
+        }
+    }
+
+    faceAccessoryAnimationFrame = requestAnimationFrame(renderLiveFaceAccessory);
+}
+
+async function startFaceAccessoryPreview() {
+    stopFaceAccessoryPreview();
+    clearFaceAccessoryCanvas();
+
+    if (selectedFaceAccessory === 'none') {
+        return;
+    }
+
+    try {
+        await ensureFaceLandmarkerReady();
+        renderLiveFaceAccessory();
+    } catch (error) {
+        console.warn('Face accessory preview disabled:', error.message);
+    }
+}
+
+function stopFaceAccessoryPreview() {
+    if (faceAccessoryAnimationFrame) {
+        cancelAnimationFrame(faceAccessoryAnimationFrame);
+        faceAccessoryAnimationFrame = null;
+    }
+    latestFaceAccessoryLandmarks = null;
+    latestFaceAccessoryVideoTime = -1;
+    clearFaceAccessoryCanvas();
+}
+
+function updateFaceAccessoryButtons() {
+    document.querySelectorAll('.face-accessory-btn').forEach((button) => {
+        const isActive = button.dataset.accessory === selectedFaceAccessory;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+function selectFaceAccessory(accessory) {
+    if (!['none', 'glasses', 'moustache', 'hat'].includes(accessory)) {
+        return;
+    }
+
+    selectedFaceAccessory = accessory;
+    updateFaceAccessoryButtons();
+    if (stream) {
+        startFaceAccessoryPreview();
+    } else {
+        clearFaceAccessoryCanvas();
+    }
+    resetInactivityTimer();
+}
+
+function setupFaceAccessorySelector() {
+    document.querySelectorAll('.face-accessory-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            selectFaceAccessory(button.dataset.accessory || 'none');
+        });
+    });
+    updateFaceAccessoryButtons();
+}
+
+async function getCurrentFaceAccessoryLandmarks() {
+    if (selectedFaceAccessory === 'none') {
+        return null;
+    }
+
+    const video = document.getElementById('video');
+    if (!video) {
+        return null;
+    }
+
+    try {
+        await ensureFaceLandmarkerReady();
+        latestFaceAccessoryLandmarks = detectFaceAccessoryLandmarks(video) || latestFaceAccessoryLandmarks;
+        return latestFaceAccessoryLandmarks;
+    } catch (error) {
+        console.warn('Unable to detect landmarks for selected face accessory:', error.message);
+        return null;
+    }
+}
+
 async function capturePhotoIfFaceDetected() {
     try {
         updateFaceDetectionStatus('Checking for face...', 'loading');
@@ -428,7 +827,8 @@ async function capturePhotoIfFaceDetected() {
         }
 
         updateFaceDetectionStatus('Face detected. Capturing photo...', 'success');
-        await takePhoto(faceDetection); // pass face box into beauty filter done by nick
+        const faceAccessoryLandmarks = await getCurrentFaceAccessoryLandmarks();
+        await takePhoto(faceDetection, faceAccessoryLandmarks); // pass face box into beauty filter done by nick
         return true;
     } catch (error) {
         console.error('Face detection check failed:', error);
@@ -558,8 +958,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pledgeTextarea) {
         pledgeTextarea.addEventListener('input', function() {
             document.getElementById('char-count').textContent = this.value.length;
-            updatePledgeCoach();
-            resetInactivityTimer(); // Reset timer on user input
+    updatePledgeCoach();
+    resetInactivityTimer(); // Reset timer on user input
         });
     }
 
@@ -584,12 +984,9 @@ if (invertBtn) {
     invertBtn.addEventListener('click', toggleMirror);
 }
 
-    // Beauty filter button done by nick
-    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
-    if (beautyFilterBtn) {
-        beautyFilterBtn.addEventListener('click', toggleBeautyFilter);
-        updateBeautyFilterButton();
-    }
+    // Beauty filter setting done by nick
+    setupBeautyFilterSettings();
+    setupFaceAccessorySelector();
 
     // Load overlay options from database
     loadOverlayOptions();
@@ -1303,13 +1700,32 @@ function submitDetails(event) {
     resetInactivityTimer();
 }
 
+// Show the photo choice step after pledge instead of forcing photo capture - changes made by nick
 function continueAfterPledgeChoice() {
+    showFlowPage('photo-choice-page');
+    resetInactivityTimer();
+}
+
+// Clear optional photo state when the visitor skips photo - changes made by nick
+function clearPhotoCaptureData() {
+    photoData = null;
+    userData.photoId = null;
+    userData.processedPhotoId = null;
+    userData.processedPhoto = null;
+    boomerangFrames = [];
+    stopBoomerangPreview();
+    stopFaceAccessoryPreview();
+}
+
+// Continue into camera/upload when visitor chooses to take photo - changes made by nick
+function startPhotoFlow() {
     const flags = getFeatureFlags();
     const rules = getValidationRules();
+    userData.photoSkipped = false;
 
     if (flags.cameraCaptureEnabled === false && flags.photoUploadEnabled === false) {
         if (rules.photoRequired !== false) {
-            showFormAlert('pledge-form-alert', 'Photo capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable capture.');
+            showFormAlert('photo-choice-form-alert', 'Photo capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable capture.');
             alert('Photo capture is currently disabled, but photo is still required.');
             return;
         }
@@ -1323,7 +1739,7 @@ function continueAfterPledgeChoice() {
     if (currentDevice === 'mobile') {
         if (flags.photoUploadEnabled === false) {
             if (rules.photoRequired !== false) {
-                showFormAlert('pledge-form-alert', 'Mobile photo upload is currently disabled. Please ask an administrator to disable the photo requirement or re-enable uploads.');
+                showFormAlert('photo-choice-form-alert', 'Mobile photo upload is currently disabled. Please ask an administrator to disable the photo requirement or re-enable uploads.');
                 alert('Mobile photo upload is currently disabled, but photo is still required.');
                 return;
             }
@@ -1336,7 +1752,7 @@ function continueAfterPledgeChoice() {
         // DESKTOP: Use camera as before
         if (flags.cameraCaptureEnabled === false) {
             if (rules.photoRequired !== false) {
-                showFormAlert('pledge-form-alert', 'Desktop camera capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable camera capture.');
+                showFormAlert('photo-choice-form-alert', 'Desktop camera capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable camera capture.');
                 alert('Desktop camera capture is currently disabled, but photo is still required.');
                 return;
             }
@@ -1348,6 +1764,16 @@ function continueAfterPledgeChoice() {
         }
     }
 
+    resetInactivityTimer();
+}
+
+// Let visitor skip photo and go straight to confirmation - changes made by nick
+function skipPhoto() {
+    clearPhotoCaptureData();
+    userData.photoSkipped = true;
+    userData.captureMode = 'none';
+    showFlowPage('confirmation-page');
+    updateConfirmationDetails();
     resetInactivityTimer();
 }
 
@@ -1464,6 +1890,7 @@ async function handlePhotoUpload(event) {
         const uploadedImage = await loadImageElement(dataUrl);
         photoData = createBeautyFilteredPhotoDataUrl(uploadedImage, faceDetection);
         // Uploaded mobile photos are treated as normal photos - changes made by nick
+        userData.photoSkipped = false;
         userData.captureMode = 'photo';
         boomerangFrames = [];
 
@@ -1549,6 +1976,7 @@ function drawFaceBeautyPass(ctx, sourceCanvas, faceRegion) {
         return;
     }
 
+    const beautyPreset = getBeautyFilterPreset();
     const centerX = faceRegion.x + faceRegion.width / 2;
     const centerY = faceRegion.y + faceRegion.height / 2;
     const radiusX = faceRegion.width / 2;
@@ -1562,7 +1990,7 @@ function drawFaceBeautyPass(ctx, sourceCanvas, faceRegion) {
     const smoothCtx = smoothCanvas.getContext('2d');
     smoothCanvas.width = sourceCanvas.width;
     smoothCanvas.height = sourceCanvas.height;
-    smoothCtx.filter = BEAUTY_FACE_SMOOTH_FILTER_CSS;
+    smoothCtx.filter = beautyPreset.faceSmoothFilter;
     smoothCtx.drawImage(sourceCanvas, 0, 0);
 
     // Cover acne and uneven texture with a feathered face-only smoothing pass done by nick
@@ -1570,7 +1998,7 @@ function drawFaceBeautyPass(ctx, sourceCanvas, faceRegion) {
     passCtx.drawImage(smoothCanvas, 0, 0);
 
     // Slim face by redrawing the detected face area slightly narrower done by nick
-    const slimWidth = faceRegion.width * BEAUTY_FACE_SLIM_RATIO;
+    const slimWidth = faceRegion.width * beautyPreset.faceSlimRatio;
     const slimX = faceRegion.x + (faceRegion.width - slimWidth) / 2;
     passCtx.globalAlpha = 0.48;
     passCtx.filter = 'brightness(1.06) contrast(0.92) saturate(1.06)';
@@ -1617,6 +2045,7 @@ function drawPhotoWithBeautyFilter(ctx, image, x, y, width, height, faceDetectio
         return;
     }
 
+    const beautyPreset = getBeautyFilterPreset();
     const sourceCanvas = document.createElement('canvas');
     const sourceCtx = sourceCanvas.getContext('2d');
     sourceCanvas.width = width;
@@ -1624,21 +2053,21 @@ function drawPhotoWithBeautyFilter(ctx, image, x, y, width, height, faceDetectio
     sourceCtx.drawImage(image, 0, 0, width, height);
 
     ctx.save();
-    ctx.filter = BEAUTY_FILTER_CSS;
+    ctx.filter = beautyPreset.baseFilter;
     ctx.drawImage(sourceCanvas, x, y, width, height);
 
     // Stronger beauty smoothing layer done by nick
-    ctx.globalAlpha = faceDetection ? 0.18 : 0.38;
-    ctx.filter = BEAUTY_SMOOTH_FILTER_CSS;
+    ctx.globalAlpha = faceDetection ? beautyPreset.faceSmoothAlpha : beautyPreset.smoothAlpha;
+    ctx.filter = beautyPreset.smoothFilter;
     ctx.drawImage(sourceCanvas, x, y, width, height);
 
     // Restore some edges so the photo does not look overly blurry done by nick
-    ctx.globalAlpha = 0.12;
-    ctx.filter = BEAUTY_DETAIL_FILTER_CSS;
+    ctx.globalAlpha = beautyPreset.detailAlpha;
+    ctx.filter = beautyPreset.detailFilter;
     ctx.drawImage(sourceCanvas, x, y, width, height);
 
     // Subtle warm tint for healthier skin tone done by nick
-    ctx.globalAlpha = 0.08;
+    ctx.globalAlpha = beautyPreset.tintAlpha;
     ctx.filter = 'none';
     ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = '#ffd8c8';
@@ -1728,7 +2157,7 @@ function stopBoomerangPreview() {
 }
 
 // Capture one current camera frame for photo or boomerang - changes made by nick
-function captureVideoFrameDataUrl(faceDetection = null) {
+function captureVideoFrameDataUrl(faceDetection = null, faceAccessoryLandmarks = null) {
     const video = document.getElementById('video');
     const canvas = document.getElementById('photo-canvas');
     const context = canvas.getContext('2d');
@@ -1744,12 +2173,23 @@ function captureVideoFrameDataUrl(faceDetection = null) {
     }
 
     drawPhotoWithBeautyFilter(context, video, 0, 0, canvas.width, canvas.height, faceDetection);
+    drawFaceAccessory(context, faceAccessoryLandmarks, canvas.width, canvas.height);
     return canvas.toDataURL('image/png');
 }
 
 // Small delay helper for boomerang frame capture - changes made by nick
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Read admin-controlled boomerang animation speed - changes made by nick
+function getBoomerangFrameDelayMs() {
+    const configuredDelay = Number(kioskParameters.photoSettings?.boomerangFrameDelayMs);
+    if (!Number.isFinite(configuredDelay)) {
+        return DEFAULT_BOOMERANG_FRAME_DELAY_MS;
+    }
+
+    return Math.max(40, Math.min(300, configuredDelay));
 }
 
 // Capture a short forward/backward boomerang sequence - changes made by nick
@@ -1772,12 +2212,15 @@ async function captureBoomerangIfFaceDetected() {
         updateFaceDetectionStatus('Recording boomerang...', 'loading');
 
         const frames = [];
+        const boomerangFrameDelayMs = getBoomerangFrameDelayMs(); // changes made by nick
         for (let i = 0; i < BOOMERANG_FRAME_COUNT; i++) {
-            frames.push(captureVideoFrameDataUrl(faceDetection));
-            await wait(BOOMERANG_FRAME_DELAY);
+            const faceAccessoryLandmarks = await getCurrentFaceAccessoryLandmarks();
+            frames.push(captureVideoFrameDataUrl(faceDetection, faceAccessoryLandmarks));
+            await wait(boomerangFrameDelayMs);
         }
 
         boomerangFrames = frames.concat(frames.slice(1, -1).reverse());
+        userData.photoSkipped = false;
         userData.captureMode = 'boomerang';
         photoData = frames[Math.floor(frames.length / 2)] || frames[0];
 
@@ -1807,27 +2250,47 @@ async function captureBoomerangIfFaceDetected() {
 }
 
 //Done by Yu Kang - Capture photo only when a face is detected
-// Beauty filter button state done by nick
-function updateBeautyFilterButton() {
-    const video = document.getElementById('video');
-    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
-
-    if (video) {
-        video.classList.toggle('beauty-filter-live', beautyFilterEnabled);
-    }
-
-    if (beautyFilterBtn) {
-        beautyFilterBtn.textContent = beautyFilterEnabled ? 'Beauty Filter On' : 'Beauty Filter Off';
-        beautyFilterBtn.classList.toggle('active', beautyFilterEnabled);
-        beautyFilterBtn.setAttribute('aria-pressed', beautyFilterEnabled ? 'true' : 'false');
-    }
+function getBeautyFilterPreset() {
+    return BEAUTY_FILTER_PRESETS[beautyFilterStrength] || BEAUTY_FILTER_PRESETS.medium;
 }
 
-// Beauty filter toggle done by nick
-async function toggleBeautyFilter() {
-    beautyFilterEnabled = !beautyFilterEnabled;
-    updateBeautyFilterButton();
-    resetInactivityTimer();
+function setBeautyFilterSetting(value) {
+    if (value === 'off') {
+        beautyFilterEnabled = false;
+        beautyFilterStrength = 'medium';
+    } else if (BEAUTY_FILTER_PRESETS[value]) {
+        beautyFilterEnabled = true;
+        beautyFilterStrength = value;
+    }
+
+    updateBeautyFilterSettings();
+}
+
+// Beauty filter setting state done by nick
+function updateBeautyFilterSettings() {
+    const video = document.getElementById('video');
+    const settingValue = beautyFilterEnabled ? beautyFilterStrength : 'off';
+    const settingControls = document.querySelectorAll('#beauty-filter-setting, #upload-beauty-filter-setting');
+
+    if (video) {
+        video.style.filter = beautyFilterEnabled ? getBeautyFilterPreset().liveFilter : '';
+    }
+
+    settingControls.forEach((control) => {
+        control.value = settingValue;
+    });
+}
+
+function setupBeautyFilterSettings() {
+    const settingControls = document.querySelectorAll('#beauty-filter-setting, #upload-beauty-filter-setting');
+    settingControls.forEach((control) => {
+        control.addEventListener('change', () => {
+            setBeautyFilterSetting(control.value);
+            resetInactivityTimer();
+        });
+    });
+
+    updateBeautyFilterSettings();
 }
 
 // Initialize camera with mobile device check
@@ -1863,10 +2326,11 @@ async function initializeCamera() {
 
         const video = document.getElementById('video');
         video.srcObject = stream;
-        updateBeautyFilterButton(); // apply live beauty filter preview done by nick
+        updateBeautyFilterSettings(); // apply live beauty filter preview done by nick
 
         // facial detection (Done by Yu Kang)
         await ensureFaceDetectionReady();
+        startFaceAccessoryPreview();
 
         // Show camera
         document.getElementById('camera-container').style.display = 'block';
@@ -1972,11 +2436,13 @@ async function capturePhoto() {
 }
 
 // Take photo from camera stream (desktop)
-async function takePhoto(faceDetection = null) { // face-aware beauty capture done by nick
+async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { // face-aware beauty capture done by nick
     // Normal photo capture shares frame drawing with boomerang - changes made by nick
-    photoData = captureVideoFrameDataUrl(faceDetection);
+    photoData = captureVideoFrameDataUrl(faceDetection, faceAccessoryLandmarks);
+    userData.photoSkipped = false;
     userData.captureMode = 'photo';
     boomerangFrames = [];
+    stopFaceAccessoryPreview();
     
     // Stop camera stream after taking photo
     if (stream) {
@@ -2334,7 +2800,7 @@ async function startBoomerangPreview(previewPhoto) {
     boomerangPreviewInterval = setInterval(() => {
         frameIndex = (frameIndex + 1) % boomerangFrames.length;
         renderPreviewPhotoFrame(boomerangFrames[frameIndex], previewPhoto);
-    }, BOOMERANG_FRAME_DELAY);
+    }, getBoomerangFrameDelayMs());
 }
 
 // Update preview with cutout and overlay positioning
@@ -2527,13 +2993,21 @@ function updateConfirmationDetails() {
     document.getElementById('confirm-name').textContent = userData.name || 'Not provided';
     document.getElementById('confirm-email').textContent = userData.email || 'Not provided';
     document.getElementById('confirm-pledge').textContent = userData.pledgeSkipped ? 'Skipped - Feedback Contributor badge' : (userData.pledge || 'Not provided');
-    document.getElementById('confirm-theme').textContent = selectedTheme;
+    document.getElementById('confirm-theme').textContent = userData.photoSkipped ? 'Not selected' : selectedTheme;
     document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : getTemporaryRetentionLabel();
     const photoReady = document.getElementById('confirm-photo-ready');
     const emailPhotoReady = document.getElementById('confirm-email-photo-ready');
-    if (!photoData && !userData.processedPhoto) {
+    if (userData.photoSkipped) {
+        if (photoReady) photoReady.textContent = 'Skipped by visitor';
+        if (emailPhotoReady) emailPhotoReady.textContent = getFeatureFlags().thankYouEmailEnabled === false ? 'Disabled' : 'No photo to send';
+    } else if (!photoData && !userData.processedPhoto) {
         if (photoReady) photoReady.textContent = 'Not required';
         if (emailPhotoReady) emailPhotoReady.textContent = getFeatureFlags().thankYouEmailEnabled === false ? 'Disabled' : 'No photo to send';
+    } else {
+        if (photoReady) photoReady.textContent = getDynamicLanguageText().confirmPhotoReady || 'Ready to be uploaded';
+        if (emailPhotoReady) emailPhotoReady.textContent = getFeatureFlags().thankYouEmailEnabled === false
+            ? 'Disabled'
+            : (getDynamicLanguageText().confirmEmailPhotoReady || 'Will be sent to your email');
     }
     
     // Show how many questions were answered
@@ -2543,7 +3017,11 @@ function updateConfirmationDetails() {
 
 // Go back from confirmation to style page
 function goBackToStyle() {
-    showFlowPage('style-page');
+    if (userData.photoSkipped || (!photoData && !userData.processedPhoto)) {
+        showFlowPage('photo-choice-page');
+    } else {
+        showFlowPage('style-page');
+    }
     resetInactivityTimer();
 }
 
@@ -3325,6 +3803,7 @@ function applyParameterOverrides() {
     const campaign = kioskParameters.campaignSettings || {};
     const assets = kioskParameters.visualAssets || {};
     const layout = kioskParameters.layoutSettings || {};
+    const photo = kioskParameters.photoSettings || {};
     const flags = getFeatureFlags();
     const rules = getValidationRules();
     const retentionDays = getTemporaryRetentionDays();
@@ -3355,11 +3834,17 @@ function applyParameterOverrides() {
         photoInput.accept = rules.allowedPhotoFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`).join(',');
     }
 
-    const beautyFilterBtn = document.getElementById('beauty-filter-btn');
-    if (beautyFilterBtn) {
-        beautyFilterBtn.style.display = flags.beautyFilterEnabled === false ? 'none' : '';
-        beautyFilterEnabled = flags.beautyFilterEnabled !== false && beautyFilterEnabled;
-        updateBeautyFilterButton();
+    const beautyFilterPanels = document.querySelectorAll('#beauty-filter-setting-panel, #upload-beauty-filter-setting-panel');
+    const beautyFeatureEnabled = flags.beautyFilterEnabled !== false && photo.beautyFilterEnabled !== false;
+    beautyFilterPanels.forEach((panel) => {
+        panel.hidden = !beautyFeatureEnabled;
+    });
+    if (!beautyFeatureEnabled) {
+        setBeautyFilterSetting('off');
+    } else if (photo.beautyFilterStrength && BEAUTY_FILTER_PRESETS[photo.beautyFilterStrength]) {
+        setBeautyFilterSetting(photo.beautyFilterStrength);
+    } else {
+        updateBeautyFilterSettings();
     }
 
     if (currentLanguage === 'en') {
@@ -3490,6 +3975,10 @@ const translations = {
         pledgePrivacy: "Your pledge will be displayed on our pledgeboard, inspiring others to take action",
         skipPledge: "I do not want to make a pledge",
         continueToPhoto: "Continue to Photo",
+        photoChoiceTitle: "Would you like to take a photo?",
+        photoChoiceDescription: "You can take a keepsake photo, or skip it and submit your feedback now.",
+        takePhotoChoice: "Take Photo",
+        skipPhotoChoice: "Skip Photo",
 
         photoTitle: "Capture Your Photo",
         photoDescription: "Your photo will sent to you through email",
@@ -4044,6 +4533,12 @@ function applyTranslations() {
     setText('continue-to-photo-text', t.continueToPhoto);
     setText('skip-pledge-text', t.skipPledge);
     setText('back-from-pledge-text', t.back);
+
+    setText('photo-choice-title', t.photoChoiceTitle || 'Would you like to take a photo?');
+    setText('photo-choice-description', t.photoChoiceDescription || 'You can take a keepsake photo, or skip it and submit your feedback now.');
+    setText('take-photo-choice-text', t.takePhotoChoice || t.continueToPhoto || 'Take Photo');
+    setText('skip-photo-choice-text', t.skipPhotoChoice || 'Skip Photo');
+    setText('back-from-photo-choice-text', t.back);
 
     setText('photo-title', t.photoTitle);
     setText('photo-description', t.photoDescription);

@@ -38,6 +38,7 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
   const pledge = getString(userData.pledge);
   const pledgeTopic = getString(userData.pledgeTopic);
   const pledgeSkipped = Boolean(userData.pledgeSkipped);
+  const photoSkipped = Boolean(userData.photoSkipped); // Optional photo skip - changes made by nick
   const hasPhoto = Boolean(userData.photoId || userData.processedPhotoId || userData.photo || userData.processedPhoto);
   const retention = getString(payload?.retention).toLowerCase();
 
@@ -80,7 +81,8 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
   }
 
   const anyPhotoFeatureEnabled = isEnabled(featureFlags.cameraCaptureEnabled) || isEnabled(featureFlags.photoUploadEnabled);
-  if (isEnabled(validationRules.photoRequired) && anyPhotoFeatureEnabled && !hasPhoto) {
+  // Allow visitors to intentionally skip photo after pledge - changes made by nick
+  if (isEnabled(validationRules.photoRequired) && anyPhotoFeatureEnabled && !hasPhoto && !photoSkipped) {
     errors.push({ field: 'photo', message: 'Photo is required.' });
   }
 
