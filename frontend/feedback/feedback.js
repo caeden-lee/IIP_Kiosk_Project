@@ -599,6 +599,11 @@ if (invertBtn) {
 
     // Start inactivity timer
     startInactivityTimer();
+
+    if (isCelebrationDemoMode()) {
+        Promise.resolve(kioskParametersLoadPromise)
+            .finally(() => window.setTimeout(showCelebrationDemoIfRequested, 120));
+    }
 });
 
 
@@ -2736,10 +2741,18 @@ function getCelebrationLeafImage(badgeKey) {
 }
 
 function getCelebrationFlightTarget(badgeKey) {
-    return CELEBRATION_FLIGHT_TARGETS[badgeKey] || CELEBRATION_FLIGHT_TARGETS['feedback-completer'];
+    const target = CELEBRATION_FLIGHT_TARGETS[badgeKey] || CELEBRATION_FLIGHT_TARGETS['feedback-completer'];
+
+    return {
+        ...target,
+        swerveX: target.swerveX ?? target.arcX - 24,
+        swerveY: target.swerveY ?? target.arcY - 22,
+        settleX: target.settleX ?? target.x - 8,
+        settleY: target.settleY ?? target.y + 8
+    };
 }
 
-function renderCelebrationLeaves(color) {
+function renderCelebrationLeaves(color, flightTarget = getCelebrationFlightTarget('feedback-completer')) {
     const leaves = document.getElementById('celebration-tree-leaves');
     if (!leaves) return;
 
@@ -2749,12 +2762,19 @@ function renderCelebrationLeaves(color) {
         [65, 56], [49, 33]
     ];
 
-    leaves.innerHTML = positions.map(([left, top], index) => `
+    const backgroundLeaves = positions.map(([left, top], index) => `
         <span
             class="celebration-tree-dot"
             style="left:${left}%; top:${top}%; background:${color}; animation-delay:${200 + (index * 70)}ms;"
         ></span>
     `).join('');
+
+    leaves.innerHTML = `${backgroundLeaves}
+        <span
+            class="celebration-tree-dot landing-leaf"
+            style="--celebration-target-left:${flightTarget.left}; --celebration-target-top:${flightTarget.top}; background:${color};"
+        ></span>
+    `;
 }
 
 function setCelebrationCounter(id, value) {
@@ -2851,6 +2871,10 @@ function setupCelebrationMoment(data) {
     celebration.style.setProperty('--celebration-flight-y', `${flightTarget.y}px`);
     celebration.style.setProperty('--celebration-arc-x', `${flightTarget.arcX}px`);
     celebration.style.setProperty('--celebration-arc-y', `${flightTarget.arcY}px`);
+    celebration.style.setProperty('--celebration-swerve-x', `${flightTarget.swerveX}px`);
+    celebration.style.setProperty('--celebration-swerve-y', `${flightTarget.swerveY}px`);
+    celebration.style.setProperty('--celebration-settle-x', `${flightTarget.settleX}px`);
+    celebration.style.setProperty('--celebration-settle-y', `${flightTarget.settleY}px`);
     celebration.style.setProperty('--celebration-target-left', flightTarget.left);
     celebration.style.setProperty('--celebration-target-top', flightTarget.top);
     celebration.classList.remove('is-ready');
@@ -2882,7 +2906,7 @@ function setupCelebrationMoment(data) {
             : `Your ${reward.leaf} is now part of the ESG digital tree.`;
     }
 
-    renderCelebrationLeaves(color);
+    renderCelebrationLeaves(color, flightTarget);
     loadCelebrationImpactCounters().catch((error) => {
         console.warn('Celebration counters unavailable:', error);
         setCelebrationCounter('celebration-month-pledges', userData.pledgeSkipped ? 0 : 1);
@@ -3261,6 +3285,87 @@ function setupSocialShare(data) {
 
     shareStatus.textContent = emailStatusText;
     shareSection.style.display = 'block';
+}
+
+function isCelebrationDemoMode() {
+    return new URLSearchParams(window.location.search).get('celebrationDemo') === '1';
+}
+
+function normalizeCelebrationDemoBadge(rawBadge) {
+    const badgeKey = String(rawBadge || '').trim();
+    return BADGE_LEAF_REWARDS[badgeKey] ? badgeKey : 'climate-champion';
+}
+
+function getCelebrationDemoTopic(badgeKey) {
+    const topicByBadge = {
+        'climate-champion': 'climate-change',
+        'renewable-innovator': 'renewable-energy',
+        'sustainable-living-advocate': 'sustainable-living',
+        'ocean-guardian': 'ocean-conservation',
+        'governance-guardian': 'ethical-governance',
+        'social-champion': 'community-impact'
+    };
+
+    return topicByBadge[badgeKey] || '';
+}
+
+function stopCelebrationDemoTimers() {
+    if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+    }
+    if (idleWarningTimer) {
+        clearTimeout(idleWarningTimer);
+        idleWarningTimer = null;
+    }
+    if (idleWarningInterval) {
+        clearInterval(idleWarningInterval);
+        idleWarningInterval = null;
+    }
+    if (qrRefreshTimer) {
+        clearInterval(qrRefreshTimer);
+        qrRefreshTimer = null;
+    }
+    hideIdleWarning();
+}
+
+function showCelebrationDemoIfRequested() {
+    if (!isCelebrationDemoMode()) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const badgeKey = normalizeCelebrationDemoBadge(params.get('badge'));
+    const pledgeTopic = getCelebrationDemoTopic(badgeKey);
+    const isFeedbackOnly = badgeKey === 'feedback-completer';
+    const submittedAt = new Date().toISOString();
+
+    userData = {
+        name: 'Demo Visitor',
+        email: '',
+        answers: {
+            demoExperience: 5,
+            demoLearning: 5,
+            demoUsability: 4
+        },
+        pledgeSkipped: isFeedbackOnly,
+        pledgeTopic,
+        pledge: isFeedbackOnly ? '' : 'I pledge to bring a reusable bottle for three school days this week.',
+        submittedAt
+    };
+
+    const submissionData = {
+        badgeKey,
+        badgeColor: getCelebrationBadgeColor(badgeKey, null),
+        emailQueued: false,
+        submittedAt
+    };
+
+    stopCelebrationDemoTimers();
+    document.body.classList.add('celebration-demo-mode');
+    showFlowPage('thankyou-page');
+    setupBadgeReward(submissionData);
+    setupCelebrationMoment(submissionData);
+    setupJourneyPassport(submissionData);
+    setupSocialShare(submissionData);
 }
 
 // Reset everything and return to landing page for new submission

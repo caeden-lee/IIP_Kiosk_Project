@@ -111,6 +111,7 @@ body {
     backface-visibility: hidden;
     transform: translate3d(0, 0, 0);
     transform-style: preserve-3d;
+    isolation: isolate;
     contain: layout paint;
     overflow: hidden;
     animation-name: leafAppear;
@@ -123,6 +124,7 @@ body {
     content: '';
     position: absolute;
     inset: 0;
+    z-index: 1;
     background-image: var(--leaf-image-url);
     background-size: contain;
     background-repeat: no-repeat;
@@ -134,7 +136,7 @@ body {
 
 .leaf > * {
     position: absolute;
-    z-index: 1;
+    z-index: 2;
 }
 
 .leaf:focus-visible {
@@ -196,14 +198,98 @@ body {
     animation-name: leafFall;
     animation-duration: var(--leaf-fall-duration, 4200ms);
     animation-delay: var(--leaf-fall-delay, 0ms);
-    animation-timing-function: linear;
+    animation-timing-function: cubic-bezier(0.32, 0.02, 0.18, 1);
     animation-fill-mode: forwards;
     transform-origin: 50% 28%;
-    will-change: transform, opacity;
+    overflow: visible;
+    contain: layout;
+    will-change: transform, opacity, filter;
+}
+
+.leaf.leaf-falling::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 64%;
+    z-index: 0;
+    width: 118%;
+    height: 32%;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse, rgba(12, 50, 27, 0.2) 0%, rgba(12, 50, 27, 0.08) 42%, transparent 72%);
+    transform: translate(-50%, -50%) scale(0.6);
+    animation: leafFallShadow var(--leaf-fall-duration, 4200ms) ease-out var(--leaf-fall-delay, 0ms) forwards;
+}
+
+.leaf.leaf-falling::before {
+    animation: leafFlutter var(--leaf-flutter-duration, 880ms) ease-in-out infinite alternate;
+    transform-origin: 50% 62%;
+    will-change: transform;
+}
+
+.leaf.leaf-falling .leaf-name {
+    animation: leafNameFallFade var(--leaf-fall-duration, 4200ms) ease-in forwards;
+}
+
+.leaf.leaf-landing {
+    z-index: 60;
+    animation-name: leafLandOnTree;
+    animation-duration: var(--leaf-land-duration, 3400ms);
+    animation-delay: var(--leaf-land-delay, 0ms);
+    animation-timing-function: cubic-bezier(0.16, 0.7, 0.13, 1);
+    animation-fill-mode: both;
+    transform-origin: 50% 62%;
+    overflow: visible;
+    contain: layout;
+    will-change: transform, opacity, filter;
+}
+
+.leaf.leaf-landing::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 66%;
+    z-index: 0;
+    width: 150%;
+    height: 42%;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse, rgba(255, 255, 255, 0.34) 0%, rgba(183, 217, 154, 0.22) 35%, transparent 68%),
+        radial-gradient(ellipse, rgba(12, 50, 27, 0.26) 0%, rgba(12, 50, 27, 0.12) 48%, transparent 74%);
+    transform: translate(-50%, -50%) scale(1);
+    animation: leafFlightShadow var(--leaf-land-duration, 3400ms) cubic-bezier(0.16, 0.7, 0.13, 1) var(--leaf-land-delay, 0ms) both;
+}
+
+.leaf.leaf-landing::before {
+    animation: leafLandingFlutter var(--leaf-land-flutter-duration, 760ms) ease-in-out infinite alternate;
+    transform-origin: 50% 62%;
+    will-change: transform;
+}
+
+.leaf.leaf-landing .leaf-name {
+    animation: leafNameLandReveal var(--leaf-land-duration, 2600ms) ease-out both;
+}
+
+.leaf.leaf-landed:not(.leaf-falling) {
+    animation: none;
+    opacity: var(--leaf-visible-opacity, 0.9);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+}
+
+.leaf.leaf-landed:not(.leaf-falling)::before,
+.leaf.leaf-landed:not(.leaf-falling) .leaf-name {
+    animation: none;
+}
+
+.leaf.leaf-landed:not(.leaf-falling) .leaf-name {
+    opacity: 1;
 }
 
 .leaf.leaf-fallen {
-    transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) scale(0.86);
+    transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) rotateX(var(--leaf-fall-end-tilt, 0deg)) scale(var(--leaf-fall-end-scale, 0.78));
 }
 
 .leaf.leaf-cleared {
@@ -219,14 +305,21 @@ body {
 @keyframes leafAppear {
     0% {
         opacity: 0;
-        transform: translate3d(0, -18px, 0) rotate(-8deg) scale(0.78);
+        filter: blur(0.6px) drop-shadow(0 4px 6px rgba(12, 50, 27, 0.1));
+        transform: translate3d(var(--leaf-appear-drift, -10px), -26px, 0) rotate(var(--leaf-appear-rotation, -14deg)) scale(0.62);
     }
-    58% {
+    38% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.86);
+        transform: translate3d(calc(var(--leaf-appear-drift, -10px) * -0.35), 5px, 0) rotate(calc(var(--leaf-appear-rotation, -14deg) * -0.35)) scale(1.08);
+    }
+    68% {
         opacity: var(--leaf-visible-opacity, 0.9);
-        transform: translate3d(0, 3px, 0) rotate(2deg) scale(1.04);
+        filter: blur(0) drop-shadow(0 8px 10px rgba(12, 50, 27, 0.22));
+        transform: translate3d(calc(var(--leaf-appear-drift, -10px) * 0.12), -2px, 0) rotate(calc(var(--leaf-appear-rotation, -14deg) * 0.16)) scale(0.98);
     }
     100% {
         opacity: var(--leaf-visible-opacity, 0.9);
+        filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
         transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     }
 }
@@ -234,35 +327,231 @@ body {
 @keyframes leafFall {
     0% {
         opacity: var(--leaf-visible-opacity, 0.9);
-        transform: translate3d(0, 0, 0) rotate(0deg) rotateX(0deg) scale(1);
+        filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+        transform: translate3d(0, 0, 28px) rotate(0deg) rotateX(0deg) rotateY(0deg) scale(1);
     }
-    10% {
+    8% {
         opacity: var(--leaf-visible-opacity, 0.9);
-        transform: translate3d(calc(var(--leaf-fall-sway-a, 32px) * 0.4), calc(var(--leaf-fall-distance, 420px) * 0.05), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.08)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.35)) scale(0.995);
+        transform: translate3d(calc(var(--leaf-fall-sway-a, 32px) * 0.32), calc(var(--leaf-fall-distance, 420px) * 0.035), 42px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.05)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.55)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * -0.7)) scale(1.03);
     }
-    22% {
+    18% {
         opacity: var(--leaf-visible-opacity, 0.9);
-        transform: translate3d(var(--leaf-fall-sway-a, 32px), calc(var(--leaf-fall-distance, 420px) * 0.16), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.18)) rotateX(var(--leaf-fall-tilt, 14deg)) scale(0.985);
+        filter: drop-shadow(0 11px 15px rgba(12, 50, 27, 0.22));
+        transform: translate3d(var(--leaf-fall-sway-a, 32px), calc(var(--leaf-fall-distance, 420px) * 0.12), 58px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.14)) rotateX(var(--leaf-fall-tilt, 14deg)) rotateY(var(--leaf-fall-yaw, 24deg)) scale(1.01);
     }
-    36% {
+    31% {
         opacity: var(--leaf-visible-opacity, 0.9);
-        transform: translate3d(var(--leaf-fall-sway-b, -48px), calc(var(--leaf-fall-distance, 420px) * 0.30), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.34)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.8)) scale(0.965);
+        transform: translate3d(var(--leaf-fall-sway-b, -48px), calc(var(--leaf-fall-distance, 420px) * 0.26), 18px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.29)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -1.05)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * -0.55)) scale(0.97);
     }
-    52% {
+    47% {
         opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.96);
-        transform: translate3d(var(--leaf-fall-sway-c, 28px), calc(var(--leaf-fall-distance, 420px) * 0.48), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.52)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.75)) scale(0.94);
+        filter: drop-shadow(0 15px 20px rgba(12, 50, 27, 0.18));
+        transform: translate3d(var(--leaf-fall-sway-c, 28px), calc(var(--leaf-fall-distance, 420px) * 0.45), 36px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.47)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.82)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * 0.75)) scale(0.92);
     }
-    68% {
-        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.9);
-        transform: translate3d(calc(var(--leaf-fall-drift, 0) * 0.62), calc(var(--leaf-fall-distance, 420px) * 0.67), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.72)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.5)) scale(0.91);
+    63% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.92);
+        transform: translate3d(calc(var(--leaf-fall-drift, 0) * 0.58), calc(var(--leaf-fall-distance, 420px) * 0.64), 8px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.66)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.7)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * -0.35)) scale(0.86);
     }
-    84% {
-        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.82);
-        transform: translate3d(calc(var(--leaf-fall-drift, 0) + var(--leaf-fall-sway-a, 32px) * 0.25), calc(var(--leaf-fall-distance, 420px) * 0.86), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.9)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.35)) scale(0.88);
+    79% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.78);
+        filter: drop-shadow(0 18px 22px rgba(12, 50, 27, 0.13));
+        transform: translate3d(calc(var(--leaf-fall-drift, 0) + var(--leaf-fall-sway-d, 24px)), calc(var(--leaf-fall-distance, 420px) * 0.83), -8px) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.86)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * 0.45)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * 0.5)) scale(0.8);
+    }
+    92% {
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.62);
+        transform: translate3d(calc(var(--leaf-fall-drift, 0) - var(--leaf-fall-sway-d, 24px) * 0.3), calc(var(--leaf-fall-distance, 420px) * 0.96), 0) rotate(calc(var(--leaf-fall-rotation, 120deg) * 0.96)) rotateX(calc(var(--leaf-fall-tilt, 14deg) * -0.22)) rotateY(0deg) scale(var(--leaf-fall-pre-end-scale, 0.82));
     }
     100% {
-        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.72);
-        transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) rotateX(0deg) scale(0.86);
+        opacity: calc(var(--leaf-visible-opacity, 0.9) * 0.42);
+        filter: blur(var(--leaf-fall-end-blur, 0.2px)) drop-shadow(0 18px 18px rgba(12, 50, 27, 0.1));
+        transform: translate3d(var(--leaf-fall-drift, 0), var(--leaf-fall-distance, 420px), 0) rotate(var(--leaf-fall-rotation, 120deg)) rotateX(var(--leaf-fall-end-tilt, 0deg)) rotateY(0deg) scale(var(--leaf-fall-end-scale, 0.78));
+    }
+}
+
+@keyframes leafFallShadow {
+    0%, 18% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    42% {
+        opacity: 0.26;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    74% {
+        opacity: 0.18;
+        transform: translate(-50%, -50%) scale(0.64);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.32);
+    }
+}
+
+@keyframes leafLandOnTree {
+    0% {
+        opacity: 0;
+        filter: blur(0.2px) drop-shadow(0 26px 34px rgba(12, 50, 27, 0.28));
+        transform:
+            translate3d(var(--leaf-land-start-x, 0px), var(--leaf-land-start-y, 280px), 260px)
+            rotate(var(--leaf-land-start-rotate, -24deg))
+            rotateX(0deg)
+            rotateY(calc(var(--leaf-land-yaw, 28deg) * -0.25))
+            scale(var(--leaf-land-close-scale, 2.45));
+    }
+    8% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: blur(0) drop-shadow(0 30px 38px rgba(12, 50, 27, 0.3));
+        transform:
+            translate3d(var(--leaf-land-start-x, 0px), var(--leaf-land-start-y, 280px), 230px)
+            rotate(calc(var(--leaf-land-start-rotate, -24deg) * 0.8))
+            rotateX(2deg)
+            rotateY(calc(var(--leaf-land-yaw, 28deg) * 0.35))
+            scale(var(--leaf-land-close-scale, 2.45));
+    }
+    23% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: blur(0) drop-shadow(0 27px 34px rgba(12, 50, 27, 0.26));
+        transform:
+            translate3d(var(--leaf-land-sway-a-x, 120px), var(--leaf-land-sway-a-y, 190px), 166px)
+            rotate(var(--leaf-land-sway-a-rotate, 28deg))
+            rotateX(-5deg)
+            rotateY(var(--leaf-land-yaw, 28deg))
+            scale(var(--leaf-land-near-scale, 1.92));
+    }
+    42% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: blur(0.12px) drop-shadow(0 22px 28px rgba(12, 50, 27, 0.21));
+        transform:
+            translate3d(var(--leaf-land-sway-b-x, -88px), var(--leaf-land-sway-b-y, 92px), 92px)
+            rotate(var(--leaf-land-sway-b-rotate, -18deg))
+            rotateX(8deg)
+            rotateY(calc(var(--leaf-land-yaw, 28deg) * -0.85))
+            scale(var(--leaf-land-mid-scale, 1.48));
+    }
+    61% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: blur(0.2px) drop-shadow(0 16px 22px rgba(12, 50, 27, 0.18));
+        transform:
+            translate3d(var(--leaf-land-approach-x, 42px), var(--leaf-land-approach-y, -22px), 38px)
+            rotate(var(--leaf-land-approach-rotate, 21deg))
+            rotateX(-6deg)
+            rotateY(calc(var(--leaf-land-yaw, 28deg) * 0.55))
+            scale(var(--leaf-land-far-scale, 1.16));
+    }
+    78% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: blur(0.1px) drop-shadow(0 11px 15px rgba(12, 50, 27, 0.18));
+        transform:
+            translate3d(var(--leaf-land-final-x, 13px), -18px, 0)
+            rotate(var(--leaf-land-final-rotate, -12deg))
+            rotateX(2deg)
+            rotateY(calc(var(--leaf-land-yaw, 28deg) * -0.18))
+            scale(0.98);
+    }
+    90% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: drop-shadow(0 9px 12px rgba(12, 50, 27, 0.2));
+        transform:
+            translate3d(calc(var(--leaf-land-final-x, 13px) * -0.26), 7px, 0)
+            rotate(calc(var(--leaf-land-final-rotate, -12deg) * -0.32))
+            rotateX(2deg)
+            rotateY(0deg)
+            scale(1.03);
+    }
+    100% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+        transform: translate3d(0, 0, 0) rotate(0deg) rotateX(0deg) rotateY(0deg) scale(1);
+    }
+}
+
+@keyframes leafFlightShadow {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.65);
+    }
+    10% {
+        opacity: 0.72;
+        transform: translate(-50%, -50%) scale(1.48);
+    }
+    34% {
+        opacity: 0.36;
+        transform: translate(-50%, -50%) scale(1.04);
+    }
+    62% {
+        opacity: 0.18;
+        transform: translate(-50%, -50%) scale(0.68);
+    }
+    82% {
+        opacity: 0.28;
+        transform: translate(-50%, -50%) scale(0.44);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.28);
+    }
+}
+
+@keyframes leafLandingFlutter {
+    0% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-land-yaw, 28deg) * -0.7)) rotateZ(-3deg);
+    }
+    50% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-land-yaw, 28deg) * 0.56)) rotateZ(3deg);
+    }
+    100% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-land-yaw, 28deg) * -0.3)) rotateZ(-2deg);
+    }
+}
+
+@keyframes leafNameLandReveal {
+    0%, 68% {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.74);
+    }
+    86% {
+        opacity: 0.72;
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes leafFlutter {
+    0% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * -0.45)) rotateZ(-1deg);
+    }
+    50% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * 0.5)) rotateZ(2deg);
+    }
+    100% {
+        transform: scaleX(var(--leaf-image-scale-x, 1)) rotateY(calc(var(--leaf-fall-yaw, 24deg) * -0.2)) rotateZ(-2deg);
+    }
+}
+
+@keyframes leafNameFallFade {
+    0%, 36% {
+        opacity: 1;
+    }
+    72% {
+        opacity: 0.72;
+    }
+    100% {
+        opacity: 0.28;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .leaf,
+    .leaf.leaf-falling,
+    .leaf.leaf-landing,
+    .leaf.leaf-landing::before,
+    .leaf.leaf-landing .leaf-name,
+    .leaf.leaf-falling::before,
+    .leaf.leaf-falling .leaf-name {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
     }
 }
 
@@ -274,6 +563,9 @@ body {
     height: 100%;
     z-index: 5;
     pointer-events: none;
+    perspective: 1200px;
+    perspective-origin: 50% 62%;
+    transform-style: preserve-3d;
 }
 
 #leavesContainer .leaf {
