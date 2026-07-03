@@ -6070,6 +6070,26 @@ function normalizeCampaignSettings(campaignSettings) {
   return normalized;
 }
 
+function normalizeTreeDisplayMode(treeParameters) {
+    if (!treeParameters || typeof treeParameters !== 'object') {
+        return treeParameters;
+    }
+
+    const normalized = { ...treeParameters };
+
+    if (Object.prototype.hasOwnProperty.call(normalized, 'treeDisplayMode')) {
+        const mode = String(normalized.treeDisplayMode || '').trim().toLowerCase();
+        if (!['2d', '3d'].includes(mode)) {
+            const error = new Error('Tree display mode must be either 2d or 3d');
+            error.statusCode = 400;
+            throw error;
+        }
+        normalized.treeDisplayMode = mode;
+    }
+
+    return normalized;
+}
+
 function normalizeFeedbackPageStyle(feedbackPageStyle) {
   if (!feedbackPageStyle || typeof feedbackPageStyle !== 'object') {
     return feedbackPageStyle;
@@ -6656,7 +6676,10 @@ router.post('/parameters/tree-background/upload', auth.requireAdmin, uploadTreeB
 router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
     try {
         console.log('🌳 Saving tree parameters');
-        const { treeStage, showTitleBox, leafDisplayScale, leafThresholds, treeTitleBox } = req.body;
+        const { treeStage, showTitleBox, leafDisplayScale, leafThresholds, treeTitleBox, treeDisplayMode } = req.body;
+        const normalizedDisplayMode = treeDisplayMode === undefined
+            ? undefined
+            : normalizeTreeDisplayMode({ treeDisplayMode }).treeDisplayMode;
 
         // Read current config
         const config = parametersConfigStore.readParametersConfig();
@@ -6671,6 +6694,7 @@ router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
         if (showTitleBox !== undefined) config.treeParameters.showTitleBox = showTitleBox;
         if (leafDisplayScale !== undefined) config.treeParameters.leafDisplayScale = leafDisplayScale;
         if (leafThresholds) config.treeParameters.leafThresholds = leafThresholds;
+        if (normalizedDisplayMode !== undefined) config.treeParameters.treeDisplayMode = normalizedDisplayMode;
 
         // Handle treeTitleBox – merge with existing, but DO NOT override with root showTitleBox
         if (treeTitleBox) {
@@ -6781,6 +6805,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     }
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
     const normalizedCampaignSettings = normalizeCampaignSettings(campaignSettings);
+    const normalizedTreeParameters = normalizeTreeDisplayMode(treeParameters);
     const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
     const normalizedFeedbackPageStyle = normalizeFeedbackPageStyle(feedbackPageStyle);
     const normalizedBadgeLeafStyles = normalizeBadgeLeafStyles(badgeLeafStyles);
@@ -6795,7 +6820,7 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (emailContent) config.emailContent = { ...config.emailContent, ...emailContent };
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
-    if (treeParameters) config.treeParameters = { ...config.treeParameters, ...treeParameters };
+    if (normalizedTreeParameters) config.treeParameters = { ...config.treeParameters, ...normalizedTreeParameters };
     if (normalizedFeedbackPageStyle) config.feedbackPageStyle = { ...config.feedbackPageStyle, ...normalizedFeedbackPageStyle };
     if (normalizedBadgeLeafStyles) {
       config.badgeLeafStyles = {
