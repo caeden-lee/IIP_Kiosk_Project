@@ -261,6 +261,7 @@ class TreeManager {
             const tree = data.parameters?.treeParameters || {};
             const assets = data.parameters?.visualAssets || {};
             const campaign = data.parameters?.campaignSettings || {};
+            const badgeLeafStyles = data.parameters?.badgeLeafStyles || {};
 
             this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
             this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
@@ -286,8 +287,12 @@ class TreeManager {
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
-            // Leaf override image and display scale
-            this.leafDisplayScale = Number(tree.leafDisplayScale) || 1;
+            // Leaf override image and shared display scale
+            const configuredLeafScale = Number(tree.leafDisplayScale);
+            const configuredBadgeLeafScale = Number(badgeLeafStyles.leafScale);
+            this.leafDisplayScale = Number.isFinite(configuredLeafScale)
+                ? configuredLeafScale
+                : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;

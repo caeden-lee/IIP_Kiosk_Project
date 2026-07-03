@@ -8709,6 +8709,7 @@ async function saveTreeParameters() {
         const showTitleBox = document.getElementById('param-showTitleBox').checked;
         const leafScaleSlider = document.getElementById('param-leafDisplayScale');
         const leafDisplayScale = leafScaleSlider ? parseFloat(leafScaleSlider.value) : 1.0;
+        const treeDisplayMode = document.getElementById('param-treeDisplayMode')?.value === '3d' ? '3d' : '2d';
 
         // Get thresholds
         const thresholds = {
@@ -8735,6 +8736,7 @@ async function saveTreeParameters() {
             treeStage,
             showTitleBox,
             leafDisplayScale,
+            treeDisplayMode,
             leafThresholds: thresholds,   // save thresholds for later
             treeTitleBox: collectTreeTitleSettings()  // collect title box settings if needed
         };
@@ -9465,6 +9467,7 @@ async function loadTreeTitleSettings() {
     const settings = tree.treeTitleBox;
     if (settings) {
         document.getElementById('param-showTitleBox').checked = settings.showTitleBox ?? true;
+        document.getElementById('param-treeDisplayMode').value = settings.treeDisplayMode === '3d' ? '3d' : '2d';
         document.getElementById('param-titleText').value = settings.titleText || '🌳 ESG Digital Tree';
         document.getElementById('param-subtitleText').value = settings.subtitleText || 'Growing with every visitor\'s contribution this year';
         document.getElementById('param-titleOpacity').value = settings.opacity ?? 0.25;
@@ -13705,6 +13708,7 @@ function populateParameterForm(config) {
     if (treeStageStatus) {
         treeStageStatus.textContent = `Current: stage ${normalizedTreeStage}. Shown on /tree after apply.`;
     }
+    setInputValue('param-treeDisplayMode', tree.treeDisplayMode || '2d');
     setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
     // Leaf display scale (new) - Done by Yu Kang
     const badgeLeafScale = Number(badgeLeafStyles.leafScale);
@@ -13864,6 +13868,7 @@ function collectParameterForm() {
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
+            treeDisplayMode: getInputValue('param-treeDisplayMode') === '3d' ? '3d' : '2d',
             leafDisplayScale: sharedLeafScale,
             showTitleBox: getCheckedValue('param-showTitleBox')
         },
