@@ -5939,6 +5939,45 @@ router.put('/form-ui', auth.requireAuth, (req, res) => {
   }
 });
 
+// ==================== 20B. FEEDBACK ANALYSIS CACHE STORAGE ====================
+// Admin control for where feedback analysis cache is persisted.
+
+router.get('/feedback-analysis-cache-storage', auth.requireAdmin, async (req, res) => {
+  try {
+    await feedbackAnalysisCacheStore.ensureReady();
+
+    res.json({
+      success: true,
+      storageMode: feedbackAnalysisCacheStore.getStorageMode()
+    });
+  } catch (error) {
+    console.error('❌ Error loading feedback analysis cache storage mode:', error);
+    res.status(500).json({ success: false, error: 'Failed to load cache storage mode' });
+  }
+});
+
+router.put('/feedback-analysis-cache-storage', auth.requireAdmin, async (req, res) => {
+  try {
+    const storageMode = feedbackAnalysisCacheStore.normalizeStorageMode(req.body?.storageMode);
+    const savedMode = feedbackAnalysisCacheStore.setStorageMode(storageMode);
+
+    if (!savedMode) {
+      return res.status(500).json({ success: false, error: 'Failed to save cache storage mode' });
+    }
+
+    await feedbackAnalysisCacheStore.reloadCache();
+
+    res.json({
+      success: true,
+      message: 'Feedback analysis cache storage mode updated',
+      storageMode: savedMode
+    });
+  } catch (error) {
+    console.error('❌ Error updating feedback analysis cache storage mode:', error);
+    res.status(500).json({ success: false, error: 'Failed to update cache storage mode' });
+  }
+});
+
 // ==================== 21. PARAMETER ADJUSTMENT MANAGEMENT ====================
 // System-wide parameter configuration, including feature toggles and centralized validation rules (DONE BY CAEDEN)
 // Translation, archive timing, and auto-archive helpers added for admin controls. (Done by Caeden)

@@ -1921,6 +1921,43 @@ body {
 
 /* ==================== FEEDBACK & ARCHIVE DATA PAGE STYLES ==================== */
 
+
+/* Tabs for different tree adjustment options */
+.feedback-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.feedback-tab {
+    padding: 10px 18px;
+    border: none;
+    background: #f5f5f5;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: 0.2s;
+    font-weight: 500;
+}
+
+.feedback-tab:hover {
+    background: #e8e8e8;
+}
+
+.feedback-tab.active {
+    background: #4CAF50;
+    color: white;
+}
+
+.feedback-tab-content {
+    display: none;
+}
+
+.feedback-tab-content.active {
+    display: block;
+}
+
 /* Section headers and refresh button */
 .section-header {
     display: flex;
