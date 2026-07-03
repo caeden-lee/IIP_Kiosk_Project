@@ -4145,6 +4145,27 @@ function closeQAPopup() {
 
 // ==================== Feedback Sentiment Analysis ====================
 
+// Switch between feedback report tabs
+function switchFeedbackTab(tabId) {
+
+    // Hide all contents
+    document.querySelectorAll('.feedback-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active from buttons
+    document.querySelectorAll('.feedback-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+
+    // Activate clicked button
+    event.currentTarget.classList.add('active');
+}
+
+
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
     return String(text ?? '')
@@ -8560,6 +8581,7 @@ function showPage(pageName) {
     } else if (pageName === 'feedback-report') {
         loadFlaggedFeedback();
         loadVisitorTrendsData();
+        loadCacheStorageMode();
     } else if (pageName === 'digital-tree') {
         loadDigitalTreeData();
     } else if (pageName === 'pledgeboard') {
@@ -12829,6 +12851,65 @@ async function saveLandingPageQR() {
       status.textContent = 'Failed to save QR setting';
       status.className = 'fm-status fm-status--error';
     }
+  }
+}
+
+function setCacheStorageStatus(type, message) {
+  const el = document.getElementById('ai-cache-storage-status');
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = 'fm-status';
+  if (type === 'success') {
+    el.classList.add('fm-status--success');
+  } else if (type === 'error') {
+    el.classList.add('fm-status--error');
+  } else {
+    el.classList.add('fm-status--info');
+  }
+}
+
+async function loadCacheStorageMode() {
+  try {
+    const res = await fetch('/api/admin/feedback-analysis-cache-storage');
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to load cache storage mode');
+    }
+
+    const select = document.getElementById('ai-cache-storage-mode');
+    if (select) {
+      select.value = data.storageMode || 'both';
+    }
+
+    setCacheStorageStatus('info', `Current storage mode: ${data.storageMode || 'both'}`);
+  } catch (error) {
+    console.error('Failed to load cache storage mode:', error);
+    setCacheStorageStatus('error', 'Failed to load cache storage mode');
+  }
+}
+
+async function saveCacheStorageMode() {
+  try {
+    const select = document.getElementById('ai-cache-storage-mode');
+    const storageMode = select ? select.value : 'both';
+
+    const res = await fetch('/api/admin/feedback-analysis-cache-storage', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storageMode })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to save cache storage mode');
+    }
+
+    setCacheStorageStatus('success', `Cache storage updated to ${data.storageMode}`);
+  } catch (error) {
+    console.error('Failed to save cache storage mode:', error);
+    setCacheStorageStatus('error', 'Failed to save cache storage mode');
   }
 }
 
