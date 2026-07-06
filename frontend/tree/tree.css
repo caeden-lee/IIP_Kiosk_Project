@@ -100,6 +100,10 @@ body {
     pointer-events: none;
 }
 
+#treeImageLeaves.stage-leaves-upward {
+    transform: translate(-50%, calc(-50% - 28px));
+}
+
 /* =========================
    LEAVES
    ========================= */

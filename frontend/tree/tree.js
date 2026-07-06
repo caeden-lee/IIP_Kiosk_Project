@@ -427,6 +427,11 @@ class TreeManager {
         return this.normalizeTreeStage(this.treeStage) > 0;
     }
 
+    stageLeavesShouldShiftUp() {
+        const stage = this.normalizeTreeStage(this.treeStage);
+        return stage >= 1 && stage <= 3;
+    }
+
     applyTreeStageAssets(stageNumber) {
         const stage = this.normalizeTreeStage(stageNumber);
         this.treeStage = stage;
@@ -1584,6 +1589,8 @@ class TreeManager {
         if (!this.treeImageLeaves) {
             return;
         }
+
+        this.treeImageLeaves.classList.toggle('stage-leaves-upward', this.stageLeavesShouldShiftUp());
 
         if (!this.stageHasLeaves()) {
             this.treeImageLeaves.style.display = 'none';

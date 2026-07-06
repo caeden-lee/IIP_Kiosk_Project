@@ -71,7 +71,8 @@
     "allowedPhotoFormats": []
   },
   "treeParameters": {
-    "treeStage": 4,
+    "treeStage": 3,
+    "treeDisplayMode": "2d",
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": 0,
@@ -100,8 +101,7 @@
       "position": "top-center",
       "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
-    },
-    "treeDisplayMode": "2d"
+    }
   },
   "feedbackPageStyle": {
     "backgroundCss": "",
@@ -123,13 +123,13 @@
   "photoSettings": {
     "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
+    "boomerangFrameDelayMs": 90,
     "maxPhotoFileSize": 5242880,
     "supportedFormats": [
       "jpeg",
       "png",
       "webp"
-    ],
-    "boomerangFrameDelayMs": 90
+    ]
   },
   "overlaySettings": {
     "enableOverlayUpload": false,
@@ -140,6 +140,10 @@
       "jpg",
       "jpeg"
     ]
+  },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
   },
   "visualAssets": {
     "feedbackBackground": "",
@@ -163,9 +167,5 @@
     "pledgeboardButtonOffsetY": 0,
     "pledgeboardButtonWidth": 600,
     "pledgeboardButtonHeight": 64
-  },
-  "archiveSettings": {
-    "autoArchiveEnabled": true,
-    "archiveAfterDays": 90
   }
 }
