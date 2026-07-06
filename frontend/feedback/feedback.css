@@ -2258,6 +2258,73 @@ textarea::placeholder {
     color: #ffffff;
 }
 
+.topic-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.topic-checkbox-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 12px 14px;
+    border: 2px solid rgba(139, 215, 193, 0.38);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(139, 215, 193, 0.12), rgba(255, 255, 255, 0.08)),
+        rgba(10, 19, 26, 0.88);
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.topic-checkbox-card:hover,
+.topic-checkbox-card:focus-within {
+    border-color: #8bd7c1;
+    background:
+        linear-gradient(135deg, rgba(139, 215, 193, 0.2), rgba(255, 255, 255, 0.1)),
+        rgba(10, 19, 26, 0.94);
+    transform: translateY(-1px);
+}
+
+.topic-checkbox-card input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0f766e;
+    flex: 0 0 auto;
+}
+
+.topic-checkbox-card:has(input:checked) {
+    border-color: #34d399;
+    background:
+        linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(20, 184, 166, 0.18)),
+        rgba(5, 46, 22, 0.92);
+    box-shadow: 0 10px 24px rgba(16, 185, 129, 0.18);
+}
+
+.topic-help-text {
+    display: block;
+    margin-top: 8px;
+    color: rgba(248, 250, 252, 0.78);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.has-error .topic-checkbox-grid {
+    border-radius: 10px;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.24);
+}
+
+@media (max-width: 640px) {
+    .topic-checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ==================== SUSTAINABILITY THEME REFINEMENT ==================== */
 
 body {

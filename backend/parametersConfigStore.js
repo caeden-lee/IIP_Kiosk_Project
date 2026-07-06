@@ -125,6 +125,7 @@ const DEFAULT_CONFIG = {
     pledgeMaxLength: 500,
     pledgeTopicRequired: true,
     photoRequired: true,
+    dailySubmissionLimitPerEmail: 1,
     maxPhotoFileSizeMb: 5,
     allowedPhotoFormats: ["jpeg", "jpg", "png", "webp"]
   },
