@@ -16,7 +16,7 @@
 // ============================================================
 //
 // 1. LIVE PULSE ADMIN ACCESS
-//    function openPulsePage()         - Open protected Live Pulse dashboard from admin page (DONE BY XY)
+//    function openPulsePage()         - Open public Live Pulse dashboard from admin page (DONE BY XY)
 //    showPage('pulse')                - Added admin Live Pulse launcher page navigation (DONE BY XY)
 //
 // 2. BADGE EMAIL TEMPLATE MANAGEMENT
@@ -4145,6 +4145,17 @@ function closeQAPopup() {
 
 // ==================== Feedback Sentiment Analysis ====================
 
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+
 async function loadFlaggedFeedback() {
     const tbody = document.getElementById('flagged-feedback-table-body');
     const summary = document.getElementById('flagged-feedback-summary');
@@ -4417,9 +4428,35 @@ function closeFeedbackInsightsModal() {
     }
 }
 
+// Filter feedback items by date range (Done by Yu Kang)
+function filterFeedbackItemsByDate(items, fromDate, toDate) {
+    return items.filter(item => {
+        if (!item.date) return false;
+
+        const itemDate = new Date(item.date);
+
+        if (fromDate) {
+            const start = new Date(fromDate);
+            start.setHours(0, 0, 0, 0);
+
+            if (itemDate < start) return false;
+        }
+
+        if (toDate) {
+            const end = new Date(toDate);
+            end.setHours(23, 59, 59, 999);
+
+            if (itemDate > end) return false;
+        }
+
+        return true;
+    });
+}
+
+// Open modal to view feedback insights by sentiment (Done by Yu Kang)
 function openFeedbackInsightsModal(sentiment) {
     const normalizedSentiment = String(sentiment || '').toLowerCase();
-    const items = getFeedbackInsightsBySentiment(normalizedSentiment);
+    let items = getFeedbackInsightsBySentiment(normalizedSentiment);
     const titleMap = {
         positive: 'Positive Feedback',
         neutral: 'Neutral Feedback',
@@ -4468,7 +4505,32 @@ function openFeedbackInsightsModal(sentiment) {
                 </div>
                 <button type="button" onclick="closeFeedbackInsightsModal()" style="background: transparent; border: 0; color: #64748b; font-size: 28px; line-height: 1; cursor: pointer; padding: 4px 8px;">&times;</button>
             </div>
-            <div style="padding: 20px 22px 22px; overflow: auto; background: #ffffff;">
+
+            <div style="padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; gap:14px; align-items:end; flex-wrap:wrap;">
+                <div>
+                    <label style="display:block; font-size:12px; color:#64748b; margin-bottom:4px;">
+                        From
+                    </label>
+                    <input type="date" id="feedbackDateFrom" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+
+                <div>
+                    <label style="display:block; font-size:12px; color:#64748b; margin-bottom:4px;">
+                        To
+                    </label>
+                    <input type="date" id="feedbackDateTo" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+
+                <button id="applyFeedbackDateFilter" class="btn-primary">
+                    Apply
+                </button>
+
+                <button id="clearFeedbackDateFilter" class="btn-primary">
+                    Clear
+                </button>
+            </div>
+
+            <div id="feedbackModalContent" style="padding:20px 22px 22px; overflow:auto; background:#fff;">
                 ${content}
             </div>
         </div>
@@ -4481,6 +4543,47 @@ function openFeedbackInsightsModal(sentiment) {
     });
 
     document.body.appendChild(modal);
+
+    // Add event listener for the "Apply" button to filter feedback items by date
+    modal.querySelector('#applyFeedbackDateFilter').addEventListener('click', () => {
+        const from = modal.querySelector('#feedbackDateFrom').value;
+        const to = modal.querySelector('#feedbackDateTo').value;
+        const filtered = filterFeedbackItemsByDate(items, from, to);
+
+        renderItems(filtered);
+
+        const count = modal.querySelector('h3')
+            .nextElementSibling;
+
+        count.textContent = `${filtered.length} item(s)`;
+    });
+
+    // Add event listener for the "Clear" button to reset the date filters
+    modal.querySelector('#clearFeedbackDateFilter').addEventListener('click', () => {
+        modal.querySelector('#feedbackDateFrom').value = '';
+        modal.querySelector('#feedbackDateTo').value = '';
+
+        renderItems(items);
+
+        modal.querySelector('h3').nextElementSibling.textContent = `${items.length} item(s)`;
+    });
+
+    // Add event listeners for date filter buttons
+    const contentContainer = modal.querySelector('#feedbackModalContent');
+    const renderItems = (filteredItems) => {
+
+        contentContainer.innerHTML = filteredItems.length
+            ? filteredItems.map(item => `
+                <div style="padding: 14px 0; border-top: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                        <strong style="color: #0f172a;">${escapeHtml(item.source || 'Feedback')}</strong>
+                        <span style="font-size: 12px; color: #64748b;">${escapeHtml(item.date || '')}</span>
+                    </div>
+
+                    ${item.question ? `<div style="margin-bottom: 6px; color: #1d4ed8; font-size: 13px; font-weight: 600;">${escapeHtml(item.question)}</div>`: ''}
+                    <div style="color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(item.text || '')}</div>
+                </div>`).join(''): `<div style="padding:20px;color:#64748b;text-align:center;">No feedback found.</div>`;
+    };
 }
 
 // Analyze feedback into AI Insight Summary (Done by Yu Kang)
@@ -8610,7 +8713,8 @@ async function saveTreeParameters() {
             treeStage,
             showTitleBox,
             leafDisplayScale,
-            leafThresholds: thresholds   // save thresholds for later
+            leafThresholds: thresholds,   // save thresholds for later
+            treeTitleBox: collectTreeTitleSettings()  // collect title box settings if needed
         };
 
         const response = await fetch('/api/admin/parameters/treeParameters', {
@@ -8759,6 +8863,26 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
         showNotification(error.message || 'Failed to save tree parameters.', 'error');
     }
 }*/
+
+// Switch between tree management tabs
+function switchTreeTab(tabId) {
+
+    // Hide all contents
+    document.querySelectorAll('.tree-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active from buttons
+    document.querySelectorAll('.tree-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+
+    // Activate clicked button
+    event.currentTarget.classList.add('active');
+}
 
 
 async function loadTreeStageSelection() {
@@ -9241,19 +9365,99 @@ async function selectParameterLeaf() {
     }
 }
 
-
 // Refresh tree data
-function refreshTreeData() {
-    loadDigitalTreeData();
+async function refreshTreeData() {
+    await loadDigitalTreeData();
+
+    // Reload existing leaf images
+    await loadAvailableLeafImages(window.currentLeafImagePath || '');
 }
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+
+// Default values for tree title box settings
+const TITLE_DEFAULTS = {
+    showTitleBox: true,
+    titleText: '🌳 ESG Digital Tree',
+    subtitleText: 'Growing with every visitor\'s contribution this year',
+    opacity: 0.25,
+    blur: 6,
+    radius: 25,
+    position: 'top-center',
+    paddingX: 30,
+    paddingY: 15
+};
+
+function resetTreeTitleSettings(autoSave = true) {
+    // Reset all input fields to default values
+    document.getElementById('param-showTitleBox').checked = TITLE_DEFAULTS.showTitleBox;
+    document.getElementById('param-titleText').value = TITLE_DEFAULTS.titleText;
+    document.getElementById('param-subtitleText').value = TITLE_DEFAULTS.subtitleText;
+    document.getElementById('param-titleOpacity').value = TITLE_DEFAULTS.opacity;
+    document.getElementById('param-titleOpacityValue').textContent = TITLE_DEFAULTS.opacity;
+    document.getElementById('param-titleBlur').value = TITLE_DEFAULTS.blur;
+    document.getElementById('param-titleBlurValue').textContent = TITLE_DEFAULTS.blur + 'px';
+    document.getElementById('param-titleRadius').value = TITLE_DEFAULTS.radius;
+    document.getElementById('param-titleRadiusValue').textContent = TITLE_DEFAULTS.radius + 'px';
+    document.getElementById('param-titlePosition').value = TITLE_DEFAULTS.position;
+    document.getElementById('param-titlePaddingX').value = TITLE_DEFAULTS.paddingX;
+    document.getElementById('param-titlePaddingY').value = TITLE_DEFAULTS.paddingY;
+
+    // The live preview updates automatically via oninput events.
+
+    // Optionally save immediately to persist the defaults on the server
+    if (autoSave) {
+        saveTreeTitleSettings();  // calls the existing save function
+        showNotification('Title box settings reset to defaults and saved.', 'success');
+    } else {
+        showNotification('Title box settings reset to defaults. Click Save to persist.', 'info');
+    }
 }
+
+// Collect tree title settings from the form
+function collectTreeTitleSettings() {
+    return {
+        showTitleBox: document.getElementById('param-showTitleBox').checked,
+        titleText: document.getElementById('param-titleText').value,
+        subtitleText: document.getElementById('param-subtitleText').value,
+        opacity: parseFloat(document.getElementById('param-titleOpacity').value),
+        blur: parseInt(document.getElementById('param-titleBlur').value),
+        radius: parseInt(document.getElementById('param-titleRadius').value),
+        position: document.getElementById('param-titlePosition').value,
+        paddingX: parseInt(document.getElementById('param-titlePaddingX').value),
+        paddingY: parseInt(document.getElementById('param-titlePaddingY').value)
+    };
+    console.log('Collected title settings:', settings);
+    return settings;
+}
+
+// Save tree title settings
+async function saveTreeTitleSettings() {
+    await saveTreeParameters();
+}
+
+// Load tree title settings from the backend and populate the form
+async function loadTreeTitleSettings() {
+    const response = await fetch('/api/parameters');
+    const data = await response.json();
+    const tree = data.parameters?.treeParameters || {};
+    const settings = tree.treeTitleBox;
+    if (settings) {
+        document.getElementById('param-showTitleBox').checked = settings.showTitleBox ?? true;
+        document.getElementById('param-titleText').value = settings.titleText || '🌳 ESG Digital Tree';
+        document.getElementById('param-subtitleText').value = settings.subtitleText || 'Growing with every visitor\'s contribution this year';
+        document.getElementById('param-titleOpacity').value = settings.opacity ?? 0.25;
+        document.getElementById('param-titleOpacityValue').textContent = settings.opacity ?? 0.25;
+        document.getElementById('param-titleBlur').value = settings.blur ?? 6;
+        document.getElementById('param-titleBlurValue').textContent = (settings.blur ?? 6) + 'px';
+        document.getElementById('param-titleRadius').value = settings.radius ?? 25;
+        document.getElementById('param-titleRadiusValue').textContent = (settings.radius ?? 25) + 'px';
+        document.getElementById('param-titlePosition').value = settings.position || 'top-center';
+        document.getElementById('param-titlePaddingX').value = settings.paddingX ?? 30;
+        document.getElementById('param-titlePaddingY').value = settings.paddingY ?? 15;
+    }
+}
+// Call when DOM is ready
+document.addEventListener('DOMContentLoaded', loadTreeTitleSettings);
 
 // ==================== 25. INITIALIZATION & EVENT HANDLERS ====================
 
@@ -12852,6 +13056,16 @@ const DEFAULT_BADGE_EMAIL_BADGES = [
     { key: 'governance-guardian', name: 'Governance Guardian', description: 'For ethics and governance pledges', color: '#6366f1' }
 ];
 
+const DEFAULT_BADGE_LEAF_COLORS = {
+    'feedback-completer': '#4a7c59',
+    'climate-champion': '#0f766e',
+    'renewable-innovator': '#f59e0b',
+    'sustainable-living-advocate': '#16a34a',
+    'ocean-guardian': '#0284c7',
+    'governance-guardian': '#7c3aed',
+    'social-champion': '#d97706'
+};
+
 function escapeBadgeTemplateHtml(value) {
     return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
@@ -13102,6 +13316,121 @@ function clampNumber(value, min, max, fallback) {
     return Math.min(max, Math.max(min, safeNumber));
 }
 
+function getDefaultBadgeLeafColors() {
+    return { ...DEFAULT_BADGE_LEAF_COLORS };
+}
+
+function normalizeHexColor(value, fallback = '#4a7c59') {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function getBadgeLeafColorInputId(key) {
+    return `badge-leaf-color-${key}`;
+}
+
+function getBadgeLeafStyleColors(configColors = {}) {
+    return {
+        ...getDefaultBadgeLeafColors(),
+        ...(configColors || {})
+    };
+}
+
+function collectSharedLeafScale() {
+    const rawValue = getInputValue('param-sharedLeafScale') || getInputValue('param-leafDisplayScale');
+    return clampNumber(rawValue, 0.4, 2, 1);
+}
+
+function setSharedLeafScale(value) {
+    const scale = clampNumber(value, 0.4, 2, 1);
+    const normalized = Number(scale.toFixed(2));
+    setInputValue('param-sharedLeafScale', normalized);
+    setInputValue('param-leafDisplayScale', normalized);
+
+    const sharedOutput = document.getElementById('param-sharedLeafScaleValue');
+    if (sharedOutput) sharedOutput.textContent = `${normalized.toFixed(2)}x`;
+
+    const oldOutput = document.getElementById('param-leafDisplayScaleValue');
+    if (oldOutput) oldOutput.textContent = String(normalized);
+
+    document.querySelectorAll('.badge-leaf-preview').forEach(preview => {
+        preview.style.setProperty('--badge-preview-scale', normalized);
+    });
+
+    const previewBox = document.getElementById('previewLeafBox');
+    if (previewBox) {
+        previewBox.style.transform = `scale(${normalized})`;
+    }
+}
+
+function collectBadgeLeafStyleColors() {
+    const defaults = getDefaultBadgeLeafColors();
+    return DEFAULT_BADGE_EMAIL_BADGES.reduce((colors, badge) => {
+        colors[badge.key] = normalizeHexColor(getInputValue(getBadgeLeafColorInputId(badge.key)), defaults[badge.key]);
+        return colors;
+    }, {});
+}
+
+function updateBadgeLeafPreviews() {
+    const colors = collectBadgeLeafStyleColors();
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        const preview = document.querySelector(`[data-preview-badge-leaf="${badge.key}"]`);
+        if (preview) {
+            preview.style.setProperty('--badge-preview-color', colors[badge.key]);
+        }
+    });
+    setSharedLeafScale(collectSharedLeafScale());
+}
+
+function updateFeedbackStylePreview() {
+    const opacity = clampNumber(getInputValue('param-feedbackCardOpacity'), 0.55, 1, 0.9);
+    const accentColor = normalizeHexColor(getInputValue('param-feedbackAccentColor'), '#4a7c59');
+
+    const opacityOutput = document.getElementById('param-feedbackCardOpacityValue');
+    if (opacityOutput) opacityOutput.textContent = opacity.toFixed(2);
+
+    const preview = document.getElementById('feedback-style-preview');
+    if (preview) {
+        preview.style.setProperty('--feedback-preview-color', accentColor);
+        preview.textContent = `Card opacity ${opacity.toFixed(2)}`;
+    }
+}
+
+function bindFeedbackAndLeafStyleControls() {
+    [
+        'param-feedbackCardOpacity',
+        'param-feedbackAccentColor'
+    ].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.feedbackStyleBound) {
+            input.addEventListener('input', updateFeedbackStylePreview);
+            input.dataset.feedbackStyleBound = 'true';
+        }
+    });
+
+    [
+        'param-sharedLeafScale',
+        'param-leafDisplayScale'
+    ].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input && !input.dataset.sharedLeafBound) {
+            input.addEventListener('input', () => {
+                setSharedLeafScale(input.value);
+                updateBadgeLeafPreviews();
+            });
+            input.dataset.sharedLeafBound = 'true';
+        }
+    });
+
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        const input = document.getElementById(getBadgeLeafColorInputId(badge.key));
+        if (input && !input.dataset.badgeLeafBound) {
+            input.addEventListener('input', updateBadgeLeafPreviews);
+            input.dataset.badgeLeafBound = 'true';
+        }
+    });
+}
+
 function getLandingLayoutValues() {
     return {
         landingTextScale: clampNumber(getInputValue('layout-landingTextScale'), 0.75, 1.4, 1),
@@ -13215,6 +13544,8 @@ function populateParameterForm(config) {
     const flags = config.featureFlags || {};
     const rules = config.validationRules || {};
     const tree = config.treeParameters || {};
+    const feedbackStyle = config.feedbackPageStyle || {};
+    const badgeLeafStyles = config.badgeLeafStyles || {};
     const photo = config.photoSettings || {};
     const overlay = config.overlaySettings || {};
     const assets = config.visualAssets || {};
@@ -13295,13 +13626,25 @@ function populateParameterForm(config) {
     }
     setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
     // Leaf display scale (new) - Done by Yu Kang
-    const leafScale = typeof tree.leafDisplayScale !== 'undefined' ? tree.leafDisplayScale : 1;
+    const badgeLeafScale = Number(badgeLeafStyles.leafScale);
+    const leafScale = typeof tree.leafDisplayScale !== 'undefined'
+        ? tree.leafDisplayScale
+        : (Number.isFinite(badgeLeafScale) ? badgeLeafScale : 1);
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
     if (leafScaleEl) {
         leafScaleEl.value = leafScale;
         const valEl = document.getElementById('param-leafDisplayScaleValue');
         if (valEl) valEl.textContent = String(leafScale);
     }
+    setSharedLeafScale(leafScale);
+    const badgeLeafColors = getBadgeLeafStyleColors(badgeLeafStyles.colors);
+    const defaultBadgeLeafColors = getDefaultBadgeLeafColors();
+    DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
+        setInputValue(
+            getBadgeLeafColorInputId(badge.key),
+            normalizeHexColor(badgeLeafColors[badge.key], defaultBadgeLeafColors[badge.key])
+        );
+    });
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-boomerangFrameDelayMs', photo.boomerangFrameDelayMs || 90); // changes made by nick
@@ -13310,7 +13653,9 @@ function populateParameterForm(config) {
     setRadioValue('overlay-upload', overlay.enableOverlayUpload);
     setInputValue('param-maxOverlayFileSize', bytesToMegabytes(overlay.maxOverlayFileSize, 10));
     setInputValue('param-gifOverlaySpeed', overlay.gifOverlaySpeed || 1); // changes made by nick
-    setInputValue('param-feedbackBackground', assets.feedbackBackground);
+    setInputValue('param-feedbackBackground', feedbackStyle.backgroundCss || assets.feedbackBackground);
+    setInputValue('param-feedbackCardOpacity', clampNumber(feedbackStyle.cardOpacity, 0.55, 1, 0.9).toFixed(2));
+    setInputValue('param-feedbackAccentColor', normalizeHexColor(feedbackStyle.accentColor, '#4a7c59'));
     setInputValue('param-treeBackground', assets.treeBackground);
     setInputValue('param-defaultOverlayTheme', assets.defaultOverlayTheme);
     setInputValue('layout-landingTextScale', layout.landingTextScale ?? 1);
@@ -13329,6 +13674,9 @@ function populateParameterForm(config) {
     setInputValue('layout-pledgeboardButtonHeight', layout.pledgeboardButtonHeight ?? 64);
     bindLandingLayoutPreview();
     updateLandingLayoutPreview();
+    bindFeedbackAndLeafStyleControls();
+    updateFeedbackStylePreview();
+    updateBadgeLeafPreviews();
     // Leaf image preview - Done by Yu Kang
     const previewBox = document.getElementById('previewLeafBox');
     if (previewBox) {
@@ -13356,6 +13704,9 @@ function populateParameterForm(config) {
 }
 
 function collectParameterForm() {
+    const sharedLeafScale = collectSharedLeafScale();
+    const feedbackBackground = getInputValue('param-feedbackBackground');
+
     return {
         feedbackMessages: {
             thankYouTitle: getInputValue('param-thankYouTitle'),
@@ -13434,8 +13785,17 @@ function collectParameterForm() {
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
-            leafDisplayScale: Number(getInputValue('param-leafDisplayScale')) || 1,
+            leafDisplayScale: sharedLeafScale,
             showTitleBox: getCheckedValue('param-showTitleBox')
+        },
+        feedbackPageStyle: {
+            backgroundCss: feedbackBackground,
+            cardOpacity: clampNumber(getInputValue('param-feedbackCardOpacity'), 0.55, 1, 0.9),
+            accentColor: normalizeHexColor(getInputValue('param-feedbackAccentColor'), '#4a7c59')
+        },
+        badgeLeafStyles: {
+            leafScale: sharedLeafScale,
+            colors: collectBadgeLeafStyleColors()
         },
         photoSettings: {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
@@ -13451,7 +13811,7 @@ function collectParameterForm() {
             supportedFormats: ['png', 'jpg', 'jpeg']
         },
         visualAssets: {
-            feedbackBackground: getInputValue('param-feedbackBackground'),
+            feedbackBackground: feedbackBackground,
             treeBackground: getInputValue('param-treeBackground'),
             defaultOverlayTheme: getInputValue('param-defaultOverlayTheme')
         },

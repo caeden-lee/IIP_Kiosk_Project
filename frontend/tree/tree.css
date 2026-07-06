@@ -49,7 +49,7 @@ body {
    BACKGROUND (TRUE 4:1)
    ========================= */
 body {
-    background-image: url('/assets/Tree//background/plainsBackground.jpg');
+    background-image: url('/assets/Tree/background/plainsBackground.jpg');
     background-repeat: no-repeat;
     background-position: center center;
     background-size: cover;       /* Safe for true 4:1 */
@@ -113,6 +113,10 @@ body {
     transform-style: preserve-3d;
     contain: layout paint;
     overflow: hidden;
+    animation-name: leafAppear;
+    animation-duration: var(--leaf-appear-duration, 700ms);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-fill-mode: both;
 }
 
 .leaf::before {
@@ -167,6 +171,23 @@ body {
     filter: hue-rotate(302deg) saturate(1.35) brightness(1.1) drop-shadow(0 8px 12px rgba(217, 119, 6, 0.32));
 }
 
+.leaf.leaf-tinted:not(.vip):not(.leaf-greenified) {
+    filter: drop-shadow(0 8px 12px rgba(12, 50, 27, 0.28));
+}
+
+.leaf.leaf-tinted:not(.vip):not(.leaf-greenified)::before {
+    background-image: none;
+    background-color: var(--leaf-badge-color, #4a7c59);
+    -webkit-mask-image: var(--leaf-image-url);
+    mask-image: var(--leaf-image-url);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .leaf.vip {
     filter: drop-shadow(0 8px 14px rgba(180, 132, 21, 0.42));
 }
@@ -193,6 +214,21 @@ body {
 
 .leaf.leaf-greenified:not(.vip) {
     filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
+}
+
+@keyframes leafAppear {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, -18px, 0) rotate(-8deg) scale(0.78);
+    }
+    58% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(0, 3px, 0) rotate(2deg) scale(1.04);
+    }
+    100% {
+        opacity: var(--leaf-visible-opacity, 0.9);
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
 }
 
 @keyframes leafFall {
@@ -381,21 +417,32 @@ body {
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
-    background: rgba(255, 255, 255, 0.9);
+
+    /* Glass effect */
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px); /* Safari support */
+
     padding: 15px 30px;
     border-radius: 25px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+    /* Optional glass border */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    /* Enhanced shadow */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+
     z-index: 100;
 }
 
 .tree-title h1 {
-    color: #2d5016;
+    color: #18392b;
     font-size: 2em;
     margin: 0;
 }
 
 .tree-title p {
-    color: #666;
+    color: #FFFFFF;
     margin: 5px 0 0 0;
     font-size: 1em;
 }
