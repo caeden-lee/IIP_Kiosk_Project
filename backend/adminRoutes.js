@@ -265,6 +265,7 @@ const {
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
 const parametersConfigStore = require('./parametersConfigStore');
 const dataRetentionCleanup = require('./dataRetentionCleanup');
+const feedbackAnalysisCacheStore = require('./feedbackAnalysisCacheStore');
 
 
 //AI for sentiment analysis testing (Done by Yu Kang)
@@ -1598,6 +1599,21 @@ const analysis_modes = {
     GEMMA: 'gemma'
 }
 
+function getAnalysisModelName(mode) {
+    switch (mode) {
+        case analysis_modes.LOCALGPT:
+            return 'phi3';
+        case analysis_modes.QWEN:
+            return 'qwen2.5:3b';
+        case analysis_modes.GEMMA:
+            return 'gemma2:2b';
+        case analysis_modes.XENOVA:
+            return 'Xenova/bert-base-multilingual-uncased-sentiment';
+        default:
+            return 'rule-based';
+    }
+}
+
 let activeFeedbackAnalysisController = null;
 let activeFeedbackAnalysisRunId = 0;
 
@@ -1721,14 +1737,18 @@ async function analyzeWithXenova(text, signal) {
 }
 
 // LocalGPT Analysis Engine
-async function analyzeWithLocalGPT(text) {
+async function analyzeWithLocalGPT(text, signal) {
     try {
+        throwIfAnalysisAborted(signal);
         const prompt = `Reply ONLY with one word: positive, negative, or neutral. Text: "${text}" `;
 
         const response = await axios.post(
             'http://localhost:11434/api/generate',
-            { model: 'phi3', prompt, stream: false }
+            { model: 'phi3', prompt, stream: false },
+            { signal }
         );
+
+        throwIfAnalysisAborted(signal);
 
         const result = String(response.data.response || '').trim().toLowerCase();
         if (result.includes('positive')) {
@@ -1814,7 +1834,7 @@ async function classifySentiment(text, mode, signal) {
     switch (mode) {
         case analysis_modes.XENOVA: return await analyzeWithXenova(text, signal);
 
-        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text);
+        case analysis_modes.LOCALGPT: return await analyzeWithLocalGPT(text, signal);
 
         case analysis_modes.QWEN: return await analyzeWithQwen(text, signal);
 
@@ -2205,16 +2225,47 @@ router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
 
         try {
             throwIfAnalysisAborted(signal);
+            const modelName = getAnalysisModelName(mode);
             const rawItems = (rows || []).map(row => ({
                 text: normalizeInsightText(row.text),
                 question: row.question || row.source || 'Feedback',
                 source: row.source || 'Feedback',
-                date: row.created_at})
-            ).filter(item => isUsefulInsightText(item.text));
+                date: row.created_at
+            })).filter(item => isUsefulInsightText(item.text));
 
-            const items = [];
-            for (const item of rawItems) {
+            const cacheableMode = mode !== analysis_modes.RULE_BASED;
+            const uniqueItems = [];
+            const uniqueTexts = new Set();
+
+            rawItems.forEach(item => {
+                const normalizedText = feedbackAnalysisCacheStore.normalizeAnalysisText(item.text);
+                if (!normalizedText || uniqueTexts.has(normalizedText)) {
+                    return;
+                }
+
+                uniqueTexts.add(normalizedText);
+                uniqueItems.push({
+                    text: item.text,
+                    normalizedText
+                });
+            });
+
+            const cachedItems = cacheableMode
+                ? await feedbackAnalysisCacheStore.getMany(mode, modelName, uniqueItems.map(item => item.text))
+                : new Map();
+
+            const analysisByText = new Map();
+            const cacheWrites = [];
+
+            for (const item of uniqueItems) {
                 throwIfAnalysisAborted(signal);
+
+                const cached = cachedItems.get(item.normalizedText);
+                if (cached) {
+                    analysisByText.set(item.normalizedText, cached.sentiment);
+                    continue;
+                }
+
                 let sentiment = 'neutral';
                 try {
                     sentiment = await classifySentiment(item.text, mode, signal);
@@ -2224,8 +2275,32 @@ router.get('/feedback-insight-summary', auth.requireAuth, async(req, res) => {
                     }
                     console.error('❌ classifySentiment failed:', err.message);
                 }
-                items.push({...item, sentiment});
+
+                analysisByText.set(item.normalizedText, sentiment);
+
+                if (cacheableMode) {
+                    cacheWrites.push({
+                        mode,
+                        modelName,
+                        text: item.text,
+                        sentiment
+                    });
+                }
             }
+
+            if (cacheWrites.length > 0) {
+                await feedbackAnalysisCacheStore.saveMany(cacheWrites);
+            }
+
+            const items = rawItems.map(item => {
+                const normalizedText = feedbackAnalysisCacheStore.normalizeAnalysisText(item.text);
+
+                return {
+                    ...item,
+                    sentiment: analysisByText.get(normalizedText) || 'neutral',
+                    cached: cacheableMode && cachedItems.has(normalizedText)
+                };
+            });
 
             throwIfAnalysisAborted(signal);
 
@@ -5956,6 +6031,78 @@ function normalizeCampaignSettings(campaignSettings) {
   return normalized;
 }
 
+function normalizeFeedbackPageStyle(feedbackPageStyle) {
+  if (!feedbackPageStyle || typeof feedbackPageStyle !== 'object') {
+    return feedbackPageStyle;
+  }
+
+  const normalized = { ...feedbackPageStyle };
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'backgroundCss')) {
+    normalized.backgroundCss = String(normalized.backgroundCss || '').trim().slice(0, 500);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'cardOpacity')) {
+    const opacity = Number(normalized.cardOpacity);
+    if (!Number.isFinite(opacity) || opacity < 0.55 || opacity > 1) {
+      const error = new Error('Feedback card opacity must be between 0.55 and 1');
+      error.statusCode = 400;
+      throw error;
+    }
+    normalized.cardOpacity = Number(opacity.toFixed(2));
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'accentColor')) {
+    const color = String(normalized.accentColor || '').trim();
+    if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+      const error = new Error('Feedback accent colour must be a valid hex colour');
+      error.statusCode = 400;
+      throw error;
+    }
+    normalized.accentColor = color;
+  }
+
+  return normalized;
+}
+
+function normalizeBadgeLeafStyles(badgeLeafStyles) {
+  if (!badgeLeafStyles || typeof badgeLeafStyles !== 'object') {
+    return badgeLeafStyles;
+  }
+
+  const normalized = { ...badgeLeafStyles };
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'leafScale')) {
+    const scale = Number(normalized.leafScale);
+    if (!Number.isFinite(scale) || scale < 0.4 || scale > 2) {
+      const error = new Error('Badge leaf scale must be between 0.4 and 2');
+      error.statusCode = 400;
+      throw error;
+    }
+    normalized.leafScale = Number(scale.toFixed(2));
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'colors')) {
+    if (!normalized.colors || typeof normalized.colors !== 'object' || Array.isArray(normalized.colors)) {
+      const error = new Error('Badge leaf colours must be an object');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    normalized.colors = Object.fromEntries(Object.entries(normalized.colors).map(([key, value]) => {
+      const color = String(value || '').trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+        const error = new Error(`Badge leaf colour for ${key} must be a valid hex colour`);
+        error.statusCode = 400;
+        throw error;
+      }
+      return [String(key), color];
+    }));
+  }
+
+  return normalized;
+}
+
 function translateToEnglish(text, callback) {
   const cleanText = String(text || '').trim();
   if (!cleanText) {
@@ -6066,7 +6213,14 @@ if (autoArchiveTimer.unref) {
 router.get('/parameters', auth.requireAuth, (req, res) => {
   try {
     const config = parametersConfigStore.readParametersConfig();
-    res.json({ success: true, parameters: config });
+    res.json({ 
+        success: true, 
+        parameters: {
+            treeParameters: config.treeParameters || {},
+            visualAssets: config.visualAssets || {},
+            campaignSettings: config.campaignSettings || {}
+        }
+    });
   } catch (error) {
     console.error('❌ Error reading parameters:', error);
     res.status(500).json({ success: false, error: 'Failed to load parameters' });
@@ -6112,6 +6266,10 @@ router.post('/parameters/background', auth.requireAdmin, uploadParameterBackgrou
       ...config.visualAssets,
       feedbackBackground: backgroundCss
     };
+    config.feedbackPageStyle = {
+      ...config.feedbackPageStyle,
+      backgroundCss
+    };
 
     const success = parametersConfigStore.writeParametersConfig(config);
     if (!success) {
@@ -6119,7 +6277,7 @@ router.post('/parameters/background', auth.requireAdmin, uploadParameterBackgrou
     }
 
     if (req.session?.user?.username) {
-      logAudit('PARAMETER_BACKGROUND_UPLOADED', req.session.user.username, 'config', 'visualAssets.feedbackBackground', req);
+      logAudit('PARAMETER_BACKGROUND_UPLOADED', req.session.user.username, 'config', 'feedbackPageStyle.backgroundCss', req);
     }
 
     res.json({
@@ -6455,6 +6613,61 @@ router.post('/parameters/tree-background/upload', auth.requireAdmin, uploadTreeB
     }
 });
 
+// PUT /api/admin/parameters/treeParameters - Save tree parameters (including title box) - Done by Yu Kang
+router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
+    try {
+        console.log('🌳 Saving tree parameters');
+        const { treeStage, showTitleBox, leafDisplayScale, leafThresholds, treeTitleBox } = req.body;
+
+        // Read current config
+        const config = parametersConfigStore.readParametersConfig();
+
+        // Ensure treeParameters object exists
+        if (!config.treeParameters) {
+            config.treeParameters = {};
+        }
+
+        // Update top-level fields (keep existing if not provided)
+        if (treeStage !== undefined) config.treeParameters.treeStage = treeStage;
+        if (showTitleBox !== undefined) config.treeParameters.showTitleBox = showTitleBox;
+        if (leafDisplayScale !== undefined) config.treeParameters.leafDisplayScale = leafDisplayScale;
+        if (leafThresholds) config.treeParameters.leafThresholds = leafThresholds;
+
+        // Handle treeTitleBox – merge with existing, but DO NOT override with root showTitleBox
+        if (treeTitleBox) {
+            // Merge incoming into existing treeTitleBox (or create)
+            config.treeParameters.treeTitleBox = {
+                ...(config.treeParameters.treeTitleBox || {}),
+                ...treeTitleBox
+            };
+            // If the root showTitleBox is provided separately, we keep it separate.
+            // The tree page uses the nested one, so ensure both are updated accordingly.
+            // Optionally sync the root one if you want them to match, but better to keep them independent.
+        }
+
+        // Write back
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            console.error('❌ Failed to write parameters config');
+            return res.status(500).json({ success: false, error: 'Failed to save tree parameters' });
+        }
+
+        console.log('✅ Tree parameters saved successfully');
+
+        // Audit log
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_TREE_UPDATED', req.session.user.username, 'config', 'treeParameters', req);
+        }
+
+        // Return updated config
+        const updatedConfig = parametersConfigStore.readParametersConfig();
+        res.json({ success: true, message: 'Tree parameters saved', parameters: updatedConfig });
+    } catch (error) {
+        console.error('❌ Error saving tree parameters:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to save tree parameters' });
+    }
+});
+
 
 // GET /api/admin/parameters/:category
 // Load parameters for specific category
@@ -6479,7 +6692,7 @@ router.get('/parameters/:category', auth.requireAuth, (req, res) => {
 router.put('/parameters', auth.requireAdmin, (req, res) => {
   try {
     // Feature flags and validation rules are saved alongside other parameter categories (DONE BY CAEDEN)
-    const { feedbackMessages, contentSettings, campaignSettings, emailContent, featureFlags, validationRules, treeParameters, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
+    const { feedbackMessages, contentSettings, campaignSettings, emailContent, featureFlags, validationRules, treeParameters, feedbackPageStyle, badgeLeafStyles, photoSettings, overlaySettings, visualAssets, archiveSettings, layoutSettings } = req.body;
     
     // Validate inputs
     if (feedbackMessages && typeof feedbackMessages !== 'object') {
@@ -6493,6 +6706,15 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     }
     if (treeParameters && typeof treeParameters !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid treeParameters format' });
+    }
+    if (feedbackPageStyle && typeof feedbackPageStyle !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid feedbackPageStyle format' });
+    }
+    if (badgeLeafStyles && typeof badgeLeafStyles !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid badgeLeafStyles format' });
+    }
+    if (badgeLeafStyles?.colors && typeof badgeLeafStyles.colors !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid badgeLeafStyles.colors format' });
     }
     if (emailContent && typeof emailContent !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid emailContent format' });
@@ -6521,6 +6743,8 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     const normalizedContentSettings = normalizeContentSettings(contentSettings);
     const normalizedCampaignSettings = normalizeCampaignSettings(campaignSettings);
     const normalizedArchiveSettings = normalizeArchiveSettings(archiveSettings);
+    const normalizedFeedbackPageStyle = normalizeFeedbackPageStyle(feedbackPageStyle);
+    const normalizedBadgeLeafStyles = normalizeBadgeLeafStyles(badgeLeafStyles);
 
     // Read current config
     const config = parametersConfigStore.readParametersConfig();
@@ -6533,6 +6757,17 @@ router.put('/parameters', auth.requireAdmin, (req, res) => {
     if (featureFlags) config.featureFlags = { ...config.featureFlags, ...featureFlags };
     if (validationRules) config.validationRules = { ...config.validationRules, ...validationRules };
     if (treeParameters) config.treeParameters = { ...config.treeParameters, ...treeParameters };
+    if (normalizedFeedbackPageStyle) config.feedbackPageStyle = { ...config.feedbackPageStyle, ...normalizedFeedbackPageStyle };
+    if (normalizedBadgeLeafStyles) {
+      config.badgeLeafStyles = {
+        ...config.badgeLeafStyles,
+        ...normalizedBadgeLeafStyles,
+        colors: {
+          ...(config.badgeLeafStyles?.colors || {}),
+          ...(normalizedBadgeLeafStyles.colors || {})
+        }
+      };
+    }
     if (photoSettings) config.photoSettings = { ...config.photoSettings, ...photoSettings };
     if (overlaySettings) config.overlaySettings = { ...config.overlaySettings, ...overlaySettings };
     if (visualAssets) config.visualAssets = { ...config.visualAssets, ...visualAssets };
@@ -6584,6 +6819,8 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       'featureFlags',
       'validationRules',
       'treeParameters',
+      'feedbackPageStyle',
+      'badgeLeafStyles',
       'photoSettings',
       'overlaySettings',
       'visualAssets',
@@ -6601,6 +6838,17 @@ router.put('/parameters/:category', auth.requireAdmin, (req, res) => {
       normalizedUpdates = normalizeCampaignSettings(updates);
     } else if (category === 'archiveSettings') {
       normalizedUpdates = normalizeArchiveSettings(updates);
+    } else if (category === 'feedbackPageStyle') {
+      normalizedUpdates = normalizeFeedbackPageStyle(updates);
+    } else if (category === 'badgeLeafStyles') {
+      const normalizedBadgeUpdates = normalizeBadgeLeafStyles(updates);
+      normalizedUpdates = {
+        ...normalizedBadgeUpdates,
+        colors: {
+          ...(config.badgeLeafStyles?.colors || {}),
+          ...(normalizedBadgeUpdates.colors || {})
+        }
+      };
     }
 
     // Update category

@@ -203,6 +203,8 @@ class TreeManager {
         this.leafFallThreshold = 15;
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
+        this.leafDisplayScale = 1;
+        this.badgeLeafColors = {};
         this.treeStage = 0;
         this.showTitleBox = true;
         this.activeCampaign = null;
@@ -218,6 +220,92 @@ class TreeManager {
         this.debugOval = false;
 
         this.init();
+
+    }
+
+    // ==================== TREE TITLE BOX ====================
+    applyTreeTitleSettings() {
+        if (!this.treeTitleBox) return;
+
+        const settings = this.visualAssets?.treeTitleBox;
+        // Respect the admin visibility toggle before applying any styling.
+        if (!this.showTitleBox) {
+            this.treeTitleBox.style.display = 'none';
+            return;
+        }
+
+        this.treeTitleBox.style.display = 'block';
+
+        // Update text content
+        const titleEl = document.getElementById('treeTitle');
+        const subtitleEl = document.getElementById('treeSubtitle');
+        if (titleEl) titleEl.textContent = settings?.titleText || '🌳 ESG Digital Tree';
+        if (subtitleEl) subtitleEl.textContent = settings?.subtitleText || 'Growing with every visitor\'s contribution this year';
+
+        // Defaults
+        const opacity = settings?.opacity ?? 0.25;
+        const blur = settings?.blur ?? 6;
+        const radius = settings?.radius ?? 25;
+        const position = settings?.position ?? 'top-center';
+        const padX = settings?.paddingX ?? 30;
+        const padY = settings?.paddingY ?? 15;
+
+        // --- Fixed positioning relative to viewport ---
+        this.treeTitleBox.style.position = 'fixed';
+        this.treeTitleBox.style.margin = '0';
+        this.treeTitleBox.style.boxSizing = 'border-box';
+        this.treeTitleBox.style.maxWidth = 'calc(100% - 40px)';   // always leaves 20px on each side
+        this.treeTitleBox.style.wordBreak = 'break-word';         // prevent overflow from long words
+
+        // Reset all positioning properties
+        this.treeTitleBox.style.top = 'auto';
+        this.treeTitleBox.style.bottom = 'auto';
+        this.treeTitleBox.style.left = 'auto';
+        this.treeTitleBox.style.right = 'auto';
+        this.treeTitleBox.style.transform = 'none';
+
+        const MARGIN = 20; // consistent gap from edges
+
+        switch (position) {
+            case 'top-left':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = MARGIN + 'px';
+                break;
+            case 'top-center':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+                break;
+            case 'top-right':
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.right = MARGIN + 'px';
+                break;
+            case 'bottom-left':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.left = MARGIN + 'px';
+                break;
+            case 'bottom-center':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+                break;
+            case 'bottom-right':
+                this.treeTitleBox.style.bottom = MARGIN + 'px';
+                this.treeTitleBox.style.right = MARGIN + 'px';
+                break;
+            default:
+                // fallback to top-center
+                this.treeTitleBox.style.top = MARGIN + 'px';
+                this.treeTitleBox.style.left = '50%';
+                this.treeTitleBox.style.transform = 'translateX(-50%)';
+        }
+
+        // Apply other styles
+        this.treeTitleBox.style.padding = `${padY}px ${padX}px`;
+        this.treeTitleBox.style.borderRadius = `${radius}px`;
+        this.treeTitleBox.style.background = `rgba(255,255,255,${opacity})`;
+        this.treeTitleBox.style.backdropFilter = `blur(${blur}px)`;
+        this.treeTitleBox.style.webkitBackdropFilter = `blur(${blur}px)`;
     }
 
     // ==================== INIT ====================
@@ -261,6 +349,7 @@ class TreeManager {
             const tree = data.parameters?.treeParameters || {};
             const assets = data.parameters?.visualAssets || {};
             const campaign = data.parameters?.campaignSettings || {};
+            const badgeLeafStyles = data.parameters?.badgeLeafStyles || {};
 
             this.ovalWidth = Number(tree.ovalWidth) || this.ovalWidth;
             this.ovalHeight = Number(tree.ovalHeight) || this.ovalHeight;
@@ -278,6 +367,14 @@ class TreeManager {
 
             this.applyTreeStageAssets(this.treeStage);
 
+            // treeTitleBox is saved under treeParameters by admin.js
+            this.visualAssets = assets || {};
+            if (tree.treeTitleBox) {
+                this.visualAssets.treeTitleBox = tree.treeTitleBox;
+            }
+
+            this.applyTreeTitleSettings();
+
             if (this.demoFallEnabled) {
                 this.leafFallThreshold = this.demoFallLeafCount || this.leafFallThreshold;
                 this.leafFallDuration = Math.min(Number(this.urlParams.get('duration')) || this.leafFallDuration, 10000);
@@ -286,8 +383,16 @@ class TreeManager {
             if (assets.treeBackground) {
                 document.body.style.backgroundImage = `url('${assets.treeBackground}')`;
             }
-            // Leaf override image and display scale
-            this.leafDisplayScale = Number(tree.leafDisplayScale) || 1;
+            // Leaf override image and shared display scale
+            const configuredLeafScale = Number(tree.leafDisplayScale);
+            const configuredBadgeLeafScale = Number(badgeLeafStyles.leafScale);
+            this.leafDisplayScale = Number.isFinite(configuredLeafScale)
+                ? configuredLeafScale
+                : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
+            this.badgeLeafColors = {
+                ...Object.fromEntries(Object.keys(this.badgeLeafProfiles).map(key => [key, '#4a7c59'])),
+                ...(badgeLeafStyles.colors || {})
+            };
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;
@@ -419,6 +524,11 @@ class TreeManager {
     getBadgeLeafProfile(visitor) {
         const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
         return this.badgeLeafProfiles[badgeKey] || this.badgeLeafProfiles['feedback-completer'];
+    }
+
+    getBadgeLeafColor(visitor) {
+        const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
+        return this.badgeLeafColors[badgeKey] || visitor?.badgeColor || '#4a7c59';
     }
 
     normalizeResetTime(value) {
@@ -753,16 +863,20 @@ class TreeManager {
             return;
         }
 
+        const settings = this.visualAssets?.treeTitleBox;
+        const configTitle = settings?.titleText || '🌳 ESG Digital Tree';
+        const configSubtitle = settings?.subtitleText || `Growing with every visitor's contribution in ${this.currentYear}`;
+
         if (this.treeTitle) {
             this.treeTitle.textContent = this.isReviewMode
                 ? `${this.selectedYear} ESG Tree Review`
-                : '🌳 ESG Digital Tree';
+                : configTitle;
         }
 
         if (this.treeSubtitle) {
             this.treeSubtitle.textContent = this.isReviewMode
                 ? `Completed yearly tree with ${this.visitors.length} contribution${this.visitors.length === 1 ? '' : 's'}`
-                : (this.activeCampaign?.treeSubtitle || `Growing with every visitor's contribution in ${this.currentYear}`);
+                : (this.activeCampaign?.treeSubtitle || configSubtitle);
         }
     }
 
@@ -1097,12 +1211,17 @@ class TreeManager {
         if (isVip) {
             leaf.classList.add('vip');
         }
-        if (this.shouldLeafBeGreen(visitor, isVip)) {
+        const isGreenified = this.shouldLeafBeGreen(visitor, isVip);
+        if (isGreenified) {
             leaf.classList.add('leaf-greenified');
         }
 
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
+        if (!isVip && !isGreenified) {
+            leaf.classList.add('leaf-tinted');
+            leaf.style.setProperty('--leaf-badge-color', this.getBadgeLeafColor(visitor));
+        }
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
         leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
         leaf.setAttribute('role', 'button');
@@ -1135,7 +1254,7 @@ class TreeManager {
         }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
-        leaf.style.animationDuration = `${this.leafAnimationDuration}ms`;
+        leaf.style.setProperty('--leaf-appear-duration', `${this.leafAnimationDuration}ms`);
         leaf.style.setProperty('--leaf-fall-duration', `${this.leafFallDuration}ms`);
         leaf.style.setProperty('--leaf-fall-delay', `${Math.min(index * 90, 1200)}ms`);
         leaf.style.setProperty('--leaf-fall-distance', `${360 + (seededRandom() * 260)}px`);
@@ -1179,13 +1298,6 @@ class TreeManager {
         nameElement.textContent = visitor.name || 'Anonymous';
         nameElement.style.setProperty('--leaf-name-font-size', `${this.getLeafNameFontSize(visitor.name || 'Anonymous', leafSize)}px`);
         leaf.appendChild(nameElement);
-
-        if (visitor.badgeName && !isVip) {
-            const badgeElement = document.createElement('div');
-            badgeElement.className = 'leaf-badge';
-            badgeElement.textContent = badgeProfile.shortLabel;
-            leaf.appendChild(badgeElement);
-        }
 
         leaf.addEventListener('click', (event) => {
             event.stopPropagation();

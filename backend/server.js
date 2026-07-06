@@ -23,11 +23,11 @@
 //
 // 1. LIVE PULSE ROUTING
 //    const pulseRoutes                - Live Pulse API routes for dashboard data (DONE BY XY)
-//    app.use('/api/pulse')            - Protected Pulse API route wiring (DONE BY XY)
-//    app.get('/pulse')                - Protected Pulse dashboard page route (DONE BY XY)
+//    app.use('/api/pulse')            - Public Pulse API route wiring (DONE BY XY)
+//    app.get('/pulse')                - Public Pulse dashboard page route (DONE BY XY)
 //
 // 2. ACCESS CONTROL
-//    auth middleware                  - Keeps Pulse dashboard behind authenticated admin flow (DONE BY XY)
+//    Pulse dashboard                  - Public live-display route; no admin login required (DONE BY XY)
 //
 // 3. PUBLIC PARAMETER CONFIG ROUTE
 //    parametersConfigStore            - Reads shared kiosk parameter settings for public pages (DONE BY XY)
@@ -534,8 +534,7 @@ app.use(session({
     }
 }));
 
-// Keep the Pulse screen inside the authenticated admin experience.
-app.use('/pulse', auth.requireAuth);
+// Pulse screen is public so it can be shown without an admin session.
 
 // Serve the admin page before static directory handling so /admin and /admin/
 // both load the same HTML and use the same absolute asset paths.
@@ -557,7 +556,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/data-export', dataExportRoutes);
 app.use('/api/pledgeboard', pledgeboardRoutes);
-app.use('/api/pulse', auth.requireAuth, pulseRoutes);
+app.use('/api/pulse', pulseRoutes);
 
 // Tree API for the leaves (names from feedback.db)
 app.use('/api/tree', treeRoutes);
@@ -856,7 +855,7 @@ app.get('/3dTree', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/3dTree/3dTree.html'));
 });
 
-app.get('/pulse', auth.requireAuth, (req, res) => {
+app.get('/pulse', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/pulse/pulse.html'));
 });
 

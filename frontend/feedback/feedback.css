@@ -107,6 +107,13 @@ RESPONSIVE DESIGN
     box-sizing: border-box;
 }
 
+:root {
+    --feedback-card-opacity: 0.85;
+    --feedback-accent-color: #4a7c59;
+    --feedback-accent-dark: #2f6f45;
+    --celebration-leaf-scale: 1;
+}
+
 /* Body layout and gradient background */
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -156,7 +163,7 @@ h1 {
 
 /* Card shell */
 .card {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, var(--feedback-card-opacity, 0.85));
     backdrop-filter: blur(20px);
     border-radius: 24px;
     padding: 60px;
@@ -264,7 +271,7 @@ h1 {
 
 /* Consent card and header */
 .consent-card {
-    background: white;
+    background: rgba(255, 255, 255, var(--feedback-card-opacity, 1));
     border-radius: 24px;
     padding: 60px;
     width: 600px;
@@ -560,7 +567,7 @@ h1 {
     width: 0%;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #4a7c59, #10b981);
+    background: linear-gradient(90deg, var(--feedback-accent-color, #4a7c59), #10b981);
     transition: width 0.22s ease;
 }
 
@@ -593,7 +600,7 @@ h1 {
 
 .pledge-coach-suggestion {
     padding: 14px 16px;
-    border-left: 4px solid #4a7c59;
+    border-left: 4px solid var(--feedback-accent-color, #4a7c59);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.78);
 }
@@ -630,7 +637,7 @@ h1 {
     border: 1px solid rgba(47, 111, 69, 0.28);
     border-radius: 8px;
     color: white;
-    background: #2f6f45;
+    background: var(--feedback-accent-dark, #2f6f45);
     font-size: 13px;
     font-weight: 800;
     cursor: pointer;
@@ -1439,7 +1446,7 @@ textarea::placeholder {
     gap: 10px;
     width: 100%;
     padding: 16px 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45));
     color: white;
     text-decoration: none;
     font-size: 16px;
@@ -1448,7 +1455,7 @@ textarea::placeholder {
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 20px rgba(47, 111, 69, 0.3);
     position: relative;
     overflow: hidden;
 }
@@ -1481,7 +1488,7 @@ textarea::placeholder {
 
 .consent-button:not(:disabled):hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 25px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 12px 25px rgba(47, 111, 69, 0.32);
 }
 
 .consent-button:not(:disabled):hover .arrow {
@@ -1841,7 +1848,7 @@ body::after {
 .feedback-form-card,
 .photo-card,
 .style-card {
-    background: rgba(10, 19, 26, 0.84) !important;
+    background: rgb(10 19 26 / var(--feedback-card-opacity, 0.84)) !important;
     border: 1px solid rgba(255, 255, 255, 0.16) !important;
     border-radius: 8px !important;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34) !important;
@@ -2165,7 +2172,7 @@ body::after {
 .feedback-form-card,
 .photo-card,
 .style-card {
-    background: rgba(255, 255, 248, 0.9) !important;
+    background: rgb(255 255 248 / var(--feedback-card-opacity, 0.9)) !important;
     border: 1px solid rgba(74, 124, 89, 0.2) !important;
     box-shadow: 0 20px 48px rgba(24, 57, 43, 0.14) !important;
 }
@@ -2352,10 +2359,11 @@ h1 {
 
 .celebration-tree-wrap {
     position: relative;
-    min-height: 170px;
+    min-height: 190px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    perspective: 640px;
 }
 
 .celebration-tree {
@@ -2384,22 +2392,69 @@ h1 {
     animation: celebrationLeafAppear 520ms ease-out forwards;
 }
 
-.celebration-flying-leaf {
+.celebration-tree-target {
     position: absolute;
-    left: 4%;
-    bottom: 14%;
-    width: 38px;
-    height: 38px;
-    z-index: 3;
+    left: var(--celebration-target-left, 62%);
+    top: var(--celebration-target-top, 34%);
+    width: 58px;
+    height: 58px;
+    z-index: 2;
+    border-radius: 999px;
     opacity: 0;
-    border-radius: 999px 0 999px 0;
-    background: var(--celebration-badge-color, #4a7c59);
-    box-shadow: 0 8px 18px rgba(74, 124, 89, 0.28);
-    transform: rotate(-28deg);
+    pointer-events: none;
+    background:
+        radial-gradient(circle, rgba(255, 255, 255, 0.78) 0 9%, rgba(250, 204, 21, 0.28) 10% 34%, transparent 68%);
+    transform: translate(-50%, -50%) scale(0.4);
+}
+
+.celebration-flying-leaf,
+.celebration-leaf-trail {
+    position: absolute;
+    left: 8%;
+    bottom: 12%;
+    z-index: 4;
+    opacity: 0;
+    background-image: var(--celebration-leaf-image, url('/assets/Tree/leaf/NewLeftLeaf.png'));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    transform-origin: 50% 70%;
+    pointer-events: none;
+}
+
+.celebration-flying-leaf {
+    width: calc(50px * var(--celebration-leaf-scale, 1));
+    height: calc(50px * var(--celebration-leaf-scale, 1));
+    filter: drop-shadow(0 12px 18px rgba(24, 57, 43, 0.28));
+}
+
+.celebration-leaf-trail {
+    width: calc(34px * var(--celebration-leaf-scale, 1));
+    height: calc(34px * var(--celebration-leaf-scale, 1));
+    z-index: 3;
+    filter: blur(0.3px) saturate(1.1) drop-shadow(0 8px 10px rgba(24, 57, 43, 0.14));
+}
+
+.celebration-leaf-trail.trail-two {
+    width: calc(25px * var(--celebration-leaf-scale, 1));
+    height: calc(25px * var(--celebration-leaf-scale, 1));
+    z-index: 2;
 }
 
 .celebration-moment.is-ready .celebration-flying-leaf {
-    animation: celebrationFlyLeaf 1400ms cubic-bezier(0.24, 0.84, 0.22, 1) 360ms both;
+    animation: celebrationFlyLeaf 1850ms cubic-bezier(0.18, 0.72, 0.14, 1) 320ms both;
+}
+
+.celebration-moment.is-ready .celebration-leaf-trail.trail-one {
+    animation: celebrationFlyLeafTrail 1840ms cubic-bezier(0.18, 0.72, 0.14, 1) 230ms both;
+}
+
+.celebration-moment.is-ready .celebration-leaf-trail.trail-two {
+    animation: celebrationFlyLeafTrail 1840ms cubic-bezier(0.18, 0.72, 0.14, 1) 120ms both;
+}
+
+.celebration-moment.is-ready .celebration-tree-target {
+    animation: celebrationTreeCatch 920ms ease-out 1780ms both;
 }
 
 .celebration-impact-grid {
@@ -2594,6 +2649,125 @@ h1 {
     background: rgba(248, 250, 252, 0.82);
 }
 
+.passport-history {
+    display: grid;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(74, 124, 89, 0.16);
+}
+
+.passport-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+}
+
+.passport-summary-item,
+.passport-badge-card,
+.passport-visit-card {
+    border: 1px solid rgba(74, 124, 89, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.76);
+    box-shadow: 0 8px 18px rgba(24, 57, 43, 0.05);
+}
+
+.passport-summary-item {
+    padding: 10px;
+}
+
+.passport-summary-item strong {
+    display: block;
+    color: #18392b;
+    font-size: 18px;
+}
+
+.passport-summary-item span {
+    color: #496656;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.passport-section-title {
+    display: block;
+    margin-bottom: 8px;
+    color: #18392b;
+    font-size: 13px;
+}
+
+.passport-badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+    gap: 8px;
+}
+
+.passport-badge-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 9px;
+    align-items: center;
+    padding: 10px;
+}
+
+.passport-badge-seal {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: var(--passport-badge-color, #2f6f45);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    box-shadow: 0 10px 18px rgba(47, 111, 69, 0.18);
+}
+
+.passport-badge-card strong {
+    display: block;
+    color: #18392b;
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+.passport-badge-card small {
+    color: #496656;
+    font-size: 11px;
+}
+
+.passport-visit-list {
+    display: grid;
+    gap: 8px;
+}
+
+.passport-visit-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 10px;
+}
+
+.passport-visit-date {
+    min-width: 54px;
+    color: #2f6f45;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.passport-visit-card strong {
+    display: block;
+    color: #18392b;
+    font-size: 12px;
+}
+
+.passport-visit-card small {
+    display: block;
+    color: #496656;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 @keyframes passportStampIn {
     0% {
         opacity: 0;
@@ -2637,18 +2811,66 @@ h1 {
 @keyframes celebrationFlyLeaf {
     0% {
         opacity: 0;
-        transform: translate(0, 0) rotate(-36deg) scale(0.65);
+        filter: blur(1px) drop-shadow(0 12px 18px rgba(24, 57, 43, 0.1));
+        transform: translate(-72px, 48px) rotate(-54deg) rotateY(-38deg) scale(0.48);
     }
     12% {
         opacity: 1;
     }
-    70% {
+    30% {
         opacity: 1;
-        transform: translate(124px, -82px) rotate(18deg) scale(1);
+        filter: blur(0) drop-shadow(0 16px 20px rgba(24, 57, 43, 0.22));
+        transform: translate(var(--celebration-lift-x, -12px), -20px) rotate(-16deg) rotateY(18deg) scale(0.92);
+    }
+    58% {
+        opacity: 1;
+        transform: translate(var(--celebration-arc-x, 66px), var(--celebration-arc-y, -78px)) rotate(18deg) rotateY(-14deg) scale(1.12);
+    }
+    82% {
+        opacity: 1;
+        transform: translate(var(--celebration-flight-x, 130px), var(--celebration-flight-y, -112px)) rotate(34deg) rotateY(10deg) scale(0.82);
     }
     100% {
         opacity: 0;
-        transform: translate(154px, -110px) rotate(42deg) scale(0.72);
+        filter: blur(0.4px) drop-shadow(0 8px 12px rgba(24, 57, 43, 0.14));
+        transform: translate(calc(var(--celebration-flight-x, 130px) + 12px), calc(var(--celebration-flight-y, -112px) - 4px)) rotate(46deg) rotateY(0deg) scale(0.46);
+    }
+}
+
+@keyframes celebrationFlyLeafTrail {
+    0% {
+        opacity: 0;
+        transform: translate(-72px, 48px) rotate(-54deg) scale(0.42);
+    }
+    18% {
+        opacity: 0.3;
+    }
+    52% {
+        opacity: 0.22;
+        transform: translate(var(--celebration-arc-x, 66px), var(--celebration-arc-y, -78px)) rotate(18deg) scale(0.88);
+    }
+    86% {
+        opacity: 0.08;
+        transform: translate(var(--celebration-flight-x, 130px), var(--celebration-flight-y, -112px)) rotate(34deg) scale(0.56);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(var(--celebration-flight-x, 130px) + 12px), calc(var(--celebration-flight-y, -112px) - 4px)) rotate(46deg) scale(0.32);
+    }
+}
+
+@keyframes celebrationTreeCatch {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.35);
+    }
+    34% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.55);
     }
 }
 
@@ -2738,20 +2960,20 @@ textarea:focus,
 .rating-btn.selected,
 .cta-button,
 .consent-button {
-    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
     border-color: #7fb069 !important;
     color: #ffffff !important;
     box-shadow: 0 12px 26px rgba(74, 124, 89, 0.22) !important;
 }
 
 .pledgeboard-button {
-    background: linear-gradient(135deg, #4a7c59, #2f6f45) !important;
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
     box-shadow: 0 12px 26px rgba(74, 124, 89, 0.2) !important;
 }
 
 .secondary-button {
     background: rgba(255, 255, 248, 0.9) !important;
-    color: #2f6f45 !important;
+    color: var(--feedback-accent-dark, #2f6f45) !important;
     border-color: rgba(74, 124, 89, 0.34) !important;
 }
 
@@ -2760,7 +2982,7 @@ textarea:focus,
 }
 
 .themed-select::after {
-    border-color: #2f6f45;
+    border-color: var(--feedback-accent-dark, #2f6f45);
 }
 
 .themed-select select {
@@ -2826,7 +3048,7 @@ textarea:focus,
 }
 
 #land-page-no-qrcode #start-feedback-btn,
-#land-page-qrcode #start-feedback-btn {
+#land-page-qrcode [data-text-target="start-feedback-btn"] {
     justify-content: center !important;
     width: var(--start-button-width, 280px) !important;
     min-height: var(--start-button-height, 64px) !important;
@@ -2836,7 +3058,7 @@ textarea:focus,
 }
 
 #land-page-no-qrcode #view-pledgeboards-btn,
-#land-page-qrcode #view-pledgeboards-btn {
+#land-page-qrcode [data-text-target="view-pledgeboards-btn"] {
     width: min(100%, var(--pledgeboard-button-width, 600px)) !important;
     min-height: var(--pledgeboard-button-height, 64px) !important;
     margin-left: var(--pledgeboard-button-x, 0px) !important;
@@ -2856,13 +3078,13 @@ textarea:focus,
     }
 
     #land-page-no-qrcode #start-feedback-btn,
-    #land-page-qrcode #start-feedback-btn {
+    #land-page-qrcode [data-text-target="start-feedback-btn"] {
         width: var(--start-button-mobile-width, 210px) !important;
         min-height: var(--start-button-mobile-height, 54px) !important;
     }
 
     #land-page-no-qrcode #view-pledgeboards-btn,
-    #land-page-qrcode #view-pledgeboards-btn {
+    #land-page-qrcode [data-text-target="view-pledgeboards-btn"] {
         width: min(100%, var(--pledgeboard-button-mobile-width, 450px)) !important;
         min-height: var(--pledgeboard-button-mobile-height, 54px) !important;
     }

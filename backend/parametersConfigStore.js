@@ -142,6 +142,23 @@ const DEFAULT_CONFIG = {
     leafDisplayScale: 1,
     showTitleBox: true
   },
+  feedbackPageStyle: {
+    backgroundCss: "",
+    cardOpacity: 0.9,
+    accentColor: "#4a7c59"
+  },
+  badgeLeafStyles: {
+    leafScale: 1,
+    colors: {
+      "feedback-completer": "#4a7c59",
+      "climate-champion": "#0f766e",
+      "renewable-innovator": "#f59e0b",
+      "sustainable-living-advocate": "#16a34a",
+      "ocean-guardian": "#0284c7",
+      "governance-guardian": "#7c3aed",
+      "social-champion": "#d97706"
+    }
+  },
   photoSettings: {
     beautyFilterEnabled: true,
     beautyFilterStrength: "medium",
@@ -191,6 +208,15 @@ function mergeWithDefaults(config) {
     featureFlags: { ...DEFAULT_CONFIG.featureFlags, ...(config.featureFlags || {}) },
     validationRules: { ...DEFAULT_CONFIG.validationRules, ...(config.validationRules || {}) },
     treeParameters: { ...DEFAULT_CONFIG.treeParameters, ...(config.treeParameters || {}) },
+    feedbackPageStyle: { ...DEFAULT_CONFIG.feedbackPageStyle, ...(config.feedbackPageStyle || {}) },
+    badgeLeafStyles: {
+      ...DEFAULT_CONFIG.badgeLeafStyles,
+      ...(config.badgeLeafStyles || {}),
+      colors: {
+        ...DEFAULT_CONFIG.badgeLeafStyles.colors,
+        ...((config.badgeLeafStyles || {}).colors || {})
+      }
+    },
     photoSettings: { ...DEFAULT_CONFIG.photoSettings, ...(config.photoSettings || {}) },
     overlaySettings: { ...DEFAULT_CONFIG.overlaySettings, ...(config.overlaySettings || {}) },
     visualAssets: { ...DEFAULT_CONFIG.visualAssets, ...(config.visualAssets || {}) },

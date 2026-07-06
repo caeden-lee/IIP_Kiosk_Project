@@ -170,7 +170,8 @@
 //     async function loadCountdownTimer() - Load countdown timer setting from server (DONE BY BERNISSA)
 
 // ==================== 1. GLOBAL VARIABLES & CONSTANTS ====================
-let selectedRetention = null;
+const LONG_TERM_RETENTION = 'longterm';
+let selectedRetention = LONG_TERM_RETENTION;
 let selectedTheme = 'nature';
 let userData = {};
 let stream = null;
@@ -253,7 +254,6 @@ const PLEDGE_COACH_TOPIC_SUGGESTIONS = {
 let pledgeCoachSuggestion = '';
 
 const FLOW_STEPS = [
-    { key: 'consent', label: 'Consent', pageIds: ['consent-page'] },
     { key: 'details', label: 'Details', pageIds: ['details-page'] },
     { key: 'feedback', label: 'Feedback', pageIds: ['feedback-page'] },
     { key: 'pledge', label: 'Pledge', pageIds: ['pledge-page'] },
@@ -1092,7 +1092,7 @@ function returnToLandingPage() {
     clearValidationMessages();
     
     // Reset all data
-    selectedRetention = null;
+    selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
@@ -2933,7 +2933,8 @@ function processFinalPhoto() {
 // Show consent page from landing page
 function showConsentPage() {
     clearValidationMessages();
-    showFlowPage('consent-page');
+    selectedRetention = LONG_TERM_RETENTION;
+    showFlowPage('details-page');
     resetInactivityTimer();
 }
 
@@ -2944,19 +2945,17 @@ function selectOption(option, element) {
         opt.classList.remove('selected');
     });
     element.classList.add('selected');
-    selectedRetention = option;
-    document.getElementById('proceedBtn').disabled = false;
+    selectedRetention = LONG_TERM_RETENTION;
+    const proceedBtn = document.getElementById('proceedBtn');
+    if (proceedBtn) proceedBtn.disabled = false;
     resetInactivityTimer();
 }
 
 // Show details page from consent page
 function showDetailsPage() {
-    if (selectedRetention) {
-        showFlowPage('details-page');
-        resetInactivityTimer();
-    } else {
-        showFormAlert('consent-form-alert', 'Choose how long we should keep your feedback data.');
-    }
+    selectedRetention = LONG_TERM_RETENTION;
+    showFlowPage('details-page');
+    resetInactivityTimer();
 }
 
 // Retake photo from style page
@@ -3061,7 +3060,7 @@ function finalSubmit() {
                 userData: userData,
                 device: currentDevice,
                 theme: selectedTheme,
-                retention: selectedRetention
+                retention: LONG_TERM_RETENTION
             })
         });
     }).then(response => response.json())
@@ -3084,7 +3083,7 @@ function finalSubmit() {
         setupCelebrationMoment(submissionData);
         setupJourneyPassport(submissionData);
 
-        // Set up social share content for the thank-you page based on badge email status - done by XY
+        // Set up social share content for the thank-you page based on combined email queue status.
         setupSocialShare(submissionData);
         
         // Reset button
@@ -3153,18 +3152,18 @@ function setupBadgeReward(data) {
     const message = document.getElementById('thankyou-message');
     if (!message) return;
 
-    const badgeKey = data?.badgeKey || data?.badgeEmailBadgeKeys?.[0] || 'feedback-completer';
+    const badgeKey = data?.badgeKey || 'feedback-completer';
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
 
     message.textContent = `Your feedback has been recorded. You earned the ${reward.badgeName} badge, and your name will appear on the digital tree as a ${reward.leaf}.`;
 }
 
 function getCelebrationBadgeKey(data) {
-    return data?.badgeKey || data?.badgeEmailBadgeKeys?.[0] || 'feedback-completer';
+    return data?.badgeKey || 'feedback-completer';
 }
 
-function getCelebrationBadgeColor(badgeKey, data) {
-    const colorMap = {
+function getConfiguredBadgeLeafStyles() {
+    const fallbackColors = {
         'climate-champion': '#0f766e',
         'renewable-innovator': '#f59e0b',
         'sustainable-living-advocate': '#4a7c59',
@@ -3173,8 +3172,50 @@ function getCelebrationBadgeColor(badgeKey, data) {
         'social-champion': '#d97706',
         'feedback-completer': '#2f6f45'
     };
+    const styles = kioskParameters.badgeLeafStyles || {};
+    const leafScale = Number(styles.leafScale);
 
-    return data?.badgeColor || colorMap[badgeKey] || colorMap['feedback-completer'];
+    return {
+        colors: {
+            ...fallbackColors,
+            ...(styles.colors || {})
+        },
+        leafScale: Number.isFinite(leafScale) ? Math.min(2, Math.max(0.4, leafScale)) : 1
+    };
+}
+
+function getCelebrationBadgeColor(badgeKey, data) {
+    const colorMap = getConfiguredBadgeLeafStyles().colors;
+
+    return colorMap[badgeKey] || data?.badgeColor || colorMap['feedback-completer'];
+}
+
+const CELEBRATION_LEAF_IMAGES = {
+    'climate-champion': '/assets/Tree/leaf/NewLeftLeaf.png',
+    'renewable-innovator': '/assets/Tree/leaf/NewRightLeaf.png',
+    'sustainable-living-advocate': '/assets/Tree/leaf/OldLeftLeaf.png',
+    'ocean-guardian': '/assets/Tree/leaf/NewRightLeaf.png',
+    'governance-guardian': '/assets/Tree/leaf/OldLeftLeaf.png',
+    'social-champion': '/assets/Tree/leaf/OldRightLeaf.png',
+    'feedback-completer': '/assets/Tree/leaf/NewLeftLeaf.png'
+};
+
+const CELEBRATION_FLIGHT_TARGETS = {
+    'climate-champion': { x: 118, y: -116, arcX: 54, arcY: -86, left: '58%', top: '32%' },
+    'renewable-innovator': { x: 142, y: -126, arcX: 76, arcY: -92, left: '66%', top: '28%' },
+    'sustainable-living-advocate': { x: 128, y: -104, arcX: 68, arcY: -76, left: '62%', top: '38%' },
+    'ocean-guardian': { x: 150, y: -98, arcX: 82, arcY: -72, left: '70%', top: '42%' },
+    'governance-guardian': { x: 108, y: -98, arcX: 48, arcY: -72, left: '55%', top: '40%' },
+    'social-champion': { x: 138, y: -108, arcX: 74, arcY: -78, left: '67%', top: '36%' },
+    'feedback-completer': { x: 126, y: -112, arcX: 62, arcY: -78, left: '61%', top: '34%' }
+};
+
+function getCelebrationLeafImage(badgeKey) {
+    return CELEBRATION_LEAF_IMAGES[badgeKey] || CELEBRATION_LEAF_IMAGES['feedback-completer'];
+}
+
+function getCelebrationFlightTarget(badgeKey) {
+    return CELEBRATION_FLIGHT_TARGETS[badgeKey] || CELEBRATION_FLIGHT_TARGETS['feedback-completer'];
 }
 
 function renderCelebrationLeaves(color) {
@@ -3279,8 +3320,18 @@ function setupCelebrationMoment(data) {
     const badgeKey = getCelebrationBadgeKey(data);
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
     const color = getCelebrationBadgeColor(badgeKey, data);
+    const badgeLeafStyles = getConfiguredBadgeLeafStyles();
+    const flightTarget = getCelebrationFlightTarget(badgeKey);
 
     celebration.style.setProperty('--celebration-badge-color', color);
+    celebration.style.setProperty('--celebration-leaf-scale', badgeLeafStyles.leafScale);
+    celebration.style.setProperty('--celebration-leaf-image', `url('${getCelebrationLeafImage(badgeKey)}')`);
+    celebration.style.setProperty('--celebration-flight-x', `${flightTarget.x}px`);
+    celebration.style.setProperty('--celebration-flight-y', `${flightTarget.y}px`);
+    celebration.style.setProperty('--celebration-arc-x', `${flightTarget.arcX}px`);
+    celebration.style.setProperty('--celebration-arc-y', `${flightTarget.arcY}px`);
+    celebration.style.setProperty('--celebration-target-left', flightTarget.left);
+    celebration.style.setProperty('--celebration-target-top', flightTarget.top);
     celebration.classList.remove('is-ready');
 
     const badgeName = document.getElementById('celebration-badge-name');
@@ -3387,6 +3438,172 @@ function getPassportLeafMessage(leafName) {
     return `${article} ${leafText} was added to the ESG tree.`;
 }
 
+function escapePassportHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatPassportDate(value) {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return 'Today';
+    return date.toLocaleDateString('en-SG', {
+        day: '2-digit',
+        month: 'short'
+    });
+}
+
+function getCurrentPassportBadge(data) {
+    const badgeKey = getCelebrationBadgeKey(data);
+    const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+    return {
+        key: badgeKey,
+        name: reward.badgeName,
+        color: getCelebrationBadgeColor(badgeKey, data),
+        count: 1
+    };
+}
+
+function formatPassportTopicLabel(topic) {
+    return String(topic || '')
+        .split('-')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function isCurrentPassportVisit(visit, data, currentBadge) {
+    const submitted = data?.submittedAt ? new Date(data.submittedAt) : null;
+    const created = visit?.createdAt ? new Date(visit.createdAt) : null;
+    const sameBadge = !visit?.badgeKey ||
+        visit.badgeKey === currentBadge.key ||
+        visit.badgeName === currentBadge.name;
+
+    if (!sameBadge || !submitted || !created || Number.isNaN(submitted.getTime()) || Number.isNaN(created.getTime())) {
+        return false;
+    }
+
+    return Math.abs(created.getTime() - submitted.getTime()) <= 5 * 60 * 1000;
+}
+
+function renderVisitorPassportHistory(passportData, data) {
+    const history = document.getElementById('passport-history');
+    const summary = document.getElementById('passport-summary');
+    const badgeGrid = document.getElementById('passport-collected-badges');
+    const recentList = document.getElementById('passport-recent-visits');
+    const title = document.getElementById('passport-title');
+    if (!history || !summary || !badgeGrid || !recentList) return;
+
+    const currentBadge = getCurrentPassportBadge(data);
+    const passport = passportData || {};
+    const backendBadges = Array.isArray(passport.badges) ? passport.badges : [];
+    const backendVisits = Array.isArray(passport.recentVisits) ? passport.recentVisits : [];
+    const currentVisit = {
+        createdAt: data?.submittedAt || new Date().toISOString(),
+        badgeKey: currentBadge.key,
+        badgeName: currentBadge.name,
+        badgeColor: currentBadge.color,
+        isCurrentVisit: true,
+        topicLabel: formatPassportTopicLabel(userData.pledgeTopic) || 'Current feedback',
+        pledgeSnippet: userData.pledgeSkipped ? 'Feedback-only visit.' : (userData.pledge || 'Feedback submitted.')
+    };
+    const backendCurrentIndex = backendVisits.findIndex(visit => isCurrentPassportVisit(visit, data, currentBadge));
+    const backendIncludesCurrent = backendCurrentIndex >= 0;
+    const recentVisits = (backendIncludesCurrent
+        ? backendVisits.map((visit, index) => index === backendCurrentIndex ? { ...visit, isCurrentVisit: true } : visit)
+        : [currentVisit, ...backendVisits]
+    ).slice(0, 5);
+    const visibleBadges = backendBadges.length
+        ? backendBadges.map((badge) => ({ ...badge }))
+        : [currentBadge];
+    const matchingBadge = visibleBadges.find(badge => badge.key === currentBadge.key);
+
+    if (!backendIncludesCurrent) {
+        if (matchingBadge && backendBadges.length) {
+            matchingBadge.count = Number(matchingBadge.count || 0) + 1;
+        } else if (!matchingBadge) {
+            visibleBadges.unshift(currentBadge);
+        }
+    }
+
+    const backendVisitCount = Number(passport.visitCount || 0);
+    const backendFeedbackCount = Number(passport.feedbackCount || 0);
+    const visitCount = backendIncludesCurrent ? Math.max(backendVisitCount, 1) : Math.max(backendVisitCount + 1, 1);
+    const feedbackCount = backendIncludesCurrent ? Math.max(backendFeedbackCount, 1) : Math.max(backendFeedbackCount + 1, 1);
+    const stampCount = Array.isArray(passport.stamps) ? passport.stamps.length : 1;
+
+    if (title) {
+        const holder = passport.holderName || userData.name || 'Your';
+        title.textContent = `${holder}'s ESG passport`;
+    }
+
+    summary.innerHTML = [
+        ['Visits', visitCount || 1],
+        ['Feedback stamps', feedbackCount || 1],
+        ['Badges collected', visibleBadges.length],
+        ['Milestones', Math.max(stampCount, 1)]
+    ].map(([label, value]) => `
+        <div class="passport-summary-item">
+            <strong>${escapePassportHtml(value)}</strong>
+            <span>${escapePassportHtml(label)}</span>
+        </div>
+    `).join('');
+
+    badgeGrid.innerHTML = visibleBadges.map((badge) => `
+        <article class="passport-badge-card" style="--passport-badge-color: ${escapePassportHtml(badge.color || currentBadge.color)};">
+            <span class="passport-badge-seal"><i class="fa-solid fa-award"></i></span>
+            <span>
+                <strong>${escapePassportHtml(badge.name || currentBadge.name)}</strong>
+                <small>${escapePassportHtml(Number(badge.count || 1))} stamp${Number(badge.count || 1) === 1 ? '' : 's'} collected</small>
+            </span>
+        </article>
+    `).join('');
+
+    recentList.innerHTML = recentVisits.map((visit, index) => `
+        <article class="passport-visit-card">
+            <span class="passport-visit-date">${visit.isCurrentVisit || index === 0 && !backendIncludesCurrent ? 'This visit' : escapePassportHtml(formatPassportDate(visit.createdAt))}</span>
+            <span>
+                <strong>${escapePassportHtml(visit.badgeName || currentBadge.name)}</strong>
+                <small>${escapePassportHtml(visit.topicLabel || 'General ESG feedback')}</small>
+                ${visit.pledgeSnippet ? `<small>${escapePassportHtml(visit.pledgeSnippet)}</small>` : ''}
+            </span>
+        </article>
+    `).join('');
+
+    history.hidden = false;
+}
+
+function refreshVisitorPassportHistory(data) {
+    const email = (userData.email || '').trim();
+    if (!email || !email.includes('@')) {
+        renderVisitorPassportHistory(null, data);
+        return;
+    }
+
+    window.setTimeout(async () => {
+        try {
+            const response = await fetch('/api/feedback/visitor-passport', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                },
+                body: JSON.stringify({ email })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Unable to load visitor passport');
+            }
+            renderVisitorPassportHistory(result.passport, data);
+        } catch (error) {
+            console.warn('Visitor passport history unavailable:', error);
+        }
+    }, 1800);
+}
+
 function setupJourneyPassport(data) {
     const passport = document.getElementById('journey-passport');
     if (!passport) return;
@@ -3453,6 +3670,9 @@ function setupJourneyPassport(data) {
         photoStatus.detail
     );
 
+    renderVisitorPassportHistory(null, data);
+    refreshVisitorPassportHistory(data);
+
     passport.classList.remove('is-ready');
     window.setTimeout(() => {
         passport.classList.add('is-ready');
@@ -3514,12 +3734,9 @@ function setupSocialShare(data) {
         return;
     }
 
-    // Configure the share section only after badge email status is known - done by XY
-    const emailStatusText = data?.badgeEmailSent
-        ? `Your badge email has been sent to ${data.email}. Share your pledge below!`
-        : data?.emailQueued
-            ? 'Your badge email is being queued and will be sent shortly. You can still share your pledge now.'
-            : 'Share your pledge with others and help grow the sustainability movement.';
+    const emailStatusText = data?.emailQueued
+        ? 'Your combined thank-you email is being queued and will be sent shortly. You can still share your pledge now.'
+        : 'Share your pledge with others and help grow the sustainability movement.';
 
     shareStatus.textContent = emailStatusText;
     shareSection.style.display = 'block';
@@ -3536,7 +3753,7 @@ function submitAnother() {
     }
     
     // Reset all data
-    selectedRetention = null;
+    selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
@@ -3547,7 +3764,8 @@ function submitAnother() {
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-    document.getElementById('proceedBtn').disabled = true;
+    const proceedBtn = document.getElementById('proceedBtn');
+    if (proceedBtn) proceedBtn.disabled = true;
     document.getElementById('char-count').textContent = '0';
     clearValidationMessages();
     
@@ -3569,7 +3787,8 @@ function goBackToLanding() {
 
 // From Details to Consent
 function goBackToConsent() {
-    showFlowPage('consent-page');
+    selectedRetention = LONG_TERM_RETENTION;
+    showLandingPages();
     resetInactivityTimer();
 }
 
@@ -3588,7 +3807,7 @@ function goHomeFromFeedbackForm() {
         stream = null;
     }
 
-    selectedRetention = null;
+    selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
     userData = {};
     photoData = null;
@@ -3797,13 +4016,30 @@ function applyLandingLayoutSettings(layout = {}) {
     root.style.setProperty('--pledgeboard-button-mobile-height', `${Math.round(pledgeButtonHeight * 0.85)}px`);
 }
 
+function normalizeStyleHexColor(value, fallback = '#4a7c59') {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function shadeHexColor(hex, amount) {
+    const safeHex = normalizeStyleHexColor(hex);
+    const raw = safeHex.slice(1);
+    const channels = [0, 2, 4].map((offset) => {
+        const value = parseInt(raw.slice(offset, offset + 2), 16);
+        return Math.max(0, Math.min(255, value + amount));
+    });
+    return `#${channels.map(value => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function applyParameterOverrides() {
     const messages = kioskParameters.feedbackMessages || {};
     const content = kioskParameters.contentSettings || {};
     const campaign = kioskParameters.campaignSettings || {};
+    const feedbackStyle = kioskParameters.feedbackPageStyle || {};
     const assets = kioskParameters.visualAssets || {};
     const layout = kioskParameters.layoutSettings || {};
     const photo = kioskParameters.photoSettings || {};
+    const badgeLeafStyles = getConfiguredBadgeLeafStyles();
     const flags = getFeatureFlags();
     const rules = getValidationRules();
     const retentionDays = getTemporaryRetentionDays();
@@ -3811,9 +4047,16 @@ function applyParameterOverrides() {
 
     applyLandingLayoutSettings(layout);
 
-    if (assets.feedbackBackground) {
-        document.documentElement.style.setProperty('--form-bg', assets.feedbackBackground);
+    const feedbackBackground = feedbackStyle.backgroundCss || assets.feedbackBackground;
+    if (feedbackBackground) {
+        document.documentElement.style.setProperty('--form-bg', feedbackBackground);
     }
+    const cardOpacity = Math.min(1, Math.max(0.55, Number(feedbackStyle.cardOpacity) || 0.9));
+    const accentColor = normalizeStyleHexColor(feedbackStyle.accentColor, '#4a7c59');
+    document.documentElement.style.setProperty('--feedback-card-opacity', cardOpacity.toFixed(2));
+    document.documentElement.style.setProperty('--feedback-accent-color', accentColor);
+    document.documentElement.style.setProperty('--feedback-accent-dark', shadeHexColor(accentColor, -36));
+    document.documentElement.style.setProperty('--celebration-leaf-scale', badgeLeafStyles.leafScale);
 
     const pledgePage = document.getElementById('pledge-page');
     if (pledgePage) pledgePage.dataset.featureEnabled = String(flags.pledgeEnabled !== false);
@@ -3931,7 +4174,7 @@ async function loadCountdownTimer() {
 
 const translations = {
     en: {
-        brandText: "Community Feedback Portal",
+        brandText: "ESG Feedback Portal",
         landingTitle: "Let's turn your ideas into reality",
         landingSubtitle: "Share your thoughts and help us improve our services. Your feedback matters.",
         startButton: "Start Feedback Form",
@@ -4413,7 +4656,7 @@ function translateKnownDynamicText(text) {
 }
 
 function setText(id, value) {
-    document.querySelectorAll(`#${id}`).forEach(el => {
+    document.querySelectorAll(`#${id}, [data-text-target="${id}"]`).forEach(el => {
         el.textContent = value;
     });
 }
@@ -4569,14 +4812,11 @@ function applyTranslations() {
     setText('confirm-email-label', t.confirmEmail);
     setText('confirm-questions-label', t.confirmQuestions);
     setText('confirm-theme-label', t.confirmTheme);
-    setText('confirm-retention-label', t.confirmRetention);
     setText('confirm-pledge-label', t.confirmPledge);
     setText('confirm-photo-label', t.confirmPhoto);
     setText('confirm-photo-ready', t.confirmPhotoReady);
     setText('confirm-email-photo-label', t.confirmEmailPhoto);
     setText('confirm-email-photo-ready', t.confirmEmailPhotoReady);
-    setText('confirm-primary-consent-label', t.confirmPrimaryConsent);
-    setText('confirm-primary-consent-ready', t.confirmPrimaryConsentReady);
     setText('confirmation-note-text', t.confirmationNote);
     setText('submit-feedback-text', t.submitFeedback);
     setText('back-from-confirmation-text', t.back);
