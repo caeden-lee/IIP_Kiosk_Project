@@ -7,6 +7,7 @@ const db = require('./db');
 const CACHE_SCHEMA_VERSION = 1;
 const CACHE_DIR = path.join(__dirname, 'cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'feedback-analysis-cache.json');
+const CACHE_SETTINGS_FILE = path.join(CACHE_DIR, 'feedback-analysis-cache.json');
 const CACHE_TABLE = 'feedback_analysis_cache';
 
 const MODE_MODEL_NAMES = {
@@ -19,6 +20,7 @@ const MODE_MODEL_NAMES = {
 
 const cacheMap = new Map();
 let readyPromise = null;
+let storageMode = 'both';
 
 function mysqlDate(date = new Date()) {
     return date
@@ -30,6 +32,52 @@ function mysqlDate(date = new Date()) {
 function ensureCacheDir() {
     if (!fs.existsSync(CACHE_DIR)) {
         fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
+}
+
+function ensureSettingsDir() {
+    const settingsDir = path.dirname(CACHE_SETTINGS_FILE);
+    if (!fs.existsSync(settingsDir)) {
+        fs.mkdirSync(settingsDir, { recursive: true });
+    }
+}
+
+function normalizeStorageMode(value) {
+    const mode = String(value || '').trim().toLowerCase();
+    if (mode === 'json' || mode === 'database' || mode === 'both') {
+        return mode;
+    }
+    return 'both';
+}
+
+function readStorageMode() {
+    try {
+        if (!fs.existsSync(CACHE_SETTINGS_FILE)) {
+            return 'both';
+        }
+
+        const raw = fs.readFileSync(CACHE_SETTINGS_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        return normalizeStorageMode(parsed.storageMode);
+    } catch (error) {
+        console.warn('⚠️ Feedback analysis cache settings load skipped:', error.message);
+        return 'both';
+    }
+}
+
+function writeStorageMode(mode) {
+    try {
+        ensureSettingsDir();
+        const payload = {
+            storageMode: normalizeStorageMode(mode),
+            updatedAt: new Date().toISOString()
+        };
+
+        fs.writeFileSync(CACHE_SETTINGS_FILE, JSON.stringify(payload, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to save feedback analysis cache settings:', error.message);
+        return false;
     }
 }
 
@@ -193,14 +241,23 @@ async function saveEntryToDatabase(entry) {
 async function ensureReady() {
     if (!readyPromise) {
         readyPromise = (async () => {
+            storageMode = readStorageMode();
+
             try {
-                await ensureCacheTable();
+                if (storageMode === 'database' || storageMode === 'both') {
+                    await ensureCacheTable();
+                }
             } catch (error) {
                 console.warn('⚠️ Feedback analysis cache table could not be ensured:', error.message);
             }
 
-            hydrateFromFile();
-            await hydrateFromDatabase();
+            if (storageMode === 'json' || storageMode === 'both') {
+                hydrateFromFile();
+            }
+
+            if (storageMode === 'database' || storageMode === 'both') {
+                await hydrateFromDatabase();
+            }
             return true;
         })();
     }
@@ -265,50 +322,73 @@ async function saveMany(entries) {
         return;
     }
 
-    ensureCacheDir();
+    if (storageMode === 'json' || storageMode === 'both') {
+        ensureCacheDir();
 
-    const filePayload = {
-        version: CACHE_SCHEMA_VERSION,
-        updatedAt: new Date().toISOString(),
-        entries: Object.fromEntries(cacheMap.entries())
-    };
+        const filePayload = {
+            version: CACHE_SCHEMA_VERSION,
+            updatedAt: new Date().toISOString(),
+            entries: Object.fromEntries(cacheMap.entries())
+        };
 
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(filePayload, null, 2), 'utf8');
-
-    console.log("Prepared entries:", preparedEntries.length);
-
-    try {
-        const sql = `
-            INSERT INTO ${CACHE_TABLE}
-                (cache_key, analysis_mode, model_name, normalized_text, source_text, sentiment, hit_count, analyzed_at, last_used_at)
-            VALUES ?
-            ON DUPLICATE KEY UPDATE
-                analysis_mode = VALUES(analysis_mode),
-                model_name = VALUES(model_name),
-                normalized_text = VALUES(normalized_text),
-                source_text = VALUES(source_text),
-                sentiment = VALUES(sentiment),
-                hit_count = VALUES(hit_count),
-                analyzed_at = VALUES(analyzed_at),
-                last_used_at = VALUES(last_used_at)
-        `;
-
-        const values = preparedEntries.map(entry => [
-            entry.cacheKey,
-            entry.mode,
-            entry.modelName,
-            entry.normalizedText,
-            entry.sourceText,
-            entry.sentiment,
-            entry.hitCount,
-            entry.analyzedAt,
-            entry.lastUsedAt
-        ]);
-
-        await db.pool.promise().query(sql, [values]);
-    } catch (error) {
-        console.warn('⚠️ Feedback analysis cache database write skipped:', error.message);
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(filePayload, null, 2), 'utf8');
     }
+
+    if (storageMode === 'database' || storageMode === 'both') {
+        try {
+            const sql = `
+                INSERT INTO ${CACHE_TABLE}
+                    (cache_key, analysis_mode, model_name, normalized_text, source_text, sentiment, hit_count, analyzed_at, last_used_at)
+                VALUES ?
+                ON DUPLICATE KEY UPDATE
+                    analysis_mode = VALUES(analysis_mode),
+                    model_name = VALUES(model_name),
+                    normalized_text = VALUES(normalized_text),
+                    source_text = VALUES(source_text),
+                    sentiment = VALUES(sentiment),
+                    hit_count = VALUES(hit_count),
+                    analyzed_at = VALUES(analyzed_at),
+                    last_used_at = VALUES(last_used_at)
+            `;
+
+            const values = preparedEntries.map(entry => [
+                entry.cacheKey,
+                entry.mode,
+                entry.modelName,
+                entry.normalizedText,
+                entry.sourceText,
+                entry.sentiment,
+                entry.hitCount,
+                entry.analyzedAt,
+                entry.lastUsedAt
+            ]);
+
+            await db.pool.promise().query(sql, [values]);
+        } catch (error) {
+            console.warn('⚠️ Feedback analysis cache database write skipped:', error.message);
+        }
+    }
+}
+
+function getStorageMode() {
+    return storageMode;
+}
+
+function setStorageMode(mode) {
+    const normalized = normalizeStorageMode(mode);
+    const persisted = writeStorageMode(normalized);
+    if (persisted) {
+        storageMode = normalized;
+        readyPromise = null;
+    }
+    return persisted ? storageMode : null;
+}
+
+async function reloadCache() {
+    cacheMap.clear();
+    readyPromise = null;
+    await ensureReady();
+    return storageMode;
 }
 
 module.exports = {
@@ -317,5 +397,9 @@ module.exports = {
     saveMany,
     normalizeAnalysisText,
     getModelName,
-    buildCacheKey
+    buildCacheKey,
+    getStorageMode,
+    setStorageMode,
+    reloadCache,
+    normalizeStorageMode
 };

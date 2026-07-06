@@ -696,66 +696,104 @@
                         <p>Generate and view detailed feedback reports with AI insights</p>
                     </div>
 
-                    <div class="feedback-section">
-                        <div class="section-header">
-                            <h3>Flagged Feedback</h3>
-                            <button type="button" class="btn-secondary" onclick="loadFlaggedFeedback()">Refresh</button>
-                        </div>
-                        <div class="flagged-feedback-summary" id="flagged-feedback-summary">
-                            Keyword analysis checks feedback answers and visitor comments. Flagged submissions are hidden from the digital tree.
-                        </div>
-                        <div class="table-container flagged-feedback-table-wrap">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Visitor</th>
-                                        <th>Source</th>
-                                        <th>Matched Keywords</th>
-                                        <th>Feedback Text</th>
-                                        <th>Pledge Text</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="flagged-feedback-table-body">
-                                    <tr>
-                                        <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
-                                            Loading flagged feedback...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <!-- Tab Contents for Feedback analysis Report -->
+                     <div class="feedback-tabs">
+                        <button class="feedback-tab active" onclick="switchFeedbackTab('feedback-report-tab')">
+                            📊 Feedback Report
+                        </button>
+
+                        <button class="feedback-tab" onclick="switchFeedbackTab('ai-cache-tab')">
+                            ⚙️ AI cache storage
+                        </button>
                     </div>
 
-                    <!-- Feedback Analysis Section (DONE BY YU KANG)-->
-                    <div class="feedback-section feedback-analyse">
-                        <div class="section-header">
-                            <h3 id="feedback-analysis-header">Feedback Analysis</h3>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
-                                    <option value="rule-based">Rule-Based Analysis</option>
-
-                                    <option value="xenova">Xenova AI</option>
-
-                                    <option value="localgpt">LocalGPT</option>
-
-                                    <option value="qwen">Qwen AI</option>
-
-                                    <option value="gemma">Gemma AI</option>
-                                </select>
-                            
-                                <button id="analyze-feedback-btn" class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                    <div id="feedback-report-tab" class="feedback-tab-content active">
+                        <div class="feedback-section">
+                            <div class="section-header">
+                                <h3>Flagged Feedback</h3>
+                                <button type="button" class="btn-secondary" onclick="loadFlaggedFeedback()">Refresh</button>
+                            </div>
+                            <div class="flagged-feedback-summary" id="flagged-feedback-summary">
+                                Keyword analysis checks feedback answers and visitor comments. Flagged submissions are hidden from the digital tree.
+                            </div>
+                            <div class="table-container flagged-feedback-table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Visitor</th>
+                                            <th>Source</th>
+                                            <th>Matched Keywords</th>
+                                            <th>Feedback Text</th>
+                                            <th>Pledge Text</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="flagged-feedback-table-body">
+                                        <tr>
+                                            <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
+                                                Loading flagged feedback...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
-                            <!-- AI Insight Summary (Done by Yu Kang) -->
-                            <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
-                            <div id="feedback-analysis-output"></div>
-                        </div>
-                    </div> 
+                        <!-- Feedback Analysis Section (DONE BY YU KANG)-->
+                        <div class="feedback-section feedback-analyse">
+                            <div class="section-header">
+                                <h3 id="feedback-analysis-header">Feedback Analysis</h3>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <select id="analysis-mode" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
+                                        <option value="rule-based">Rule-Based Analysis</option>
 
-                    <br>
+                                        <option value="xenova">Xenova AI</option>
+
+                                        <option value="localgpt">LocalGPT</option>
+
+                                        <option value="qwen">Qwen AI</option>
+
+                                        <option value="gemma">Gemma AI</option>
+                                    </select>
+                                
+                                    <button id="analyze-feedback-btn" class="btn-primary" onclick="analyzeFeedbackData()">Analyze Feedback</button>
+                                </div>
+                            </div>
+
+                            <div id="feedback-analysis-results" style="display: none; margin-top: 20px;">
+                                <!-- AI Insight Summary (Done by Yu Kang) -->
+                                <h4 style="margin-bottom: 12px;">AI Insight Summary:</h4>
+                                <div id="feedback-analysis-output"></div>
+                            </div>
+                        </div> 
+                        <br>
+                    </div>
+                    
+                    <div id="ai-cache-tab" class="feedback-tab-content">
+                        <div class="feedback-section">
+                            <div class="section-header">
+                                <h2>AI Cache Storage</h2>
+                                <p>Settings for AI cache storage to be either on JSON or Database.</p>
+                            </div>
+                            <div class="section-body" style="margin-top: 16px;">
+                                <div class="form-group" style="max-width: 420px;">
+                                    <label for="ai-cache-storage-mode" style="font-weight: 600;">Storage Mode</label>
+                                    <select id="ai-cache-storage-mode" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;">
+                                        <option value="json">JSON only</option>
+                                        <option value="database">Database only</option>
+                                        <option value="both">JSON and Database</option>
+                                    </select>
+                                </div>
+
+                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px;">
+                                    <button type="button" class="btn-primary" onclick="saveCacheStorageMode()">Save Cache Storage</button>
+                                    <button type="button" class="btn-secondary" onclick="loadCacheStorageMode()">Refresh</button>
+                                </div>
+
+                                <div id="ai-cache-storage-status" class="fm-status fm-status--hidden" aria-live="polite" style="margin-top: 14px;"></div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!--
                     <div class="feedback-section">
@@ -1108,6 +1146,26 @@
                                         <input type="text" id="param-subtitleText" value="Growing with every visitor's contribution this year"
                                             style="width:30%; height: 70px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>Display 2D/3D Tree</h3>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
+                                </div>
+                            </div>
+
+                            <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-treeDisplayMode">Tree Display Mode</label><br>
+                                    <select id="param-treeDisplayMode" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
+                                        <option value="2d">2D Tree</option>
+                                        <option value="3d">3D Tree</option>
+                                    </select>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Only the selected route stays live; the other route returns blocked.</p>
                                 </div>
                             </div>
                         </div>

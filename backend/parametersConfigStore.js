@@ -130,6 +130,7 @@ const DEFAULT_CONFIG = {
   },
   treeParameters: {
     treeStage: 0,
+    treeDisplayMode: "2d",
     ovalWidth: 850,
     ovalHeight: 300,
     ovalTopOffset: -100,
