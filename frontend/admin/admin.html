@@ -3113,6 +3113,12 @@
                             <small class="text-muted">Example: 1 month means feedback is archived 1 month after its submission date</small>
                         </div>
 
+                        <div class="form-group">
+                            <label for="archive-keepRecentFeedbackCount">Keep the latest active feedback entries</label>
+                            <input type="number" id="archive-keepRecentFeedbackCount" min="0" max="100000" step="1" placeholder="0">
+                            <small class="text-muted">Set to 0 to disable this rule. When enabled, older active feedback is archived so only the newest N remain in the main feedback list.</small>
+                        </div>
+
                         <button type="button" class="btn-secondary" onclick="runConfiguredArchiveNow()">
                             Run Archive Update Now
                         </button>
@@ -3264,6 +3270,9 @@
                                 <div class="action-buttons">
                                     <button class="btn-secondary" onclick="startServer()" id="start-btn" disabled>
                                         ▶️ Start Server
+                                    </button>
+                                    <button class="btn-secondary" onclick="restartServer()" id="restart-btn" disabled>
+                                        🔄 Restart Server
                                     </button>
                                     <button class="btn-danger" onclick="stopServer()" id="stop-btn" disabled>
                                         ⏹️ Stop Server
