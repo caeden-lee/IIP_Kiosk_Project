@@ -19,17 +19,12 @@
   },
   "campaignSettings": {
     "enabled": false,
-    "title": "Food Waste Week",
+    "title": "ESG Campaign",
     "cadence": "weekly",
     "treeSubtitle": "This week's focus: reduce food waste through mindful choices.",
     "pulseGoal": 100,
     "badgeEmphasis": "sustainable-living",
-    "focusKeywords": [
-      "food waste",
-      "leftovers",
-      "canteen",
-      "meal"
-    ],
+    "focusKeywords": [],
     "pledgeExamples": [
       "Take only what I can finish during meals",
       "Share food waste tips with one friend this week",
@@ -79,12 +74,12 @@
     "treeStage": 4,
     "ovalWidth": 850,
     "ovalHeight": 300,
-    "ovalTopOffset": -100,
-    "leafRefreshInterval": 30000,
-    "leafOpacity": 0.9,
-    "leafAnimationDuration": 500,
-    "leafFallThreshold": 15,
-    "leafFallDuration": 4200,
+    "ovalTopOffset": 0,
+    "leafRefreshInterval": 0,
+    "leafOpacity": 0,
+    "leafAnimationDuration": 0,
+    "leafFallThreshold": 0,
+    "leafFallDuration": 0,
     "leafGreenResetTime": "00:00",
     "leafDisplayScale": 1,
     "showTitleBox": true,
@@ -105,7 +100,8 @@
       "position": "top-center",
       "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
-    }
+    },
+    "treeDisplayMode": "2d"
   },
   "feedbackPageStyle": {
     "backgroundCss": "",

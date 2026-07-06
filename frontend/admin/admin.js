@@ -4145,6 +4145,27 @@ function closeQAPopup() {
 
 // ==================== Feedback Sentiment Analysis ====================
 
+// Switch between feedback report tabs
+function switchFeedbackTab(tabId) {
+
+    // Hide all contents
+    document.querySelectorAll('.feedback-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active from buttons
+    document.querySelectorAll('.feedback-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+
+    // Activate clicked button
+    event.currentTarget.classList.add('active');
+}
+
+
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
     return String(text ?? '')
@@ -8560,6 +8581,7 @@ function showPage(pageName) {
     } else if (pageName === 'feedback-report') {
         loadFlaggedFeedback();
         loadVisitorTrendsData();
+        loadCacheStorageMode();
     } else if (pageName === 'digital-tree') {
         loadDigitalTreeData();
     } else if (pageName === 'pledgeboard') {
@@ -8687,6 +8709,7 @@ async function saveTreeParameters() {
         const showTitleBox = document.getElementById('param-showTitleBox').checked;
         const leafScaleSlider = document.getElementById('param-leafDisplayScale');
         const leafDisplayScale = leafScaleSlider ? parseFloat(leafScaleSlider.value) : 1.0;
+        const treeDisplayMode = document.getElementById('param-treeDisplayMode')?.value === '3d' ? '3d' : '2d';
 
         // Get thresholds
         const thresholds = {
@@ -8713,6 +8736,7 @@ async function saveTreeParameters() {
             treeStage,
             showTitleBox,
             leafDisplayScale,
+            treeDisplayMode,
             leafThresholds: thresholds,   // save thresholds for later
             treeTitleBox: collectTreeTitleSettings()  // collect title box settings if needed
         };
@@ -9443,6 +9467,7 @@ async function loadTreeTitleSettings() {
     const settings = tree.treeTitleBox;
     if (settings) {
         document.getElementById('param-showTitleBox').checked = settings.showTitleBox ?? true;
+        document.getElementById('param-treeDisplayMode').value = settings.treeDisplayMode === '3d' ? '3d' : '2d';
         document.getElementById('param-titleText').value = settings.titleText || '🌳 ESG Digital Tree';
         document.getElementById('param-subtitleText').value = settings.subtitleText || 'Growing with every visitor\'s contribution this year';
         document.getElementById('param-titleOpacity').value = settings.opacity ?? 0.25;
@@ -12832,6 +12857,65 @@ async function saveLandingPageQR() {
   }
 }
 
+function setCacheStorageStatus(type, message) {
+  const el = document.getElementById('ai-cache-storage-status');
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = 'fm-status';
+  if (type === 'success') {
+    el.classList.add('fm-status--success');
+  } else if (type === 'error') {
+    el.classList.add('fm-status--error');
+  } else {
+    el.classList.add('fm-status--info');
+  }
+}
+
+async function loadCacheStorageMode() {
+  try {
+    const res = await fetch('/api/admin/feedback-analysis-cache-storage');
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to load cache storage mode');
+    }
+
+    const select = document.getElementById('ai-cache-storage-mode');
+    if (select) {
+      select.value = data.storageMode || 'both';
+    }
+
+    setCacheStorageStatus('info', `Current storage mode: ${data.storageMode || 'both'}`);
+  } catch (error) {
+    console.error('Failed to load cache storage mode:', error);
+    setCacheStorageStatus('error', 'Failed to load cache storage mode');
+  }
+}
+
+async function saveCacheStorageMode() {
+  try {
+    const select = document.getElementById('ai-cache-storage-mode');
+    const storageMode = select ? select.value : 'both';
+
+    const res = await fetch('/api/admin/feedback-analysis-cache-storage', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storageMode })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to save cache storage mode');
+    }
+
+    setCacheStorageStatus('success', `Cache storage updated to ${data.storageMode}`);
+  } catch (error) {
+    console.error('Failed to save cache storage mode:', error);
+    setCacheStorageStatus('error', 'Failed to save cache storage mode');
+  }
+}
+
 
 // ==================== 28. EMAIL MANAGEMENT ====================
 // Dynamic SMTP fields + load/save/test
@@ -13624,6 +13708,7 @@ function populateParameterForm(config) {
     if (treeStageStatus) {
         treeStageStatus.textContent = `Current: stage ${normalizedTreeStage}. Shown on /tree after apply.`;
     }
+    setInputValue('param-treeDisplayMode', tree.treeDisplayMode || '2d');
     setCheckedValue('param-showTitleBox', tree.showTitleBox !== false);
     // Leaf display scale (new) - Done by Yu Kang
     const badgeLeafScale = Number(badgeLeafStyles.leafScale);
@@ -13785,6 +13870,7 @@ function collectParameterForm() {
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
             leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
+            treeDisplayMode: getInputValue('param-treeDisplayMode') === '3d' ? '3d' : '2d',
             leafDisplayScale: sharedLeafScale,
             showTitleBox: getCheckedValue('param-showTitleBox')
         },

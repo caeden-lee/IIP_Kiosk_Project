@@ -336,6 +336,17 @@ function getBindHost() {
     return bindHost || '0.0.0.0';
 }
 
+function getActiveTreeDisplayMode() {
+    const config = parametersConfigStore.readParametersConfig();
+    const mode = String(config.treeParameters?.treeDisplayMode || '2d').trim().toLowerCase();
+    return mode === '3d' ? '3d' : '2d';
+}
+
+function sendBlockedTreeRoute(res, activeMode) {
+    const activeRoute = activeMode === '3d' ? '/3dtree' : '/tree';
+    return res.status(403).send(`Tree display is currently set to ${activeRoute}.`);
+}
+
 // ==================== 2. NETWORK INTERFACE FUNCTIONS ====================
 // CROSS-PLATFORM: os.networkInterfaces() works on Windows, Linux, and macOS
 // Automatically detects WiFi, Ethernet, and other network adapters
@@ -845,13 +856,21 @@ app.get(['/admin', '/admin/'], (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
 });
 
-// Tree page – assumes file: frontend/tree/tree.html
+// Tree page is selected from admin settings; inactive route returns 403.
 app.get('/tree', (req, res) => {
+    const activeMode = getActiveTreeDisplayMode();
+    if (activeMode !== '2d') {
+        return sendBlockedTreeRoute(res, activeMode);
+    }
     res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
 });
 
-// 3D Tree page – assumes file: frontend/3dTree/3dTree.html
-app.get('/3dTree', (req, res) => {
+// 3D Tree page is selected from admin settings; inactive route returns 403.
+app.get(['/3dTree', '/3dtree'], (req, res) => {
+    const activeMode = getActiveTreeDisplayMode();
+    if (activeMode !== '3d') {
+        return sendBlockedTreeRoute(res, activeMode);
+    }
     res.sendFile(path.join(__dirname, '../frontend/3dTree/3dTree.html'));
 });
 

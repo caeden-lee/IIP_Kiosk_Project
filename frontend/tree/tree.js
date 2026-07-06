@@ -212,6 +212,14 @@ class TreeManager {
         this.leafGreenified = false;
         this.leafGreenTimer = null;
         this.leafFallCycleNumber = 0;
+        this.initialVisitorSnapshotReady = false;
+        this.knownLeafKeys = new Set();
+        this.pendingLandingLeafKeys = new Set();
+        this.landingCleanupTimers = new Map();
+        this.recentLandingWindowMs = 2 * 60 * 1000;
+        this.demoLandingEnabled = this.urlParams.get('demoLanding') === '1';
+        this.liveTreeRefreshInterval = 5000;
+        this.activeLeafCycle = null;
 
         // Mask cache
         this.maskData = null;
@@ -567,6 +575,65 @@ class TreeManager {
         ].join('|');
     }
 
+    getLeafKey(visitor, index = 0) {
+        const id = visitor?.feedback_id || visitor?.id;
+        if (id !== undefined && id !== null && String(id).trim() !== '') {
+            return `feedback:${String(id).trim()}`;
+        }
+
+        return [
+            'leaf',
+            visitor?.created_at || '',
+            visitor?.name || 'visitor',
+            visitor?.badgeKey || '',
+            index
+        ].join('|');
+    }
+
+    isRecentLandingCandidate(visitor) {
+        const createdAt = new Date(visitor?.created_at);
+        if (Number.isNaN(createdAt.getTime())) return false;
+
+        const age = Date.now() - createdAt.getTime();
+        return age >= 0 && age <= this.recentLandingWindowMs;
+    }
+
+    updateLandingLeafState(nextVisitors) {
+        const visitors = Array.isArray(nextVisitors) ? nextVisitors : [];
+        const nextKeys = new Set(visitors.map((visitor, index) => this.getLeafKey(visitor, index)));
+
+        if (this.isReviewMode || this.demoFallEnabled) {
+            this.knownLeafKeys = nextKeys;
+            this.initialVisitorSnapshotReady = true;
+            return;
+        }
+
+        if (!this.initialVisitorSnapshotReady) {
+            const recentVisitors = visitors.filter(visitor => this.isRecentLandingCandidate(visitor));
+            const landingVisitors = this.demoLandingEnabled && visitors.length
+                ? [visitors[visitors.length - 1]]
+                : recentVisitors.slice(-3);
+
+            landingVisitors.forEach((visitor) => {
+                const index = visitors.findIndex(candidate => candidate === visitor);
+                this.pendingLandingLeafKeys.add(this.getLeafKey(visitor, Math.max(0, index)));
+            });
+
+            this.knownLeafKeys = nextKeys;
+            this.initialVisitorSnapshotReady = true;
+            return;
+        }
+
+        visitors.forEach((visitor, index) => {
+            const key = this.getLeafKey(visitor, index);
+            if (!this.knownLeafKeys.has(key)) {
+                this.pendingLandingLeafKeys.add(key);
+            }
+        });
+
+        this.knownLeafKeys = nextKeys;
+    }
+
     hashString(value) {
         let hash = 2166136261;
         const text = String(value || '');
@@ -611,6 +678,7 @@ class TreeManager {
             const data = await response.json();
 
             this.visitors = Array.isArray(data) ? data : [];
+            this.updateLandingLeafState(this.visitors);
             console.log(`Loaded ${this.visitors.length} visitors`);
         } catch (error) {
             console.error('Error fetching visitor data:', error);
@@ -976,6 +1044,7 @@ class TreeManager {
             return;
         }
         const leafCycle = this.getLeafCycleState();
+        this.activeLeafCycle = leafCycle;
 
         const treeRect = this.treeImage.getBoundingClientRect();
         const containerRect = this.leavesContainer.getBoundingClientRect();
@@ -1205,6 +1274,7 @@ class TreeManager {
         const leaf = document.createElement('div');
         leaf.className = 'leaf';
         const visitorSeed = this.getVisitorSeed(visitor, index);
+        const leafKey = this.getLeafKey(visitor, index);
         const seededRandom = this.createSeededRandom(`${visitorSeed}|leaf`);
 
         const isVip = Boolean(visitor.isVip) || this.isVipName(visitor.name);
@@ -1256,14 +1326,42 @@ class TreeManager {
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
         leaf.style.setProperty('--leaf-appear-duration', `${this.leafAnimationDuration}ms`);
         leaf.style.setProperty('--leaf-fall-duration', `${this.leafFallDuration}ms`);
-        leaf.style.setProperty('--leaf-fall-delay', `${Math.min(index * 90, 1200)}ms`);
-        leaf.style.setProperty('--leaf-fall-distance', `${360 + (seededRandom() * 260)}px`);
-        leaf.style.setProperty('--leaf-fall-drift', `${(seededRandom() - 0.5) * 300}px`);
-        leaf.style.setProperty('--leaf-fall-sway-a', `${(seededRandom() - 0.5) * 70}px`);
-        leaf.style.setProperty('--leaf-fall-sway-b', `${(seededRandom() - 0.5) * 120}px`);
-        leaf.style.setProperty('--leaf-fall-sway-c', `${(seededRandom() - 0.5) * 90}px`);
-        leaf.style.setProperty('--leaf-fall-rotation', `${(seededRandom() - 0.5) * 360}deg`);
-        leaf.style.setProperty('--leaf-fall-tilt', `${(seededRandom() - 0.5) * 46}deg`);
+        const windDirection = seededRandom() > 0.5 ? 1 : -1;
+        const fallDelay = Math.min(index * 105 + Math.round(seededRandom() * 170), 1600);
+        const fallDistance = Math.round(Math.max(360, Math.min(window.innerHeight * (0.5 + seededRandom() * 0.32), 760)));
+        const finalDrift = Math.round(windDirection * (90 + seededRandom() * 230));
+        const swayA = Math.round(windDirection * (28 + seededRandom() * 68));
+        const swayB = Math.round(windDirection * -(44 + seededRandom() * 96));
+        const swayC = Math.round(windDirection * (24 + seededRandom() * 88));
+        const swayD = Math.round(windDirection * (10 + seededRandom() * 46));
+        const fallRotation = Math.round(windDirection * (140 + seededRandom() * 340));
+        const fallTilt = Math.round((seededRandom() - 0.5) * 64);
+        const fallYaw = Math.round(windDirection * (22 + seededRandom() * 34));
+        const flutterDuration = Math.round(620 + seededRandom() * 520);
+        const endScale = (0.72 + seededRandom() * 0.1).toFixed(2);
+        const preEndScale = Math.min(0.88, Number(endScale) + 0.04).toFixed(2);
+        const endBlur = (0.12 + seededRandom() * 0.28).toFixed(2);
+        const appearDrift = Math.round((seededRandom() - 0.5) * 28);
+        const appearRotation = Math.round((seededRandom() - 0.5) * 26);
+
+        leaf.dataset.fallDelay = String(fallDelay);
+        leaf.style.setProperty('--leaf-fall-delay', `${fallDelay}ms`);
+        leaf.style.setProperty('--leaf-fall-distance', `${fallDistance}px`);
+        leaf.style.setProperty('--leaf-fall-drift', `${finalDrift}px`);
+        leaf.style.setProperty('--leaf-fall-sway-a', `${swayA}px`);
+        leaf.style.setProperty('--leaf-fall-sway-b', `${swayB}px`);
+        leaf.style.setProperty('--leaf-fall-sway-c', `${swayC}px`);
+        leaf.style.setProperty('--leaf-fall-sway-d', `${swayD}px`);
+        leaf.style.setProperty('--leaf-fall-rotation', `${fallRotation}deg`);
+        leaf.style.setProperty('--leaf-fall-tilt', `${fallTilt}deg`);
+        leaf.style.setProperty('--leaf-fall-yaw', `${fallYaw}deg`);
+        leaf.style.setProperty('--leaf-fall-end-tilt', `${Math.round(fallTilt * 0.18)}deg`);
+        leaf.style.setProperty('--leaf-fall-end-scale', endScale);
+        leaf.style.setProperty('--leaf-fall-pre-end-scale', preEndScale);
+        leaf.style.setProperty('--leaf-fall-end-blur', `${endBlur}px`);
+        leaf.style.setProperty('--leaf-flutter-duration', `${flutterDuration}ms`);
+        leaf.style.setProperty('--leaf-appear-drift', `${appearDrift}px`);
+        leaf.style.setProperty('--leaf-appear-rotation', `${appearRotation}deg`);
 
         const baseLeafSize = 80 + ((visitor.visit_count || 1) * 5);
         const scale = typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1;
@@ -1293,6 +1391,10 @@ class TreeManager {
         leaf.style.setProperty('--leaf-image-scale-x', useFlippedOverride ? '-1' : '1');
         leaf.style.backgroundImage = 'none';
 
+        if (this.pendingLandingLeafKeys.has(leafKey) && !this.activeLeafCycle?.shouldFallAway) {
+            this.configureLeafLandingAnimation(leaf, leafKey, position, leafSize, seededRandom, index);
+        }
+
         const nameElement = document.createElement('div');
         nameElement.className = 'leaf-name';
         nameElement.textContent = visitor.name || 'Anonymous';
@@ -1311,6 +1413,83 @@ class TreeManager {
         });
 
         this.leavesContainer.appendChild(leaf);
+    }
+
+    configureLeafLandingAnimation(leaf, leafKey, position, leafSize, random, index) {
+        const windDirection = random() > 0.5 ? 1 : -1;
+        const landingDuration = Math.round(3200 + random() * 900);
+        const landingDelay = Math.min(index * 70 + Math.round(random() * 120), 640);
+        const containerRect = this.leavesContainer?.getBoundingClientRect();
+        const containerWidth = containerRect?.width || window.innerWidth || 1920;
+        const containerHeight = containerRect?.height || window.innerHeight || 1080;
+        const finalCenterX = (position?.x || 0) + (leafSize / 2);
+        const finalCenterY = (position?.y || 0) + (leafSize / 2);
+        const startCenterX = (containerWidth * (0.5 + ((random() - 0.5) * 0.12)));
+        const startCenterY = (containerHeight * (0.62 + (random() * 0.12)));
+        const startX = Math.round(startCenterX - finalCenterX);
+        const startY = Math.round(startCenterY - finalCenterY);
+        const swayAX = Math.round((startX * 0.68) + (windDirection * (80 + random() * 120)));
+        const swayAY = Math.round((startY * 0.72) - (26 + random() * 72));
+        const swayBX = Math.round((startX * 0.42) - (windDirection * (80 + random() * 150)));
+        const swayBY = Math.round((startY * 0.43) - (88 + random() * 120));
+        const approachX = Math.round((startX * 0.18) + (windDirection * (20 + random() * 56)));
+        const approachY = Math.round((startY * 0.16) - (34 + random() * 70));
+        const finalX = Math.round(windDirection * (6 + random() * 28));
+        const yaw = Math.round(windDirection * (22 + random() * 38));
+        const startRotate = Math.round(windDirection * -(16 + random() * 28));
+        const swayARotate = Math.round(windDirection * (22 + random() * 34));
+        const swayBRotate = Math.round(windDirection * -(12 + random() * 28));
+        const approachRotate = Math.round(windDirection * (14 + random() * 24));
+        const finalRotate = Math.round(windDirection * -(5 + random() * 18));
+        const flutterDuration = Math.round(500 + random() * 360);
+        const closeScale = (2.25 + random() * 0.55).toFixed(2);
+        const nearScale = (1.76 + random() * 0.26).toFixed(2);
+        const midScale = (1.36 + random() * 0.18).toFixed(2);
+        const farScale = (1.1 + random() * 0.12).toFixed(2);
+
+        leaf.classList.add('leaf-landing');
+        leaf.style.setProperty('--leaf-land-duration', `${landingDuration}ms`);
+        leaf.style.setProperty('--leaf-land-delay', `${landingDelay}ms`);
+        leaf.style.setProperty('--leaf-land-start-x', `${startX}px`);
+        leaf.style.setProperty('--leaf-land-start-y', `${startY}px`);
+        leaf.style.setProperty('--leaf-land-sway-a-x', `${swayAX}px`);
+        leaf.style.setProperty('--leaf-land-sway-a-y', `${swayAY}px`);
+        leaf.style.setProperty('--leaf-land-sway-b-x', `${swayBX}px`);
+        leaf.style.setProperty('--leaf-land-sway-b-y', `${swayBY}px`);
+        leaf.style.setProperty('--leaf-land-approach-x', `${approachX}px`);
+        leaf.style.setProperty('--leaf-land-approach-y', `${approachY}px`);
+        leaf.style.setProperty('--leaf-land-final-x', `${finalX}px`);
+        leaf.style.setProperty('--leaf-land-start-rotate', `${startRotate}deg`);
+        leaf.style.setProperty('--leaf-land-sway-a-rotate', `${swayARotate}deg`);
+        leaf.style.setProperty('--leaf-land-sway-b-rotate', `${swayBRotate}deg`);
+        leaf.style.setProperty('--leaf-land-approach-rotate', `${approachRotate}deg`);
+        leaf.style.setProperty('--leaf-land-final-rotate', `${finalRotate}deg`);
+        leaf.style.setProperty('--leaf-land-yaw', `${yaw}deg`);
+        leaf.style.setProperty('--leaf-land-flutter-duration', `${flutterDuration}ms`);
+        leaf.style.setProperty('--leaf-land-close-scale', closeScale);
+        leaf.style.setProperty('--leaf-land-near-scale', nearScale);
+        leaf.style.setProperty('--leaf-land-mid-scale', midScale);
+        leaf.style.setProperty('--leaf-land-far-scale', farScale);
+
+        if (this.landingCleanupTimers.has(leafKey)) {
+            window.clearTimeout(this.landingCleanupTimers.get(leafKey));
+        }
+
+        const cleanup = () => {
+            this.pendingLandingLeafKeys.delete(leafKey);
+            this.landingCleanupTimers.delete(leafKey);
+            leaf.classList.remove('leaf-landing');
+            leaf.classList.add('leaf-landed');
+        };
+
+        leaf.addEventListener('animationend', (event) => {
+            if (event.animationName === 'leafLandOnTree') {
+                cleanup();
+            }
+        }, { once: true });
+
+        const timer = window.setTimeout(cleanup, landingDelay + landingDuration + 350);
+        this.landingCleanupTimers.set(leafKey, timer);
     }
 
     getLeafNameFontSize(name, leafSize) {
@@ -1347,7 +1526,10 @@ class TreeManager {
         this.leafFallStarted = true;
         this.leafFallCycleNumber = leafCycle.cycleNumber;
 
-        const maxFallDelay = Math.min(Math.max(0, leaves.length - 1) * 90, 1200);
+        const maxFallDelay = leaves.reduce((maxDelay, leaf) => {
+            const delay = Number(leaf.dataset.fallDelay || 0);
+            return Number.isFinite(delay) ? Math.max(maxDelay, delay) : maxDelay;
+        }, 0);
         const clearDelay = maxFallDelay + Math.max(500, Number(this.leafFallDuration) || 4200);
         this.leafGreenTimer = window.setTimeout(() => {
             this.leafGreenified = true;
@@ -1475,7 +1657,10 @@ function refreshTreeFromServer() {
 
 function scheduleTreeRefresh() {
     window.clearTimeout(treeRefreshTimer);
-    const interval = Math.max(5000, Number(treeManager?.leafRefreshInterval) || 30000);
+    const configuredInterval = Math.max(5000, Number(treeManager?.leafRefreshInterval) || 30000);
+    const interval = treeManager && !treeManager.isReviewMode
+        ? Math.min(configuredInterval, treeManager.liveTreeRefreshInterval || 5000)
+        : configuredInterval;
     treeRefreshTimer = window.setTimeout(refreshTreeFromServer, interval);
 }
 
