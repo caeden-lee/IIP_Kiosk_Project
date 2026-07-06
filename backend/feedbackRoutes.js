@@ -449,6 +449,9 @@ router.post('/submit-feedback', async (req, res) => {
 
         const badgeSummary = emailService.getBadgeSummary(userData);
 
+        // Include visitor number for the thank-you milestone panel - changes made by nick
+        const visitorNumber = await getActiveFeedbackCountForVisitorNumber();
+
         // 1. IMMEDIATELY send success response to user (within milliseconds)
         const responseData = {
             success: true, 
@@ -463,7 +466,8 @@ router.post('/submit-feedback', async (req, res) => {
                 emailQueued: false,
                 badgeKey: badgeSummary.badgeKey,
                 badgeName: badgeSummary.badgeName,
-                badgeColor: badgeSummary.badgeColor
+                badgeColor: badgeSummary.badgeColor,
+                visitorNumber
             }
         };
         
@@ -840,6 +844,30 @@ function isValidEmail(email) {
     if (!email || typeof email !== 'string') return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+}
+
+// Count active feedback rows to estimate the current visitor number - changes made by nick
+function getActiveFeedbackCountForVisitorNumber() {
+    return new Promise((resolve) => {
+        db.get('SELECT COUNT(*) AS count FROM feedback WHERE is_active = 1', [], (err, row) => {
+            if (err) {
+                db.get('SELECT COUNT(*) AS count FROM feedback', [], (fallbackErr, fallbackRow) => {
+                    if (fallbackErr) {
+                        console.warn('Visitor number count unavailable:', fallbackErr.message);
+                        resolve(null);
+                        return;
+                    }
+
+                    const fallbackCount = Number(fallbackRow?.count);
+                    resolve(Number.isFinite(fallbackCount) ? fallbackCount + 1 : null);
+                });
+                return;
+            }
+
+            const count = Number(row?.count);
+            resolve(Number.isFinite(count) ? count + 1 : null);
+        });
+    });
 }
 
 // Save feedback to database with encrypted email

@@ -1386,6 +1386,124 @@ textarea::placeholder {
     margin-top: 2px;
 }
 
+/* Visitor milestone thank-you panel and confetti popup - changes made by nick */
+.visitor-milestone-panel {
+    display: grid;
+    gap: 6px;
+    margin: 22px 0 28px;
+    padding: 18px 20px;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(239, 246, 255, 0.96));
+    color: #065f46;
+    text-align: center;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+.visitor-milestone-panel strong {
+    color: #047857;
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.visitor-milestone-panel span {
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.visitor-milestone-kicker {
+    color: #0f766e;
+    font-size: 12px !important;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.visitor-milestone-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+.visitor-milestone-popup.is-visible {
+    opacity: 1;
+}
+
+.visitor-confetti-burst {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.visitor-confetti-burst span {
+    position: absolute;
+    top: -24px;
+    left: var(--confetti-left);
+    width: 10px;
+    height: 16px;
+    border-radius: 3px;
+    background: var(--confetti-color);
+    animation: visitorConfettiFall var(--confetti-duration) ease-in var(--confetti-delay) forwards;
+}
+
+.visitor-milestone-card {
+    position: relative;
+    width: min(420px, calc(100vw - 40px));
+    padding: 30px 26px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+    color: #064e3b;
+    text-align: center;
+    transform: translateY(16px) scale(0.96);
+    transition: transform 0.35s ease;
+}
+
+.visitor-milestone-popup.is-visible .visitor-milestone-card {
+    transform: translateY(0) scale(1);
+}
+
+.visitor-milestone-card span {
+    display: block;
+    color: #0f766e;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.visitor-milestone-card strong {
+    display: block;
+    margin: 8px 0;
+    color: #059669;
+    font-size: 54px;
+    line-height: 1;
+}
+
+.visitor-milestone-card p {
+    margin: 0;
+    color: #334155;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+@keyframes visitorConfettiFall {
+    0% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate3d(var(--confetti-drift), 110vh, 0) rotate(720deg);
+        opacity: 0.9;
+    }
+}
+
 
 /* ==================== BUTTON COMPONENTS ==================== */
 
@@ -3168,5 +3286,382 @@ textarea:focus,
     #land-page-qrcode [data-text-target="view-pledgeboards-btn"] {
         width: min(100%, var(--pledgeboard-button-mobile-width, 450px)) !important;
         min-height: var(--pledgeboard-button-mobile-height, 54px) !important;
+    }
+}
+
+/* ==================== PROFESSIONAL KIOSK FORM POLISH - changes made by nick ==================== */
+
+:root {
+    /* Professional kiosk form polish tokens - changes made by nick */
+    --kiosk-surface: rgba(255, 255, 252, 0.94);
+    --kiosk-surface-strong: rgba(255, 255, 255, 0.98);
+    --kiosk-panel: rgba(247, 252, 242, 0.88);
+    --kiosk-ink: #18392b;
+    --kiosk-muted: #52685d;
+    --kiosk-line: rgba(74, 124, 89, 0.2);
+    --kiosk-line-strong: rgba(74, 124, 89, 0.34);
+    --kiosk-shadow: 0 24px 60px rgba(24, 57, 43, 0.18);
+    --kiosk-shadow-soft: 0 12px 28px rgba(24, 57, 43, 0.1);
+}
+
+body {
+    /* Refined visitor-facing kiosk background - changes made by nick */
+    background:
+        linear-gradient(135deg, rgba(238, 248, 238, 0.88), rgba(230, 247, 239, 0.78)),
+        url('/assets/static/rpPicture.jpg') center / cover no-repeat fixed !important;
+}
+
+body::after {
+    background:
+        linear-gradient(90deg, rgba(74, 124, 89, 0.12) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(74, 124, 89, 0.1) 1px, transparent 1px),
+        radial-gradient(circle at 14% 18%, rgba(127, 176, 105, 0.22), transparent 28%),
+        radial-gradient(circle at 84% 16%, rgba(250, 204, 21, 0.16), transparent 24%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(220, 252, 231, 0.38));
+    background-size: 54px 54px, 54px 54px, auto, auto, auto;
+}
+
+#details-page.container,
+#feedback-page.container,
+#pledge-page.container,
+#photo-choice-page.container,
+#confirmation-page.container {
+    max-width: 1040px;
+}
+
+.consent-card,
+.feedback-form-card {
+    /* Premium form card treatment for the visitor kiosk flow - changes made by nick */
+    position: relative;
+    width: min(780px, calc(100vw - 40px)) !important;
+    padding: 46px !important;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--kiosk-surface)),
+        var(--kiosk-surface) !important;
+    border: 1px solid var(--kiosk-line) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--kiosk-shadow) !important;
+}
+
+.feedback-form-card {
+    width: min(900px, calc(100vw - 40px)) !important;
+}
+
+.consent-card::after,
+.feedback-form-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.consent-card::before,
+.feedback-form-card::before {
+    height: 5px;
+    margin: -46px -46px 34px !important;
+    background: linear-gradient(90deg, var(--feedback-accent-dark, #2f6f45), #7fb069, #facc15) !important;
+}
+
+.consent-icon {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 18px;
+    align-items: center;
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
+    box-shadow: 0 16px 34px rgba(74, 124, 89, 0.22);
+}
+
+.consent-icon svg {
+    width: 46px;
+    height: 46px;
+}
+
+.consent-title {
+    max-width: 680px;
+    margin: 0 auto 10px;
+    color: var(--kiosk-ink) !important;
+    font-size: 34px;
+    font-weight: 900;
+    line-height: 1.12;
+}
+
+.consent-description {
+    max-width: 620px;
+    margin: 0 auto 28px;
+    color: var(--kiosk-muted) !important;
+    font-size: 17px;
+    line-height: 1.55;
+}
+
+.details-form,
+.feedback-form {
+    display: grid;
+    gap: 18px;
+}
+
+.form-group {
+    margin-bottom: 0;
+}
+
+.form-group label,
+.question-label {
+    color: var(--kiosk-ink) !important;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.form-group input,
+textarea,
+.themed-select select {
+    /* Larger, clearer touch-friendly fields - changes made by nick */
+    min-height: 58px;
+    padding: 16px 18px !important;
+    background: var(--kiosk-surface-strong) !important;
+    border: 1px solid var(--kiosk-line-strong) !important;
+    border-radius: 8px !important;
+    color: var(--kiosk-ink) !important;
+    font-size: 16px;
+    box-shadow: 0 8px 18px rgba(24, 57, 43, 0.06);
+}
+
+textarea {
+    min-height: 132px;
+    line-height: 1.55;
+}
+
+.form-group input:hover,
+textarea:hover,
+.themed-select select:hover {
+    border-color: rgba(74, 124, 89, 0.52) !important;
+}
+
+.form-group input:focus,
+textarea:focus,
+.themed-select select:focus {
+    background: #ffffff !important;
+    border-color: var(--feedback-accent-color, #4a7c59) !important;
+    box-shadow:
+        0 0 0 4px rgba(127, 176, 105, 0.2),
+        0 12px 26px rgba(24, 57, 43, 0.12) !important;
+}
+
+.form-group input::placeholder,
+textarea::placeholder {
+    color: #849489 !important;
+}
+
+.form-alert {
+    display: none;
+    margin: 0;
+    padding: 13px 15px;
+    border: 1px solid rgba(185, 28, 28, 0.2);
+    border-radius: 8px;
+    background: rgba(254, 242, 242, 0.9);
+    color: #991b1b;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.form-alert:not(:empty) {
+    display: block;
+}
+
+.has-error input,
+.has-error textarea,
+.question-group.has-error {
+    border-color: rgba(220, 38, 38, 0.72) !important;
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
+}
+
+#questions-container {
+    display: grid;
+    gap: 16px;
+}
+
+.question-group {
+    /* Separate each feedback question into a polished panel - changes made by nick */
+    margin-bottom: 0;
+    padding: 20px;
+    border: 1px solid var(--kiosk-line);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(247, 252, 242, 0.86));
+    box-shadow: var(--kiosk-shadow-soft);
+}
+
+.question-label {
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.rating-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(64px, 1fr));
+    gap: 10px;
+}
+
+.rating-btn {
+    /* Touch-friendly rating buttons for kiosk visitors - changes made by nick */
+    width: 100%;
+    height: 58px;
+    background: #ffffff !important;
+    border: 1px solid var(--kiosk-line-strong) !important;
+    border-radius: 8px !important;
+    color: var(--kiosk-muted) !important;
+    font-size: 19px;
+    font-weight: 900;
+    box-shadow: 0 8px 16px rgba(24, 57, 43, 0.07);
+}
+
+.rating-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--feedback-accent-color, #4a7c59) !important;
+    color: var(--feedback-accent-dark, #2f6f45) !important;
+    box-shadow: 0 12px 24px rgba(74, 124, 89, 0.14) !important;
+}
+
+.rating-btn.selected {
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(74, 124, 89, 0.24) !important;
+}
+
+.privacy-notice,
+.pledge-coach,
+.submission-details,
+.photo-choice-actions {
+    border-radius: 8px !important;
+}
+
+.privacy-notice {
+    background: linear-gradient(135deg, rgba(220, 252, 231, 0.72), rgba(255, 255, 255, 0.92)) !important;
+    border: 1px solid var(--kiosk-line) !important;
+    border-left: 5px solid var(--feedback-accent-color, #4a7c59) !important;
+}
+
+.privacy-notice p,
+.char-counter,
+.detail-label {
+    color: var(--kiosk-muted) !important;
+}
+
+.consent-button,
+.cta-button,
+.secondary-button,
+.skip-pledge-button,
+.coach-apply-button {
+    /* Consistent professional button sizing across the form flow - changes made by nick */
+    min-height: 58px;
+    border-radius: 8px !important;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+.consent-button,
+.cta-button {
+    background: linear-gradient(135deg, var(--feedback-accent-color, #4a7c59), var(--feedback-accent-dark, #2f6f45)) !important;
+    box-shadow: 0 16px 32px rgba(74, 124, 89, 0.24) !important;
+}
+
+.consent-button:hover,
+.cta-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 40px rgba(74, 124, 89, 0.28) !important;
+}
+
+.secondary-button,
+.skip-pledge-button {
+    background: #ffffff !important;
+    border: 1px solid var(--kiosk-line-strong) !important;
+    color: var(--feedback-accent-dark, #2f6f45) !important;
+    box-shadow: 0 8px 18px rgba(24, 57, 43, 0.08);
+}
+
+.secondary-button:hover,
+.skip-pledge-button:hover {
+    background: rgba(220, 252, 231, 0.76) !important;
+    transform: translateY(-1px);
+}
+
+.photo-choice-actions {
+    display: grid;
+    gap: 12px;
+}
+
+.step-progress {
+    padding: 14px;
+    border: 1px solid var(--kiosk-line);
+    border-radius: 8px;
+    background: rgba(247, 252, 242, 0.72);
+}
+
+.progress-step {
+    color: var(--kiosk-muted);
+}
+
+.progress-step.complete,
+.progress-step.active {
+    color: var(--feedback-accent-dark, #2f6f45);
+}
+
+.progress-dot {
+    border-color: #ffffff;
+    background: #d7e6d5;
+}
+
+.progress-step.complete .progress-dot,
+.progress-step.active .progress-dot {
+    background: var(--feedback-accent-color, #4a7c59);
+}
+
+.detail-row {
+    border-bottom-color: rgba(74, 124, 89, 0.16) !important;
+}
+
+.detail-value {
+    color: var(--kiosk-ink) !important;
+    font-weight: 800;
+}
+
+@media (max-width: 768px) {
+    .consent-card,
+    .feedback-form-card {
+        width: min(100%, calc(100vw - 24px)) !important;
+        padding: 32px 22px !important;
+    }
+
+    .consent-card::before,
+    .feedback-form-card::before {
+        margin: -32px -22px 26px !important;
+    }
+
+    .consent-title {
+        font-size: 28px;
+    }
+
+    .consent-description {
+        font-size: 15px;
+    }
+
+    .rating-buttons {
+        grid-template-columns: repeat(5, minmax(44px, 1fr));
+        gap: 8px;
+    }
+
+    .rating-btn {
+        height: 52px;
+        font-size: 17px;
+    }
+
+    .question-group {
+        padding: 16px;
     }
 }
