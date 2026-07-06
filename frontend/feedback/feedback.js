@@ -3086,6 +3086,8 @@ function finalSubmit() {
         // Show the visitor which badge/leaf reward they unlocked.
         setupBadgeReward(submissionData);
         setupCelebrationMoment(submissionData);
+        // Show visitor number and milestone confetti on thank-you page - changes made by nick
+        setupVisitorMilestone(submissionData);
         setupJourneyPassport(submissionData);
 
         // Set up social share content for the thank-you page based on combined email queue status.
@@ -3268,6 +3270,112 @@ function getCelebrationCounterValue(id) {
     const text = document.getElementById(id)?.textContent || '';
     const value = Number(text.replace(/,/g, ''));
     return Number.isFinite(value) ? value : 0;
+}
+
+// Visitor number and milestone celebration helpers - changes made by nick
+const VISITOR_MILESTONE_INTERVAL = 50;
+
+function formatVisitorCount(value) {
+    const count = Number(value);
+    return Number.isFinite(count) && count > 0
+        ? new Intl.NumberFormat('en-SG').format(Math.round(count))
+        : '--';
+}
+
+function getVisitorPledgeMilestone(totalPledges) {
+    const total = Math.max(0, Number(totalPledges) || 0);
+    return Math.floor(total / VISITOR_MILESTONE_INTERVAL) * VISITOR_MILESTONE_INTERVAL;
+}
+
+function ensureVisitorMilestonePanel() {
+    let panel = document.getElementById('visitor-milestone-panel');
+    if (panel) return panel;
+
+    const thankyouMessage = document.getElementById('thankyou-message');
+    const thankyouPage = document.getElementById('thankyou-page');
+    if (!thankyouMessage || !thankyouPage) return null;
+
+    panel = document.createElement('div');
+    panel.id = 'visitor-milestone-panel';
+    panel.className = 'visitor-milestone-panel';
+    panel.setAttribute('aria-live', 'polite');
+
+    thankyouMessage.insertAdjacentElement('afterend', panel);
+    return panel;
+}
+
+function renderVisitorMilestoneMessage(visitorNumber, totalPledges) {
+    const panel = ensureVisitorMilestonePanel();
+    if (!panel) return;
+
+    const pledgeMilestone = getVisitorPledgeMilestone(totalPledges);
+    const pledgeCopy = pledgeMilestone > 0
+        ? `Thanks to you, our school has now crossed ${formatVisitorCount(pledgeMilestone)} pledges.`
+        : `Thanks to you, our school has now reached ${formatVisitorCount(totalPledges)} pledge${Number(totalPledges) === 1 ? '' : 's'}.`;
+
+    panel.innerHTML = `
+        <span class="visitor-milestone-kicker">Visitor milestone</span>
+        <strong>You are visitor #${formatVisitorCount(visitorNumber)}!</strong>
+        <span>${pledgeCopy}</span>
+    `;
+}
+
+function launchVisitorMilestoneConfetti(visitorNumber) {
+    if (!Number.isFinite(Number(visitorNumber)) || Number(visitorNumber) % VISITOR_MILESTONE_INTERVAL !== 0) return;
+    if (document.body.dataset.visitorMilestoneShown === String(visitorNumber)) return;
+
+    document.body.dataset.visitorMilestoneShown = String(visitorNumber);
+    const popup = document.createElement('div');
+    popup.className = 'visitor-milestone-popup';
+    popup.setAttribute('role', 'status');
+    popup.setAttribute('aria-live', 'polite');
+
+    const colors = ['#10b981', '#34d399', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'];
+    const confetti = Array.from({ length: 48 }, (_, index) => {
+        const left = 8 + ((index * 17) % 84);
+        const drift = ((index % 9) - 4) * 18;
+        const delay = (index % 12) * 70;
+        const duration = 1900 + ((index % 8) * 120);
+        const color = colors[index % colors.length];
+        return `<span style="--confetti-left:${left}%; --confetti-drift:${drift}px; --confetti-delay:${delay}ms; --confetti-duration:${duration}ms; --confetti-color:${color};"></span>`;
+    }).join('');
+
+    popup.innerHTML = `
+        <div class="visitor-confetti-burst" aria-hidden="true">${confetti}</div>
+        <div class="visitor-milestone-card">
+            <span>Milestone visitor</span>
+            <strong>#${formatVisitorCount(visitorNumber)}</strong>
+            <p>You helped us reach another ${VISITOR_MILESTONE_INTERVAL}-visitor milestone.</p>
+        </div>
+    `;
+
+    document.body.appendChild(popup);
+    window.setTimeout(() => popup.classList.add('is-visible'), 20);
+    window.setTimeout(() => {
+        popup.classList.remove('is-visible');
+        window.setTimeout(() => popup.remove(), 420);
+    }, 4200);
+}
+
+async function setupVisitorMilestone(data = {}) {
+    let visitorNumber = Number(data.visitorNumber);
+    const optimisticPledgeCount = userData.pledgeSkipped ? 0 : 1;
+
+    renderVisitorMilestoneMessage(visitorNumber, optimisticPledgeCount);
+    launchVisitorMilestoneConfetti(visitorNumber);
+
+    try {
+        const snapshot = await fetchCelebrationImpactSnapshot();
+        if (!Number.isFinite(visitorNumber) || visitorNumber <= 0) {
+            // Fall back to the refreshed tree count if the submit response has no visitor number - changes made by nick
+            visitorNumber = Math.max(1, Number(snapshot.treeLeaves || 0));
+        }
+        const totalPledges = Math.max(optimisticPledgeCount, Number(snapshot.totalPledges || 0) + optimisticPledgeCount);
+        renderVisitorMilestoneMessage(visitorNumber, totalPledges);
+        launchVisitorMilestoneConfetti(visitorNumber);
+    } catch (error) {
+        console.warn('Visitor milestone pledge count unavailable:', error);
+    }
 }
 
 async function fetchCelebrationImpactSnapshot() {
