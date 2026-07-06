@@ -173,6 +173,11 @@ const DEFAULT_CONFIG = {
     gifOverlaySpeed: 1, // GIF overlay playback speed multiplier - changes made by nick
     supportedFormats: ["png", "jpg", "jpeg"]
   },
+  archiveSettings: {
+    autoArchiveEnabled: false,
+    archiveAfterDays: 90,
+    keepRecentFeedbackCount: 0
+  },
   visualAssets: {
     feedbackBackground: "",
     treeBackground: "/assets/Tree/BackGround.png",
