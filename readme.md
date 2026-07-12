@@ -55,32 +55,38 @@ ESG_KIOSK_PROJECT
 │   │   ├── DesktopOverlay/
 │   │   └── MobileOverlay/
 │   ├── static/
-│   ├── Tree/
+│   └── Tree/
 │       ├── background/
 │       └── leaf/
 │  
 ├── backend/ 
 │   ├── cache/
 │   │   └── feedback-analysis-cache.json
+│   │ 
 │   ├── certs/ 
 │   │   ├── selfsigned.key
 │   │   └── selfsigned.pem
-│   ├── config /
+│   │ 
+│   ├── config/
 │   │   ├── badgeEmailTemplates.json
+│   │   ├── bluetoothAssets.json
 │   │   ├── emailConfig.json
 │   │   ├── form-ui.json
 │   │   ├── parametersConfig.json
 │   │   ├── pledge-topics.json
 │   │   └── schedule-Setup.sh
+│   │ 
 │   ├── Procedural_Orchestration_Module/ 
 │   │   ├── AuthLayer_Reconstitution.js
 │   │   ├── check_database.js
 │   │   ├── Datastore_Assembly.js 
 │   │   ├── Purge_Actuator.js
 │   │   └── Simulation_Generator.js 
+│   │ 
 │   ├── .env
 │   ├── adminRoutes.js
 │   ├── adminServer.js
+│   ├── assetStore.js
 │   ├── auth.js
 │   ├── badgeEmailTemplateStore.js
 │   ├── badgeSystem.js
@@ -119,17 +125,10 @@ ESG_KIOSK_PROJECT
 │   │   ├── admin.css
 │   │   ├── admin.html
 │   │   └── admin.js
-│   ├── connect/
-│   │   ├── connect.css
-│   │   ├── connect.html
-│   │   └── connect.js
 │   ├── feedback/
-│   │   ├── bluetooth-client.js
 │   │   ├── feedback.css
 │   │   ├── feedback.html
 │   │   └── feedback.js
-│   ├── offline/
-│   │   └── offline.html
 │   ├── Pledgeboard/
 │   │   ├── Pledgeboard.css
 │   │   ├── Pledgeboard.html
@@ -138,11 +137,10 @@ ESG_KIOSK_PROJECT
 │   │   ├── pulse.css
 │   │   ├── pulse.html
 │   │   └── pulse.js
-│   ├── tree/ 
-│   │   ├── tree.css
-│   │   ├── tree.html
-│   │   └── tree.js
-│   └── bluetooth-test.html 
+│   └── tree/ 
+│       ├── tree.css
+│       ├── tree.html
+│       └── tree.js
 │
 ├── node_modules/ 
 ├── Team_Documentation/
