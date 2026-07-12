@@ -67,11 +67,12 @@
     "pledgeMaxLength": 500,
     "pledgeTopicRequired": true,
     "photoRequired": true,
+    "dailySubmissionLimitPerEmail": 1,
     "maxPhotoFileSizeMb": 5,
     "allowedPhotoFormats": []
   },
   "treeParameters": {
-    "treeStage": 3,
+    "treeStage": 4,
     "treeDisplayMode": "2d",
     "ovalWidth": 850,
     "ovalHeight": 300,
@@ -147,7 +148,7 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
+    "treeBackground": "/assets/Tree/background/BackGround.png",
     "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
     "previousLeafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
     "defaultOverlayTheme": ""
