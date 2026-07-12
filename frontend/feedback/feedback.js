@@ -909,21 +909,6 @@ async function loadDynamicQRCode() {
     }
 }
 
-function getTokenFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('token') || '';
-}
-
-function openConnectPage() {
-    const token = getTokenFromUrl();
-    if (!token) {
-        alert('No token found in this session. Please scan the latest QR code again.');
-        return;
-    }
-
-    window.location.href = `/connect?token=${encodeURIComponent(token)}`;
-}
-
 function startQrRefreshLoop() {
     if (qrRefreshTimer) {
         clearInterval(qrRefreshTimer);
