@@ -557,6 +557,38 @@ body {
         animation-duration: 1ms !important;
         animation-delay: 0ms !important;
     }
+
+    body.tree-demo-motion-active .leaf.leaf-falling {
+        animation-duration: var(--leaf-fall-duration, 4200ms) !important;
+        animation-delay: var(--leaf-fall-delay, 0ms) !important;
+    }
+
+    body.tree-demo-motion-active .leaf.leaf-falling::after,
+    body.tree-demo-motion-active .leaf.leaf-falling .leaf-name {
+        animation-duration: var(--leaf-fall-duration, 4200ms) !important;
+        animation-delay: var(--leaf-fall-delay, 0ms) !important;
+    }
+
+    body.tree-demo-motion-active .leaf.leaf-falling::before {
+        animation-duration: var(--leaf-flutter-duration, 880ms) !important;
+        animation-delay: 0ms !important;
+    }
+
+    body.tree-demo-motion-active .leaf.leaf-landing {
+        animation-duration: var(--leaf-land-duration, 3400ms) !important;
+        animation-delay: var(--leaf-land-delay, 0ms) !important;
+    }
+
+    body.tree-demo-motion-active .leaf.leaf-landing::after,
+    body.tree-demo-motion-active .leaf.leaf-landing .leaf-name {
+        animation-duration: var(--leaf-land-duration, 3400ms) !important;
+        animation-delay: var(--leaf-land-delay, 0ms) !important;
+    }
+
+    body.tree-demo-motion-active .leaf.leaf-landing::before {
+        animation-duration: var(--leaf-land-flutter-duration, 760ms) !important;
+        animation-delay: 0ms !important;
+    }
 }
 
 #leavesContainer {
@@ -765,6 +797,36 @@ body {
 
 .year-review-toggle:hover,
 .year-review-toggle.active {
+    background: #14532d;
+    color: #ffffff;
+}
+
+.tree-demo-controls {
+    position: absolute;
+    left: 22px;
+    bottom: 22px;
+    z-index: 121;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: min(360px, calc(100vw - 44px));
+}
+
+.tree-demo-button {
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid rgba(20, 83, 45, 0.24);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #14532d;
+    font-size: 0.9rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+}
+
+.tree-demo-button:hover,
+.tree-demo-button:focus-visible {
     background: #14532d;
     color: #ffffff;
 }
@@ -1117,6 +1179,18 @@ body {
     .year-review-toggle {
         right: 12px;
         bottom: 12px;
+    }
+
+    .tree-demo-controls {
+        left: 12px;
+        bottom: 12px;
+        max-width: calc(100vw - 120px);
+    }
+
+    .tree-demo-button {
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 0.8rem;
     }
 
     .year-review-book {
