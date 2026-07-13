@@ -7910,6 +7910,48 @@ router.get('/assets', auth.requireAdmin, (req, res) => {
 });
 
 // POST /api/admin/parameters/vip-leaf - Upload a custom VIP leaf image and activate it
+// Storage for custom VIP leaf image uploads
+const vipLeafStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/Tree/vip-leaf');
+        console.log('📂 VIP leaf destination folder:', destFolder);
+        try {
+            if (!fs.existsSync(destFolder)) {
+                console.log('📁 Creating VIP leaf directory:', destFolder);
+                fs.mkdirSync(destFolder, { recursive: true });
+                console.log('✅ VIP leaf directory created successfully');
+            }
+        } catch (err) {
+            console.error('❌ Failed to create VIP leaf directory:', err.message);
+            return cb(err);
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        const filename = `CustomVipLeaf${ext}`;
+        console.log(`📁 VIP leaf filename: ${filename}`);
+        cb(null, filename);
+    }
+});
+
+const uploadParameterVipLeaf = multer({
+    storage: vipLeafStorage,
+    fileFilter: (req, file, cb) => {
+        console.log('🔍 Checking VIP leaf file type:', file.mimetype, 'name:', file.originalname);
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            console.log('✅ VIP leaf file type accepted');
+            cb(null, true);
+        } else {
+            console.error('❌ VIP leaf file type rejected:', file.mimetype);
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
 router.post('/parameters/vip-leaf', auth.requireAdmin, uploadParameterVipLeaf.single('vipLeaf'), (req, res) => {
     try {
         console.log('🍃 VIP leaf upload endpoint hit');
@@ -8059,48 +8101,6 @@ router.post('/parameters/vip-leaf/select', auth.requireAdmin, (req, res) => {
     } catch (error) {
         console.error('❌ Error selecting VIP leaf image:', error.message, error.stack);
         res.status(500).json({ success: false, error: error.message || 'Failed to select VIP leaf image' });
-    }
-});
-
-// Storage for custom VIP leaf image uploads
-const vipLeafStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const destFolder = path.join(__dirname, '../assets/Tree/vip-leaf');
-        console.log('📂 VIP leaf destination folder:', destFolder);
-        try {
-            if (!fs.existsSync(destFolder)) {
-                console.log('📁 Creating VIP leaf directory:', destFolder);
-                fs.mkdirSync(destFolder, { recursive: true });
-                console.log('✅ VIP leaf directory created successfully');
-            }
-        } catch (err) {
-            console.error('❌ Failed to create VIP leaf directory:', err.message);
-            return cb(err);
-        }
-        cb(null, destFolder);
-    },
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase() || '.png';
-        const filename = `CustomVipLeaf${ext}`;
-        console.log(`📁 VIP leaf filename: ${filename}`);
-        cb(null, filename);
-    }
-});
-
-const uploadParameterVipLeaf = multer({
-    storage: vipLeafStorage,
-    fileFilter: (req, file, cb) => {
-        console.log('🔍 Checking VIP leaf file type:', file.mimetype, 'name:', file.originalname);
-        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
-            console.log('✅ VIP leaf file type accepted');
-            cb(null, true);
-        } else {
-            console.error('❌ VIP leaf file type rejected:', file.mimetype);
-            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
-        }
-    },
-    limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
     }
 });
 
