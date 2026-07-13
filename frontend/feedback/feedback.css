@@ -2270,11 +2270,10 @@ textarea::placeholder {
     gap: 10px;
     min-height: 52px;
     padding: 12px 14px;
-    border: 2px solid rgba(139, 215, 193, 0.38);
+    border: 2px solid;
     border-radius: 8px;
     background:
-        linear-gradient(135deg, rgba(139, 215, 193, 0.12), rgba(255, 255, 255, 0.08)),
-        rgba(10, 19, 26, 0.88);
+        linear-gradient(135deg);
     color: #f8fafc;
     font-size: 14px;
     font-weight: 700;
@@ -2286,8 +2285,8 @@ textarea::placeholder {
 .topic-checkbox-card:focus-within {
     border-color: #8bd7c1;
     background:
-        linear-gradient(135deg, rgba(139, 215, 193, 0.2), rgba(255, 255, 255, 0.1)),
-        rgba(10, 19, 26, 0.94);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)),
+        rgba(211, 211, 211, 0.2);
     transform: translateY(-1px);
 }
 

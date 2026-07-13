@@ -9758,6 +9758,13 @@ window.addEventListener('DOMContentLoaded', function() {
         
         // Load dashboard data
         loadDashboardData();
+
+        // Initialize the tree stage preview so the current leaf count is shown
+        // when the admin tree settings section is available on the page.
+        if (document.getElementById('currentLeafCount')) {
+            initTreeStageMode();
+            updateAutoStagePreview();
+        }
         
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('admin-dashboard').style.display = 'block';
