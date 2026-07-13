@@ -9505,6 +9505,39 @@ async function uploadParameterLeaf() {
     }
 }
 
+async function uploadParameterVipLeaf() {
+    const fileInput = document.getElementById('param-vipLeafUpload');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        setParameterStatus('Choose a VIP leaf image first.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Uploading VIP leaf image...', 'info');
+        const formData = new FormData();
+        formData.append('vipLeaf', file);
+
+        const response = await fetch('/api/admin/parameters/vip-leaf', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        if (fileInput) fileInput.value = '';
+        setParameterStatus(data.message || 'VIP leaf image uploaded.', 'success');
+    } catch (error) {
+        console.error('Error uploading VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to upload VIP leaf image.', 'error');
+    }
+}
+
 async function revertParameterLeaf() {
     try {
         setParameterStatus('Reverting to previous leaf image...', 'info');
@@ -9524,6 +9557,27 @@ async function revertParameterLeaf() {
     } catch (error) {
         console.error('Error reverting parameter leaf image:', error);
         setParameterStatus(error.message || 'Failed to revert leaf image.', 'error');
+    }
+}
+
+async function revertParameterVipLeaf() {
+    try {
+        setParameterStatus('Reverting to previous VIP leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/vip-leaf/revert', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to revert VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'VIP leaf image reverted.', 'success');
+    } catch (error) {
+        console.error('Error reverting VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to revert VIP leaf image.', 'error');
     }
 }
 
@@ -9600,6 +9654,89 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
     }
 }
 
+async function loadAvailableVipLeafImages(currentVipLeafImagePath = '') {
+    try {
+        console.log('📂 Loading available VIP leaf images...');
+        const response = await fetch('/api/admin/parameters/vip-leaf/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error('Failed to load VIP leaf images:', data.error);
+            return;
+        }
+
+        const picker = document.getElementById('param-existingVipLeafList');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedVipLeafImage = '';
+
+        const renderVipLeafTiles = (vipLeafImages) => {
+            if (!Array.isArray(vipLeafImages) || vipLeafImages.length === 0) {
+                picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No existing VIP leaf images found.</div>';
+                return;
+            }
+
+            vipLeafImages.forEach(leaf => {
+                const tile = document.createElement('button');
+                tile.type = 'button';
+                tile.dataset.leafFilename = leaf.filename;
+                tile.dataset.leafPath = leaf.path;
+                tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+                const img = document.createElement('img');
+                img.src = leaf.path;
+                img.alt = leaf.name;
+                img.style.cssText = 'width:64px;height:64px;object-fit:contain;display:block;';
+
+                const label = document.createElement('span');
+                label.textContent = leaf.name;
+                label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+                tile.appendChild(img);
+                tile.appendChild(label);
+
+                tile.onclick = () => {
+                    picker.querySelectorAll('[data-selected="true"]').forEach(el => {
+                        el.dataset.selected = 'false';
+                        el.style.borderColor = '#d7dbe3';
+                        el.style.background = '#f8fafc';
+                        el.style.boxShadow = 'none';
+                    });
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedVipLeafImage = leaf.filename;
+                };
+
+                if (currentVipLeafImagePath && (currentVipLeafImagePath.endsWith('/' + leaf.filename) || currentVipLeafImagePath.endsWith(leaf.filename))) {
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedVipLeafImage = leaf.filename;
+                }
+
+                picker.appendChild(tile);
+            });
+        };
+
+        if (data.vipLeafImages && data.vipLeafImages.length > 0) {
+            renderVipLeafTiles(data.vipLeafImages);
+        } else {
+            renderVipLeafTiles([
+                { filename: 'GoldLeftLeaf.png', path: '/assets/Tree/vip-leaf/GoldLeftLeaf.png', name: 'GoldLeftLeaf' },
+                { filename: 'GoldRightLeaf.png', path: '/assets/Tree/vip-leaf/GoldRightLeaf.png', name: 'GoldRightLeaf' }
+            ]);
+        }
+    } catch (error) {
+        console.error('Error loading available VIP leaf images:', error);
+    }
+}
+
 async function selectParameterLeaf() {
     const leafImage = window.selectedLeafImage;
 
@@ -9631,12 +9768,44 @@ async function selectParameterLeaf() {
     }
 }
 
+async function selectParameterVipLeaf() {
+    const vipLeafImage = window.selectedVipLeafImage;
+
+    if (!vipLeafImage) {
+        setParameterStatus('Choose a VIP leaf image tile to apply.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Applying VIP leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/vip-leaf/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ vipLeafImage })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'VIP leaf image applied.', 'success');
+    } catch (error) {
+        console.error('Error selecting VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to apply VIP leaf image.', 'error');
+    }
+}
+
 // Refresh tree data
 async function refreshTreeData() {
+    await loadParameters();
     await loadDigitalTreeData();
 
-    // Reload existing leaf images
+    // Reload existing leaf images from the latest saved config
     await loadAvailableLeafImages(window.currentLeafImagePath || '');
+    await loadAvailableVipLeafImages(window.currentVipLeafImagePath || '');
 }
 
 
@@ -14026,14 +14195,32 @@ function populateParameterForm(config) {
         // apply scale to preview
         previewBox.style.transform = `scale(${leafScale})`;
     }
+    const vipPreviewBox = document.getElementById('previewVipLeafBox');
+    if (vipPreviewBox) {
+        if (assets.vipLeafImage) {
+            const vipLeafPreviewPath = assets.vipLeafImage.startsWith('/')
+                ? assets.vipLeafImage
+                : `/assets/Tree/vip-leaf/${assets.vipLeafImage}`;
+            vipPreviewBox.style.backgroundImage = `url('${vipLeafPreviewPath}')`;
+        } else {
+            vipPreviewBox.style.backgroundImage = '';
+        }
+        vipPreviewBox.style.transform = `scale(${leafScale})`;
+    }
     // Show/hide revert button based on previous leaf image - Done by Yu Kang
     const revertBtn = document.getElementById('revert-leaf-btn');
     if (revertBtn) {
         revertBtn.style.display = assets.previousLeafImage ? 'block' : 'none';
     }
+    const revertVipBtn = document.getElementById('revert-vip-leaf-btn');
+    if (revertVipBtn) {
+        revertVipBtn.style.display = assets.previousVipLeafImage ? 'block' : 'none';
+    }
     // Load available leaf images from server - Done by Yu Kang
     window.currentLeafImagePath = assets.leafImage || '';
     loadAvailableLeafImages(window.currentLeafImagePath);
+    window.currentVipLeafImagePath = assets.vipLeafImage || '';
+    loadAvailableVipLeafImages(window.currentVipLeafImagePath);
     setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
     setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
     setInputValue('archive-keepRecentFeedbackCount', archive.keepRecentFeedbackCount || 0);
@@ -15491,6 +15678,17 @@ async function addVip() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: trimmed })
         });
+
+        // Notify any open tree view to re-fetch VIP names immediately.
+        const vipRefreshStamp = String(Date.now());
+        try {
+            localStorage.setItem('tree-vip-refresh', vipRefreshStamp);
+        } catch (storageError) {
+            console.warn('Could not write VIP refresh signal:', storageError);
+        }
+        window.dispatchEvent(new CustomEvent('tree-vip-refresh', {
+            detail: { timestamp: vipRefreshStamp, name: trimmed }
+        }));
 
         // Refresh list
         loadVipData();

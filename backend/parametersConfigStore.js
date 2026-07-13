@@ -184,6 +184,8 @@ const DEFAULT_CONFIG = {
     treeBackground: "/assets/Tree/BackGround.png",
     leafImage: "",
     previousLeafImage: "",
+    vipLeafImage: "",
+    previousVipLeafImage: "",
     defaultOverlayTheme: ""
   },
   layoutSettings: {

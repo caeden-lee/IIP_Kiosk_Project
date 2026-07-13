@@ -404,6 +404,9 @@ class TreeManager {
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;
+            this.vipLeafOverrideImage = assets.vipLeafImage
+                ? (assets.vipLeafImage.startsWith('/') ? assets.vipLeafImage : `/assets/Tree/vip-leaf/${assets.vipLeafImage}`)
+                : null;
         } catch (error) {
             console.warn('Tree parameter config unavailable:', error);
         }
@@ -1322,10 +1325,18 @@ class TreeManager {
                     : 'Old' + side;
         }
 
-        if (this.leafOverrideImage) {
+        const leafBasePath = isVip ? '/assets/Tree/vip-leaf' : '/assets/Tree/leaf';
+
+        if (isVip) {
+            if (this.vipLeafOverrideImage) {
+                leaf.style.backgroundImage = `url('${this.vipLeafOverrideImage}')`;
+            } else {
+                leaf.style.backgroundImage = `url('${leafBasePath}/${finalLeafImage}')`;
+            }
+        } else if (this.leafOverrideImage) {
             leaf.style.backgroundImage = `url('${this.leafOverrideImage}')`;
         } else {
-            leaf.style.backgroundImage = `url('/assets/Tree/leaf/${finalLeafImage}')`;
+            leaf.style.backgroundImage = `url('${leafBasePath}/${finalLeafImage}')`;
         }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
@@ -1386,10 +1397,11 @@ class TreeManager {
         leaf.style.left = `${position.x}px`;
         leaf.style.top = `${position.y}px`;
 
-        const useFlippedOverride = Boolean(this.leafOverrideImage) && seededRandom() > 0.5;
-        const leafImageUrl = this.leafOverrideImage
-            ? this.leafOverrideImage
-            : `/assets/Tree/leaf/${finalLeafImage}`;
+        const leafOverrideUrl = isVip
+            ? this.vipLeafOverrideImage
+            : this.leafOverrideImage;
+        const useFlippedOverride = Boolean(leafOverrideUrl) && seededRandom() > 0.5;
+        const leafImageUrl = leafOverrideUrl || `${leafBasePath}/${finalLeafImage}`;
 
         leaf.classList.toggle('leaf-image-flipped', useFlippedOverride);
         leaf.style.setProperty('--leaf-image-url', `url('${leafImageUrl}')`);
@@ -1639,6 +1651,22 @@ window.addEventListener('load', () => {
 
 let treeRefreshTimer;
 
+function triggerTreeVipRefresh() {
+    if (!treeManager) return;
+
+    Promise.all([
+        treeManager.fetchVipNames(),
+        treeManager.fetchYearReviewData(),
+        treeManager.fetchVisitorData(treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear)
+    ]).then(() => {
+        treeManager.updateTreeHeading();
+        treeManager.renderYearReviewBook();
+        treeManager.refreshTree();
+    }).catch((error) => {
+        console.warn('VIP refresh failed:', error);
+    });
+}
+
 function refreshTreeFromServer() {
     if (treeManager) {
         const yearToRefresh = treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear;
@@ -1672,6 +1700,13 @@ function scheduleTreeRefresh() {
 }
 
 scheduleTreeRefresh();
+
+window.addEventListener('tree-vip-refresh', triggerTreeVipRefresh);
+window.addEventListener('storage', (event) => {
+    if (event.key === 'tree-vip-refresh') {
+        triggerTreeVipRefresh();
+    }
+});
 
 window.addEventListener('resize', () => {
     if (treeManager) {
