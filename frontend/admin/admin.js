@@ -9089,12 +9089,15 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
         const treeStage = Math.max(0, Math.min(4, Number(treeStageSelect.value) || 0));
         const showTitleBox = showTitleBoxCheck.checked;
         const leafDisplayScale = parseFloat(leafScaleSlider.value) || 1.0;
+        const vipLeafScaleSlider = document.getElementById('param-vipLeafDisplayScale');
+        const vipLeafDisplayScale = vipLeafScaleSlider ? parseFloat(vipLeafScaleSlider.value) || 1.0 : leafDisplayScale;
 
         // 2. Build payload (adjust field names to match your backend expectations)
         const payload = {
             treeStage: treeStage,
             showTitleBox: showTitleBox,
-            leafDisplayScale: leafDisplayScale
+            leafDisplayScale: leafDisplayScale,
+            vipLeafDisplayScale: vipLeafDisplayScale
         };
 
         // 3. Send to backend – use the same endpoint as saveTreeStageSelection
@@ -9121,6 +9124,10 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
         const previewBox = document.getElementById('previewLeafBox');
         if (previewBox) {
             previewBox.style.transform = `scale(${leafDisplayScale})`;
+        }
+        const vipPreviewBox = document.getElementById('previewVipLeafBox');
+        if (vipPreviewBox) {
+            vipPreviewBox.style.transform = `scale(${vipLeafDisplayScale})`;
         }
 
     } catch (error) {
@@ -9595,6 +9602,7 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
         }
 
         const picker = document.getElementById('param-existingLeafList');
+        const previewBox = document.getElementById('previewLeafBox');
         if (!picker) return;
 
         picker.innerHTML = '';
@@ -9634,6 +9642,9 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
                     tile.style.background = '#eff6ff';
                     tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
                     window.selectedLeafImage = leaf.filename;
+                    if (previewBox) {
+                        previewBox.style.backgroundImage = `url('${leaf.path}')`;
+                    }
                 };
 
                 if (currentLeafImagePath && (currentLeafImagePath.endsWith('/' + leaf.filename) || currentLeafImagePath.endsWith(leaf.filename))) {
@@ -9668,6 +9679,7 @@ async function loadAvailableVipLeafImages(currentVipLeafImagePath = '') {
         }
 
         const picker = document.getElementById('param-existingVipLeafList');
+        const previewBox = document.getElementById('previewVipLeafBox');
         if (!picker) return;
 
         picker.innerHTML = '';
@@ -9710,6 +9722,9 @@ async function loadAvailableVipLeafImages(currentVipLeafImagePath = '') {
                     tile.style.background = '#eff6ff';
                     tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
                     window.selectedVipLeafImage = leaf.filename;
+                    if (previewBox) {
+                        previewBox.style.backgroundImage = `url('${leaf.path}')`;
+                    }
                 };
 
                 if (currentVipLeafImagePath && (currentVipLeafImagePath.endsWith('/' + leaf.filename) || currentVipLeafImagePath.endsWith(leaf.filename))) {
@@ -13855,6 +13870,9 @@ function setSharedLeafScale(value) {
     const oldOutput = document.getElementById('param-leafDisplayScaleValue');
     if (oldOutput) oldOutput.textContent = String(normalized);
 
+    const oldOutputVip = document.getElementById('param-vipLeafDisplayScaleValue');
+    if (oldOutputVip) oldOutputVip.textContent = String(normalized);
+
     document.querySelectorAll('.badge-leaf-preview').forEach(preview => {
         preview.style.setProperty('--badge-preview-scale', normalized);
     });
@@ -14134,13 +14152,23 @@ function populateParameterForm(config) {
     const leafScale = typeof tree.leafDisplayScale !== 'undefined'
         ? tree.leafDisplayScale
         : (Number.isFinite(badgeLeafScale) ? badgeLeafScale : 1);
+    const vipLeafScale = typeof tree.vipLeafDisplayScale !== 'undefined'
+        ? tree.vipLeafDisplayScale
+        : leafScale;
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
     if (leafScaleEl) {
         leafScaleEl.value = leafScale;
         const valEl = document.getElementById('param-leafDisplayScaleValue');
         if (valEl) valEl.textContent = String(leafScale);
     }
+    const vipLeafScaleEl = document.getElementById('param-vipLeafDisplayScale');
+    if (vipLeafScaleEl) {
+        vipLeafScaleEl.value = vipLeafScale;
+        const vipValEl = document.getElementById('param-vipLeafDisplayScaleValue');
+        if (vipValEl) vipValEl.textContent = String(vipLeafScale);
+    }
     setSharedLeafScale(leafScale);
+
     const badgeLeafColors = getBadgeLeafStyleColors(badgeLeafStyles.colors);
     const defaultBadgeLeafColors = getDefaultBadgeLeafColors();
     DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
@@ -14205,7 +14233,7 @@ function populateParameterForm(config) {
         } else {
             vipPreviewBox.style.backgroundImage = '';
         }
-        vipPreviewBox.style.transform = `scale(${leafScale})`;
+        vipPreviewBox.style.transform = `scale(${vipLeafScale})`;
     }
     // Show/hide revert button based on previous leaf image - Done by Yu Kang
     const revertBtn = document.getElementById('revert-leaf-btn');
@@ -14311,6 +14339,7 @@ function collectParameterForm() {
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
             treeDisplayMode: getInputValue('param-treeDisplayMode') === '3d' ? '3d' : '2d',
             leafDisplayScale: sharedLeafScale,
+            vipLeafDisplayScale: parseFloat(getInputValue('param-vipLeafDisplayScale')) || 1.0,
             showTitleBox: getCheckedValue('param-showTitleBox')
         },
         feedbackPageStyle: {

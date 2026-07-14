@@ -207,6 +207,7 @@ class TreeManager {
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
         this.leafDisplayScale = 1;
+        this.vipLeafDisplayScale = 1;
         this.badgeLeafColors = {};
         this.treeStage = 0;
         this.showTitleBox = true;
@@ -225,6 +226,9 @@ class TreeManager {
         this.manualDemoFallActive = false;
         this.demoMotionTimer = null;
         this.liveTreeRefreshInterval = 5000;
+        this.leafGlowDurationMs = 10 * 60 * 1000; //Timing for leaf glow effect (10 minutes)
+        this.leafGlowRefreshInterval = 1000;
+        this.leafGlowTimer = null;
         this.activeLeafCycle = null;
 
         // Mask cache
@@ -346,6 +350,7 @@ class TreeManager {
             this.renderYearReviewBook();
 
             this.createLeaves();
+            this.startLeafGlowMonitor();
         } catch (err) {
             console.error('Init error:', err);
         } finally {
@@ -400,10 +405,14 @@ class TreeManager {
             }
             // Leaf override image and shared display scale
             const configuredLeafScale = Number(tree.leafDisplayScale);
+            const configuredVipLeafScale = Number(tree.vipLeafDisplayScale);
             const configuredBadgeLeafScale = Number(badgeLeafStyles.leafScale);
             this.leafDisplayScale = Number.isFinite(configuredLeafScale)
                 ? configuredLeafScale
                 : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
+            this.vipLeafDisplayScale = Number.isFinite(configuredVipLeafScale)
+                ? configuredVipLeafScale
+                : this.leafDisplayScale;
             this.badgeLeafColors = {
                 ...Object.fromEntries(Object.keys(this.badgeLeafProfiles).map(key => [key, '#4a7c59'])),
                 ...(badgeLeafStyles.colors || {})
@@ -578,6 +587,46 @@ class TreeManager {
         const createdAt = new Date(visitor?.created_at);
         if (Number.isNaN(createdAt.getTime())) return false;
         return createdAt < this.getCurrentGreenResetDate();
+    }
+
+    getLeafGlowTimestamp(visitor) {
+        const sourceValue = visitor?.user_created_at || visitor?.created_at;
+        const createdAt = new Date(sourceValue);
+        return Number.isNaN(createdAt.getTime()) ? null : createdAt;
+    }
+
+    shouldLeafGlow(visitor) {
+        const createdAt = this.getLeafGlowTimestamp(visitor);
+        if (!createdAt) return false;
+
+        const ageMs = Date.now() - createdAt.getTime();
+        return ageMs >= 0 && ageMs <= this.leafGlowDurationMs;
+    }
+
+    syncLeafGlowStates() {
+        if (!this.leavesContainer) return;
+
+        const now = Date.now();
+        const leaves = Array.from(this.leavesContainer.querySelectorAll('.leaf'));
+        leaves.forEach((leaf) => {
+            const glowTimestamp = new Date(leaf.dataset.leafGlowTimestamp || '');
+            const isGlowing = !Number.isNaN(glowTimestamp.getTime())
+                && (now - glowTimestamp.getTime()) >= 0
+                && (now - glowTimestamp.getTime()) <= this.leafGlowDurationMs;
+
+            leaf.classList.toggle('leaf-neon-glow', isGlowing);
+        });
+    }
+
+    startLeafGlowMonitor() {
+        if (this.leafGlowTimer) {
+            window.clearInterval(this.leafGlowTimer);
+        }
+
+        this.syncLeafGlowStates();
+        this.leafGlowTimer = window.setInterval(() => {
+            this.syncLeafGlowStates();
+        }, this.leafGlowRefreshInterval);
     }
 
     getVisitorSeed(visitor, index) {
@@ -1422,6 +1471,10 @@ class TreeManager {
         if (isGreenified) {
             leaf.classList.add('leaf-greenified');
         }
+        const isNeonGlowing = this.shouldLeafGlow(visitor);
+        if (isNeonGlowing) {
+            leaf.classList.add('leaf-neon-glow');
+        }
 
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
@@ -1512,11 +1565,17 @@ class TreeManager {
         leaf.style.setProperty('--leaf-appear-rotation', `${appearRotation}deg`);
 
         const baseLeafSize = 80 + ((visitor.visit_count || 1) * 5);
-        const scale = typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1;
+        const scale = isVip
+            ? (typeof this.vipLeafDisplayScale === 'number' ? this.vipLeafDisplayScale : this.leafDisplayScale)
+            : (typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1);
         const leafSize = Math.max(8, Math.round(baseLeafSize * scale));
         leaf.style.width = `${leafSize}px`;
         leaf.style.height = `${leafSize}px`;
         leaf.style.setProperty('--leaf-size', `${leafSize}px`);
+        const glowTimestamp = this.getLeafGlowTimestamp(visitor);
+        if (glowTimestamp) {
+            leaf.dataset.leafGlowTimestamp = glowTimestamp.toISOString();
+        }
 
         // 1) Place within mask
         let position = this.findRandomPositionInLeavesMask(leafSize, `${visitorSeed}|position`);
@@ -1761,6 +1820,7 @@ class TreeManager {
         this.maskData = this.buildMaskCanvas();
 
         this.createLeaves();
+        this.syncLeafGlowStates();
     }
 
     // ==================== CONFIG ====================

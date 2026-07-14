@@ -84,6 +84,7 @@
     "leafFallDuration": 0,
     "leafGreenResetTime": "00:00",
     "leafDisplayScale": 1,
+    "vipLeafDisplayScale": 1,
     "showTitleBox": true,
     "leafThresholds": {
       "stage1": 1,
@@ -148,9 +149,11 @@
   },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
-    "leafImage": "/assets/Tree/leaf/OldRightLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
+    "treeBackground": "/assets/Tree/background/BackGround.png",
+    "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "vipLeafImage": "/assets/Tree/vip-leaf/GoldLeftLeaf.png",
+    "previousVipLeafImage": "/assets/Tree/vip-leaf/CustomVipLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {

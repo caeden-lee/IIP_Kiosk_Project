@@ -47,6 +47,7 @@
 // FIND COMMAND
 //   rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
 // ============================================================
+//
 
 const fs = require('fs');
 const path = require('path');
@@ -142,6 +143,7 @@ const DEFAULT_CONFIG = {
     leafFallDuration: 4200,
     leafGreenResetTime: "00:00",
     leafDisplayScale: 1,
+    vipLeafDisplayScale: 1,
     showTitleBox: true
   },
   feedbackPageStyle: {

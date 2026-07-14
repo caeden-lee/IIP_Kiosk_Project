@@ -6732,7 +6732,7 @@ router.post('/parameters/tree-background/upload', auth.requireAdmin, uploadTreeB
 router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
     try {
         console.log('🌳 Saving tree parameters');
-        const { treeStage, showTitleBox, leafDisplayScale, leafThresholds, treeTitleBox, treeDisplayMode } = req.body;
+        const { treeStage, showTitleBox, leafDisplayScale, vipLeafDisplayScale, leafThresholds, treeTitleBox, treeDisplayMode } = req.body;
         const normalizedDisplayMode = treeDisplayMode === undefined
             ? undefined
             : normalizeTreeDisplayMode({ treeDisplayMode }).treeDisplayMode;
@@ -6749,6 +6749,7 @@ router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
         if (treeStage !== undefined) config.treeParameters.treeStage = treeStage;
         if (showTitleBox !== undefined) config.treeParameters.showTitleBox = showTitleBox;
         if (leafDisplayScale !== undefined) config.treeParameters.leafDisplayScale = leafDisplayScale;
+        if (vipLeafDisplayScale !== undefined) config.treeParameters.vipLeafDisplayScale = vipLeafDisplayScale;
         if (leafThresholds) config.treeParameters.leafThresholds = leafThresholds;
         if (normalizedDisplayMode !== undefined) config.treeParameters.treeDisplayMode = normalizedDisplayMode;
 

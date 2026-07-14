@@ -3992,7 +3992,7 @@ td {
 .badge-percentage { background: #e0e7ff}
 .badge-warning { background: #d97706 }
 .badge-active { background: #bfdbfe } 
-.badge-permanent { background: #059669 }
+.badge-permanent { background: #059669; white-space: nowrap; }
 .badge-system { background: #e0e7ff }
 .badge-login { background: #bfdbfe }
 
