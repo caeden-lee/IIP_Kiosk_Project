@@ -207,6 +207,20 @@ let hypeCounterHasLoadedLiveValue = false; // Avoid animating down from fallback
 const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
+// Swipeable animated face filter options - changes made by nick
+const FACE_ACCESSORY_OPTIONS = [
+    { id: 'none', label: 'No filter' },
+    { id: 'glasses', label: 'Glasses' },
+    { id: 'sparkle-glasses', label: 'Sparkle glasses' },
+    { id: 'moustache', label: 'Moustache' },
+    { id: 'hat', label: 'Hat' },
+    { id: 'flower-crown', label: 'Flower crown' },
+    { id: 'halo', label: 'Halo glow' },
+    { id: 'blush', label: 'Blush' },
+    { id: 'party', label: 'Party pop' }
+];
+const FACE_ACCESSORY_IDS = FACE_ACCESSORY_OPTIONS.map(option => option.id);
+let faceFilterScrollTimer = null;
 let qrRefreshTimer = null;
 const BEAUTY_FILTER_PRESETS = {
     light: {
@@ -304,6 +318,27 @@ const FLOW_PAGE_IDS = FLOW_STEPS.flatMap(step => step.pageIds).concat(['thankyou
 const FLOW_SLIDE_TRANSITION_MS = 380; // Smooth multi-step form slide timing - changes made by nick
 let activeFlowPageId = null; // Track current visible form step for slide direction - changes made by nick
 let flowSlideTransitionTimer = null; // Prevent overlapping page transition cleanup - changes made by nick
+// Interactive RP teddy bear companion messages - changes made by nick
+let rpBearSpeechTimer = null;
+let rpBearInteractionCount = 0;
+const RP_BEAR_PAGE_MESSAGES = {
+    'details-page': 'Hi, I am your RP helper. Start with your name and email.',
+    'feedback-page': 'Share what you think. Short and honest is perfect.',
+    'pledge-page': 'Pick a focus and write one action you can try.',
+    'photo-choice-page': 'You can take a keepsake photo or skip this step.',
+    'photo-page': 'Try the filters, then smile when you are ready.',
+    'file-upload-page': 'Upload a clear photo and I will keep watch here.',
+    'style-page': 'Choose a frame you like for your keepsake.',
+    'confirmation-page': 'Almost done. Check everything once before submitting.',
+    'thankyou-page': 'Nice work. Thanks for helping the RP community.'
+};
+const RP_BEAR_INTERACTION_MESSAGES = [
+    'You found me. I will cheer you through this.',
+    'Need a nudge? Just finish the current card.',
+    'Looking good. One step at a time.',
+    'RP spirit activated.',
+    'Tap the main button when you are ready.'
+];
 
 function getStepForPage(pageId) {
     return FLOW_STEPS.find(step => step.pageIds.includes(pageId));
@@ -352,6 +387,64 @@ function updateProgressIndicator(activePageId) {
     });
 }
 
+function setRpBearSpeech(message, shouldPop = false) { // changes made by nick
+    const companion = document.getElementById('rp-bear-companion');
+    const speech = document.getElementById('rp-bear-speech');
+    if (!companion || !speech) return;
+
+    speech.textContent = message;
+    companion.classList.add('is-speaking');
+
+    if (shouldPop) {
+        companion.classList.remove('is-excited', 'is-waving');
+        void companion.offsetWidth;
+        companion.classList.add('is-excited', 'is-waving');
+    }
+
+    if (rpBearSpeechTimer) {
+        clearTimeout(rpBearSpeechTimer);
+    }
+
+    rpBearSpeechTimer = setTimeout(() => {
+        companion.classList.remove('is-speaking', 'is-excited', 'is-waving');
+        rpBearSpeechTimer = null;
+    }, shouldPop ? 3600 : 2600);
+}
+
+function updateRpBearCompanion(pageId) { // changes made by nick
+    const companion = document.getElementById('rp-bear-companion');
+    if (!companion) return;
+
+    const shouldShow = FLOW_PAGE_IDS.includes(pageId);
+    companion.hidden = !shouldShow;
+
+    if (!shouldShow) {
+        companion.classList.remove('is-speaking', 'is-excited', 'is-waving');
+        return;
+    }
+
+    setRpBearSpeech(RP_BEAR_PAGE_MESSAGES[pageId] || 'I am here if you need a nudge.');
+}
+
+function setupRpBearCompanion() { // changes made by nick
+    const companion = document.getElementById('rp-bear-companion');
+    if (!companion) return;
+
+    companion.addEventListener('click', () => {
+        const message = RP_BEAR_INTERACTION_MESSAGES[rpBearInteractionCount % RP_BEAR_INTERACTION_MESSAGES.length];
+        rpBearInteractionCount += 1;
+        setRpBearSpeech(message, true);
+        resetInactivityTimer();
+    });
+
+    companion.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            companion.click();
+        }
+    });
+}
+
 function hideLandingPages() {
     ['land-page-no-qrcode', 'land-page-qrcode'].forEach(id => {
         const page = document.getElementById(id);
@@ -373,6 +466,7 @@ function showLandingPages() {
         }
     });
     activeFlowPageId = null; // Reset slide tracking when returning to landing - changes made by nick
+    updateRpBearCompanion(null);
     applyFormUIConfig();
 }
 
@@ -404,6 +498,7 @@ function showFlowPage(pageId) {
         });
         activeFlowPageId = pageId;
         updateProgressIndicator(pageId);
+        updateRpBearCompanion(pageId);
         return;
     }
 
@@ -440,11 +535,13 @@ function showFlowPage(pageId) {
         currentPage.style.display = 'none';
         nextPage.style.display = 'flex';
         activeFlowPageId = pageId;
+        updateRpBearCompanion(pageId);
         flowSlideTransitionTimer = null;
     }, FLOW_SLIDE_TRANSITION_MS);
 
     activeFlowPageId = pageId;
     updateProgressIndicator(pageId);
+    updateRpBearCompanion(pageId);
 }
 
 function clearValidationMessages() {
@@ -691,6 +788,8 @@ function getFaceAccessoryGeometry(landmarks, width, height) {
     const upperLip = getLandmarkPoint(landmarks, 13, width, height);
     const forehead = getLandmarkPoint(landmarks, 10, width, height);
     const chin = getLandmarkPoint(landmarks, 152, width, height);
+    const leftCheek = getLandmarkPoint(landmarks, 234, width, height);
+    const rightCheek = getLandmarkPoint(landmarks, 454, width, height);
 
     if (!leftEyeOuter || !rightEyeOuter || !noseTip) {
         return null;
@@ -711,7 +810,9 @@ function getFaceAccessoryGeometry(landmarks, width, height) {
         faceHeight,
         noseTip,
         upperLip: upperLip || { x: noseTip.x, y: noseTip.y + eyeDistance * 0.35 },
-        forehead: forehead || { x: eyeCenter.x, y: eyeCenter.y - eyeDistance * 0.85 }
+        forehead: forehead || { x: eyeCenter.x, y: eyeCenter.y - eyeDistance * 0.85 },
+        leftCheek: leftCheek || { x: eyeCenter.x - eyeDistance * 0.48, y: noseTip.y + eyeDistance * 0.2 },
+        rightCheek: rightCheek || { x: eyeCenter.x + eyeDistance * 0.48, y: noseTip.y + eyeDistance * 0.2 }
     };
 }
 
@@ -723,40 +824,68 @@ function withAccessoryTransform(ctx, center, angle, drawFn) {
     ctx.restore();
 }
 
-function drawGlassesAccessory(ctx, geometry) {
-    const lensWidth = geometry.eyeDistance * 0.52;
-    const lensHeight = geometry.eyeDistance * 0.34;
-    const gap = geometry.eyeDistance * 0.18;
+function drawGlassesAccessory(ctx, geometry) { // black round spectacles - changes made by nick
+    const lensRadius = geometry.eyeDistance * 0.27;
+    const lensOffset = geometry.eyeDistance * 0.34;
     const center = {
         x: geometry.eyeCenter.x,
         y: geometry.eyeCenter.y + geometry.eyeDistance * 0.03
     };
 
     withAccessoryTransform(ctx, center, geometry.angle, () => {
-        ctx.lineWidth = Math.max(5, geometry.eyeDistance * 0.055);
+        ctx.lineWidth = Math.max(8, geometry.eyeDistance * 0.085);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.strokeStyle = '#111827';
-        ctx.fillStyle = 'rgba(191, 219, 254, 0.22)';
 
-        const leftX = -gap / 2 - lensWidth;
-        const rightX = gap / 2;
-        const y = -lensHeight / 2;
         ctx.beginPath();
-        ctx.roundRect(leftX, y, lensWidth, lensHeight, lensHeight * 0.22);
-        ctx.roundRect(rightX, y, lensWidth, lensHeight, lensHeight * 0.22);
+        ctx.arc(-lensOffset, 0, lensRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(lensOffset, 0, lensRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(7, geometry.eyeDistance * 0.07);
+        ctx.beginPath();
+        ctx.moveTo(-lensOffset + lensRadius * 0.86, -lensRadius * 0.06);
+        ctx.quadraticCurveTo(0, -lensRadius * 0.34, lensOffset - lensRadius * 0.86, -lensRadius * 0.06);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(6, geometry.eyeDistance * 0.055);
+        ctx.strokeStyle = 'rgba(17, 24, 39, 0.78)';
+        ctx.beginPath();
+        ctx.moveTo(-lensOffset - lensRadius * 0.92, -lensRadius * 0.18);
+        ctx.quadraticCurveTo(-lensOffset - lensRadius * 1.55, -lensRadius * 0.26, -lensOffset - lensRadius * 1.82, lensRadius * 0.34);
+        ctx.moveTo(lensOffset + lensRadius * 0.92, -lensRadius * 0.18);
+        ctx.quadraticCurveTo(lensOffset + lensRadius * 1.55, -lensRadius * 0.26, lensOffset + lensRadius * 1.82, lensRadius * 0.34);
+        ctx.stroke();
+    });
+}
+
+function drawSparkleGlassesAccessory(ctx, geometry, time) { // changes made by nick
+    drawGlassesAccessory(ctx, geometry);
+    const sparkleCenter = {
+        x: geometry.eyeCenter.x + Math.cos(geometry.angle) * geometry.eyeDistance * 0.54,
+        y: geometry.eyeCenter.y + Math.sin(geometry.angle) * geometry.eyeDistance * 0.54 - geometry.eyeDistance * 0.16
+    };
+    const pulse = 0.78 + Math.sin(time / 180) * 0.22;
+
+    withAccessoryTransform(ctx, sparkleCenter, geometry.angle + time / 520, () => {
+        ctx.fillStyle = `rgba(250, 204, 21, ${0.74 + pulse * 0.22})`;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.lineWidth = Math.max(2, geometry.eyeDistance * 0.018);
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const radius = (i % 2 === 0 ? geometry.eyeDistance * 0.16 : geometry.eyeDistance * 0.055) * pulse;
+            const angle = (Math.PI * 2 * i) / 8;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
         ctx.fill();
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(-gap / 2, 0);
-        ctx.quadraticCurveTo(0, -lensHeight * 0.18, gap / 2, 0);
-        ctx.stroke();
-
-        ctx.lineWidth = Math.max(3, geometry.eyeDistance * 0.035);
-        ctx.beginPath();
-        ctx.moveTo(leftX, -lensHeight * 0.06);
-        ctx.lineTo(leftX - lensWidth * 0.32, -lensHeight * 0.2);
-        ctx.moveTo(rightX + lensWidth, -lensHeight * 0.06);
-        ctx.lineTo(rightX + lensWidth + lensWidth * 0.32, -lensHeight * 0.2);
         ctx.stroke();
     });
 }
@@ -818,7 +947,126 @@ function drawHatAccessory(ctx, geometry) {
     });
 }
 
-function drawFaceAccessory(ctx, landmarks, width, height) {
+function drawFlowerCrownAccessory(ctx, geometry, time) { // changes made by nick
+    const flowerCount = 7;
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * 0.28
+    };
+    const colors = ['#fb7185', '#facc15', '#a78bfa', '#34d399', '#f472b6'];
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        for (let i = 0; i < flowerCount; i++) {
+            const progress = flowerCount === 1 ? 0 : i / (flowerCount - 1);
+            const x = (progress - 0.5) * geometry.eyeDistance * 1.22;
+            const arch = Math.sin(progress * Math.PI) * geometry.eyeDistance * 0.16;
+            const y = -arch + Math.sin(time / 360 + i) * geometry.eyeDistance * 0.018;
+            const radius = geometry.eyeDistance * (0.08 + (i % 2) * 0.015);
+
+            ctx.fillStyle = colors[i % colors.length];
+            for (let petal = 0; petal < 5; petal++) {
+                const angle = (Math.PI * 2 * petal) / 5;
+                ctx.beginPath();
+                ctx.ellipse(
+                    x + Math.cos(angle) * radius * 0.78,
+                    y + Math.sin(angle) * radius * 0.78,
+                    radius * 0.58,
+                    radius * 0.38,
+                    angle,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#fef3c7';
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.38, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+}
+
+function drawHaloAccessory(ctx, geometry, time) { // changes made by nick
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * (0.62 + Math.sin(time / 430) * 0.04)
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        ctx.lineWidth = Math.max(5, geometry.eyeDistance * 0.06);
+        ctx.strokeStyle = '#facc15';
+        ctx.shadowColor = 'rgba(250, 204, 21, 0.82)';
+        ctx.shadowBlur = geometry.eyeDistance * 0.18;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, geometry.eyeDistance * 0.52, geometry.eyeDistance * 0.14, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    });
+}
+
+function drawBlushAccessory(ctx, geometry, time) { // changes made by nick
+    const alpha = 0.38 + Math.sin(time / 420) * 0.08;
+    const cheekRadiusX = geometry.eyeDistance * 0.18;
+    const cheekRadiusY = geometry.eyeDistance * 0.1;
+    const cheeks = [
+        { point: geometry.leftCheek, offset: -geometry.eyeDistance * 0.04 },
+        { point: geometry.rightCheek, offset: geometry.eyeDistance * 0.04 }
+    ];
+
+    cheeks.forEach(({ point, offset }) => {
+        withAccessoryTransform(ctx, { x: point.x, y: point.y + offset }, geometry.angle, () => {
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, cheekRadiusX);
+            gradient.addColorStop(0, `rgba(244, 114, 182, ${alpha})`);
+            gradient.addColorStop(1, 'rgba(244, 114, 182, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, cheekRadiusX, cheekRadiusY, 0, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    });
+}
+
+function drawPartyAccessory(ctx, geometry, time) { // changes made by nick
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * 0.42
+    };
+    const wiggle = Math.sin(time / 180) * 0.1;
+
+    withAccessoryTransform(ctx, center, geometry.angle + wiggle, () => {
+        const hatHeight = geometry.eyeDistance * 0.78;
+        const hatWidth = geometry.eyeDistance * 0.48;
+        const gradient = ctx.createLinearGradient(0, -hatHeight, 0, 0);
+        gradient.addColorStop(0, '#60a5fa');
+        gradient.addColorStop(0.5, '#f472b6');
+        gradient.addColorStop(1, '#22c55e');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(0, -hatHeight);
+        ctx.lineTo(hatWidth / 2, 0);
+        ctx.lineTo(-hatWidth / 2, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+        ctx.lineWidth = Math.max(2, geometry.eyeDistance * 0.025);
+        for (let i = 1; i <= 3; i++) {
+            const y = -hatHeight + (hatHeight * i) / 4;
+            ctx.beginPath();
+            ctx.moveTo(-hatWidth * 0.28, y);
+            ctx.lineTo(hatWidth * 0.28, y + geometry.eyeDistance * 0.08);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(0, -hatHeight, geometry.eyeDistance * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawFaceAccessory(ctx, landmarks, width, height, time = performance.now()) {
     if (selectedFaceAccessory === 'none' || !landmarks) {
         return;
     }
@@ -830,10 +1078,20 @@ function drawFaceAccessory(ctx, landmarks, width, height) {
 
     if (selectedFaceAccessory === 'glasses') {
         drawGlassesAccessory(ctx, geometry);
+    } else if (selectedFaceAccessory === 'sparkle-glasses') {
+        drawSparkleGlassesAccessory(ctx, geometry, time);
     } else if (selectedFaceAccessory === 'moustache') {
         drawMoustacheAccessory(ctx, geometry);
     } else if (selectedFaceAccessory === 'hat') {
         drawHatAccessory(ctx, geometry);
+    } else if (selectedFaceAccessory === 'flower-crown') {
+        drawFlowerCrownAccessory(ctx, geometry, time);
+    } else if (selectedFaceAccessory === 'halo') {
+        drawHaloAccessory(ctx, geometry, time);
+    } else if (selectedFaceAccessory === 'blush') {
+        drawBlushAccessory(ctx, geometry, time);
+    } else if (selectedFaceAccessory === 'party') {
+        drawPartyAccessory(ctx, geometry, time);
     }
 }
 
@@ -843,7 +1101,7 @@ function drawFaceAccessoryForCameraView(ctx, landmarks, width, height) {
         ctx.translate(width, 0);
         ctx.scale(-1, 1);
     }
-    drawFaceAccessory(ctx, landmarks, width, height);
+    drawFaceAccessory(ctx, landmarks, width, height, performance.now());
     ctx.restore();
 }
 
@@ -900,20 +1158,36 @@ function stopFaceAccessoryPreview() {
 }
 
 function updateFaceAccessoryButtons() {
-    document.querySelectorAll('.face-accessory-btn').forEach((button) => {
+    document.querySelectorAll('.face-filter-card').forEach((button) => {
         const isActive = button.dataset.accessory === selectedFaceAccessory;
         button.classList.toggle('active', isActive);
-        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
+
+    const activeLabel = document.getElementById('face-filter-active');
+    const option = FACE_ACCESSORY_OPTIONS.find(item => item.id === selectedFaceAccessory);
+    if (activeLabel && option) {
+        activeLabel.textContent = option.label;
+    }
 }
 
-function selectFaceAccessory(accessory) {
-    if (!['none', 'glasses', 'moustache', 'hat'].includes(accessory)) {
+function scrollSelectedFaceFilterIntoView(behavior = 'smooth') { // changes made by nick
+    const selectedButton = document.querySelector(`.face-filter-card[data-accessory="${selectedFaceAccessory}"]`);
+    if (selectedButton) {
+        selectedButton.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
+    }
+}
+
+function selectFaceAccessory(accessory, shouldScroll = true) {
+    if (!FACE_ACCESSORY_IDS.includes(accessory)) {
         return;
     }
 
     selectedFaceAccessory = accessory;
     updateFaceAccessoryButtons();
+    if (shouldScroll) {
+        scrollSelectedFaceFilterIntoView();
+    }
     if (stream) {
         startFaceAccessoryPreview();
     } else {
@@ -922,13 +1196,55 @@ function selectFaceAccessory(accessory) {
     resetInactivityTimer();
 }
 
-function setupFaceAccessorySelector() {
-    document.querySelectorAll('.face-accessory-btn').forEach((button) => {
+function getCenteredFaceFilterAccessory() { // changes made by nick
+    const selector = document.getElementById('face-filter-selector');
+    if (!selector) {
+        return selectedFaceAccessory;
+    }
+
+    const selectorBox = selector.getBoundingClientRect();
+    const centerX = selectorBox.left + selectorBox.width / 2;
+    let nearest = null;
+    let nearestDistance = Infinity;
+
+    selector.querySelectorAll('.face-filter-card').forEach((button) => {
+        const box = button.getBoundingClientRect();
+        const distance = Math.abs((box.left + box.width / 2) - centerX);
+        if (distance < nearestDistance) {
+            nearest = button;
+            nearestDistance = distance;
+        }
+    });
+
+    return nearest?.dataset.accessory || selectedFaceAccessory;
+}
+
+function setupFaceAccessorySelector() { // swipeable filter selector - changes made by nick
+    const selector = document.getElementById('face-filter-selector');
+
+    document.querySelectorAll('.face-filter-card').forEach((button) => {
         button.addEventListener('click', () => {
             selectFaceAccessory(button.dataset.accessory || 'none');
         });
     });
+
+    if (selector) {
+        selector.addEventListener('scroll', () => {
+            if (faceFilterScrollTimer) {
+                clearTimeout(faceFilterScrollTimer);
+            }
+
+            faceFilterScrollTimer = setTimeout(() => {
+                const centeredAccessory = getCenteredFaceFilterAccessory();
+                if (centeredAccessory !== selectedFaceAccessory) {
+                    selectFaceAccessory(centeredAccessory, false);
+                }
+            }, 120);
+        }, { passive: true });
+    }
+
     updateFaceAccessoryButtons();
+    requestAnimationFrame(() => scrollSelectedFaceFilterIntoView('auto'));
 }
 
 async function getCurrentFaceAccessoryLandmarks() {
@@ -1187,6 +1503,7 @@ if (invertBtn) {
     // Beauty filter setting done by nick
     setupBeautyFilterSettings();
     setupFaceAccessorySelector();
+    setupRpBearCompanion(); // changes made by nick
 
     // Load overlay options from database
     loadOverlayOptions();
@@ -1299,11 +1616,14 @@ function returnToLandingPage() {
     // Reset all data
     selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
+    selectedFaceAccessory = 'none';
     userData = {};
     photoData = null;
     captureMode = 'photo';
     boomerangFrames = [];
     updateCaptureModeButtons();
+    updateFaceAccessoryButtons();
+    scrollSelectedFaceFilterIntoView('auto');
     
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());

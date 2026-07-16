@@ -150,6 +150,32 @@
         <button type="button" onclick="setLanguage('ms')" data-lang="ms" title="Alt+3">Bahasa Melayu</button>
         <button type="button" onclick="setLanguage('ta')" data-lang="ta" title="Alt+4">&#2980;&#2990;&#3007;&#2996;&#3021;</button>
     </div>
+
+    <!-- Interactive RP teddy bear companion - changes made by nick -->
+    <button type="button" class="rp-bear-companion" id="rp-bear-companion" aria-label="Republic Polytechnic helper bear" hidden>
+        <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
+        <span class="rp-bear" aria-hidden="true">
+            <span class="rp-bear-ear left"></span>
+            <span class="rp-bear-ear right"></span>
+            <span class="rp-bear-head">
+                <span class="rp-bear-eye left"></span>
+                <span class="rp-bear-eye right"></span>
+                <span class="rp-bear-muzzle">
+                    <span class="rp-bear-nose"></span>
+                    <span class="rp-bear-smile"></span>
+                </span>
+            </span>
+            <span class="rp-bear-arm left"></span>
+            <span class="rp-bear-arm right"></span>
+            <span class="rp-bear-body">
+                <span class="rp-bear-shirt">
+                    <img src="/assets/static/rp-logo.png" alt="">
+                </span>
+            </span>
+            <span class="rp-bear-foot left"></span>
+            <span class="rp-bear-foot right"></span>
+        </span>
+    </button>
     
     <!-- Landing Page -->
     <div id="land-page-no-qrcode">
@@ -543,11 +569,47 @@
                 </select>
             </div>
 
-            <div class="face-accessory-selector" role="group" aria-label="Virtual face accessory">
-                <button type="button" class="face-accessory-btn active" data-accessory="none" aria-pressed="true">None</button>
-                <button type="button" class="face-accessory-btn" data-accessory="glasses" aria-pressed="false">Glasses</button>
-                <button type="button" class="face-accessory-btn" data-accessory="moustache" aria-pressed="false">Moustache</button>
-                <button type="button" class="face-accessory-btn" data-accessory="hat" aria-pressed="false">Hat</button>
+            <!-- Swipeable animated face filter tray - changes made by nick -->
+            <div class="face-filter-panel" aria-label="Virtual face filters">
+                <div class="face-filter-active" id="face-filter-active">No filter</div>
+                <div class="face-filter-selector" id="face-filter-selector" role="listbox" aria-label="Swipe face filters">
+                    <button type="button" class="face-filter-card active" data-accessory="none" role="option" aria-selected="true">
+                        <span class="face-filter-preview none">No</span>
+                        <span>None</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="glasses" role="option" aria-selected="false">
+                        <span class="face-filter-preview glasses"></span>
+                        <span>Glasses</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="sparkle-glasses" role="option" aria-selected="false">
+                        <span class="face-filter-preview sparkle-glasses"></span>
+                        <span>Sparkle</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="moustache" role="option" aria-selected="false">
+                        <span class="face-filter-preview moustache"></span>
+                        <span>Stache</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="hat" role="option" aria-selected="false">
+                        <span class="face-filter-preview hat"></span>
+                        <span>Hat</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="flower-crown" role="option" aria-selected="false">
+                        <span class="face-filter-preview flower-crown"></span>
+                        <span>Flowers</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="halo" role="option" aria-selected="false">
+                        <span class="face-filter-preview halo"></span>
+                        <span>Halo</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="blush" role="option" aria-selected="false">
+                        <span class="face-filter-preview blush"></span>
+                        <span>Blush</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="party" role="option" aria-selected="false">
+                        <span class="face-filter-preview party"></span>
+                        <span>Party</span>
+                    </button>
+                </div>
             </div>
 
             <div class="photo-preview">
