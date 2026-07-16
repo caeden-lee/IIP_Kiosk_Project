@@ -1134,10 +1134,12 @@ class TreeManager {
                     : 'Old' + side;
         }
 
+        const leafBasePath = isVip ? '/assets/Tree/vip_leaf' : '/assets/Tree/leaf';
+
         if (this.leafOverrideImage) {
             leaf.style.backgroundImage = `url('${this.leafOverrideImage}')`;
         } else {
-            leaf.style.backgroundImage = `url('/assets/Tree/leaf/${finalLeafImage}')`;
+            leaf.style.backgroundImage = `url('${leafBasePath}/${finalLeafImage}')`;
         }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
@@ -1173,7 +1175,7 @@ class TreeManager {
         const useFlippedOverride = Boolean(this.leafOverrideImage) && seededRandom() > 0.5;
         const leafImageUrl = this.leafOverrideImage
             ? this.leafOverrideImage
-            : `/assets/Tree/leaf/${finalLeafImage}`;
+            : `${leafBasePath}/${finalLeafImage}`;
 
         leaf.classList.toggle('leaf-image-flipped', useFlippedOverride);
         leaf.style.setProperty('--leaf-image-url', `url('${leafImageUrl}')`);
@@ -1344,6 +1346,22 @@ window.addEventListener('load', () => {
 
 let treeRefreshTimer;
 
+function triggerTreeVipRefresh() {
+    if (!treeManager) return;
+
+    Promise.all([
+        treeManager.fetchVipNames(),
+        treeManager.fetchYearReviewData(),
+        treeManager.fetchVisitorData(treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear)
+    ]).then(() => {
+        treeManager.updateTreeHeading();
+        treeManager.renderYearReviewBook();
+        treeManager.refreshTree();
+    }).catch((error) => {
+        console.warn('VIP refresh failed:', error);
+    });
+}
+
 function refreshTreeFromServer() {
     if (treeManager) {
         const yearToRefresh = treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear;
@@ -1374,6 +1392,13 @@ function scheduleTreeRefresh() {
 }
 
 scheduleTreeRefresh();
+
+window.addEventListener('tree-vip-refresh', triggerTreeVipRefresh);
+window.addEventListener('storage', (event) => {
+    if (event.key === 'tree-vip-refresh') {
+        triggerTreeVipRefresh();
+    }
+});
 
 window.addEventListener('resize', () => {
     if (treeManager) {

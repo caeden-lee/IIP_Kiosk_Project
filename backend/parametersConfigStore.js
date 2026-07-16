@@ -47,6 +47,7 @@
 // FIND COMMAND
 //   rg -n "YU KANG CHANGE SUMMARY|DONE BY YU KANG" frontend backend
 // ============================================================
+//
 
 const fs = require('fs');
 const path = require('path');
@@ -125,6 +126,7 @@ const DEFAULT_CONFIG = {
     pledgeMaxLength: 500,
     pledgeTopicRequired: true,
     photoRequired: true,
+    dailySubmissionLimitPerEmail: 1,
     maxPhotoFileSizeMb: 5,
     allowedPhotoFormats: ["jpeg", "jpg", "png", "webp"]
   },
@@ -141,6 +143,7 @@ const DEFAULT_CONFIG = {
     leafFallDuration: 4200,
     leafGreenResetTime: "00:00",
     leafDisplayScale: 1,
+    vipLeafDisplayScale: 1,
     showTitleBox: true
   },
   feedbackPageStyle: {
@@ -183,6 +186,8 @@ const DEFAULT_CONFIG = {
     treeBackground: "/assets/Tree/BackGround.png",
     leafImage: "",
     previousLeafImage: "",
+    vipLeafImage: "",
+    previousVipLeafImage: "",
     defaultOverlayTheme: ""
   },
   layoutSettings: {

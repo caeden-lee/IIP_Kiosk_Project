@@ -67,11 +67,13 @@
     "pledgeMaxLength": 500,
     "pledgeTopicRequired": true,
     "photoRequired": true,
+    "dailySubmissionLimitPerEmail": 1,
     "maxPhotoFileSizeMb": 5,
     "allowedPhotoFormats": []
   },
   "treeParameters": {
     "treeStage": 4,
+    "treeDisplayMode": "2d",
     "ovalWidth": 850,
     "ovalHeight": 300,
     "ovalTopOffset": 0,
@@ -82,6 +84,7 @@
     "leafFallDuration": 0,
     "leafGreenResetTime": "00:00",
     "leafDisplayScale": 1,
+    "vipLeafDisplayScale": 1,
     "showTitleBox": true,
     "leafThresholds": {
       "stage1": 1,
@@ -100,8 +103,7 @@
       "position": "top-center",
       "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
-    },
-    "treeDisplayMode": "2d"
+    }
   },
   "feedbackPageStyle": {
     "backgroundCss": "",
@@ -123,13 +125,13 @@
   "photoSettings": {
     "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
+    "boomerangFrameDelayMs": 90,
     "maxPhotoFileSize": 5242880,
     "supportedFormats": [
       "jpeg",
       "png",
       "webp"
-    ],
-    "boomerangFrameDelayMs": 90
+    ]
   },
   "overlaySettings": {
     "enableOverlayUpload": false,
@@ -141,11 +143,17 @@
       "jpeg"
     ]
   },
+  "archiveSettings": {
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90
+  },
   "visualAssets": {
     "feedbackBackground": "",
-    "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
+    "treeBackground": "/assets/Tree/background/BackGround.png",
     "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "vipLeafImage": "/assets/Tree/vip-leaf/GoldLeftLeaf.png",
+    "previousVipLeafImage": "/assets/Tree/vip-leaf/CustomVipLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
@@ -163,9 +171,5 @@
     "pledgeboardButtonOffsetY": 0,
     "pledgeboardButtonWidth": 600,
     "pledgeboardButtonHeight": 64
-  },
-  "archiveSettings": {
-    "autoArchiveEnabled": true,
-    "archiveAfterDays": 90
   }
 }

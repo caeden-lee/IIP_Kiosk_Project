@@ -98,6 +98,18 @@ const PASSPORT_TOPIC_LABELS = {
     'community-impact': 'Social Champion'
 };
 
+const PLEDGE_TOPIC_KEYS = new Set(Object.keys(PASSPORT_TOPIC_LABELS));
+
+function normalizePledgeTopics(userData = {}) {
+    const rawTopics = Array.isArray(userData.pledgeTopics)
+        ? userData.pledgeTopics
+        : (typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.split(',') : []);
+
+    return [...new Set(rawTopics
+        .map(topic => String(topic || '').trim())
+        .filter(topic => PLEDGE_TOPIC_KEYS.has(topic)))];
+}
+
 function parseFeedbackMetadata(metadata) {
     if (!metadata || typeof metadata !== 'string') return {};
     try {
@@ -134,34 +146,44 @@ function buildVisitorPassport(users, feedbackRows, email) {
     safeRows.forEach((row) => {
         const metadata = parseFeedbackMetadata(row.metadata);
         const pledgeText = normalizePassportText(row.comment || metadata.pledge);
-        const topic = metadata.pledgeTopic || '';
-        const badge = emailService.getBadgeSummary({
-            pledge: pledgeText,
-            pledgeTopic: topic
+        const rowTopics = normalizePledgeTopics({
+            pledgeTopic: metadata.pledgeTopic || '',
+            pledgeTopics: metadata.pledgeTopics || []
         });
+        const rowBadges = rowTopics.length > 0
+            ? rowTopics.map(topic => ({
+                topic,
+                badge: emailService.getBadgeSummary({ pledge: pledgeText, pledgeTopic: topic })
+            }))
+            : [{
+                topic: '',
+                badge: emailService.getBadgeSummary({ pledge: pledgeText, pledgeTopic: '' })
+            }];
 
         if (pledgeText) pledgeCount += 1;
         if (row.photo_path || row.processed_photo_path) photoCount += 1;
         if (Number(row.email_sent || 0) > 0 || row.processed_photo_path) keepsakeCount += 1;
-        if (topic && PASSPORT_TOPIC_LABELS[topic]) topics.add(topic);
+        rowTopics.forEach(topic => topics.add(topic));
 
-        if (!badgeMap.has(badge.badgeKey)) {
-            badgeMap.set(badge.badgeKey, {
-                key: badge.badgeKey,
-                name: badge.badgeName,
-                color: badge.badgeColor,
-                count: 0,
-                latestAt: row.created_at,
-                topics: new Set()
-            });
-        }
+        rowBadges.forEach(({ topic, badge }) => {
+            if (!badgeMap.has(badge.badgeKey)) {
+                badgeMap.set(badge.badgeKey, {
+                    key: badge.badgeKey,
+                    name: badge.badgeName,
+                    color: badge.badgeColor,
+                    count: 0,
+                    latestAt: row.created_at,
+                    topics: new Set()
+                });
+            }
 
-        const badgeEntry = badgeMap.get(badge.badgeKey);
-        badgeEntry.count += 1;
-        if (!badgeEntry.latestAt || new Date(row.created_at) > new Date(badgeEntry.latestAt)) {
-            badgeEntry.latestAt = row.created_at;
-        }
-        if (topic && PASSPORT_TOPIC_LABELS[topic]) badgeEntry.topics.add(PASSPORT_TOPIC_LABELS[topic]);
+            const badgeEntry = badgeMap.get(badge.badgeKey);
+            badgeEntry.count += 1;
+            if (!badgeEntry.latestAt || new Date(row.created_at) > new Date(badgeEntry.latestAt)) {
+                badgeEntry.latestAt = row.created_at;
+            }
+            if (topic && PASSPORT_TOPIC_LABELS[topic]) badgeEntry.topics.add(PASSPORT_TOPIC_LABELS[topic]);
+        });
     });
 
     const feedbackCount = safeRows.length;
@@ -208,17 +230,29 @@ function buildVisitorPassport(users, feedbackRows, email) {
         recentVisits: safeRows.slice(-5).reverse().map((row) => {
             const metadata = parseFeedbackMetadata(row.metadata);
             const pledgeText = normalizePassportText(row.comment || metadata.pledge);
-            const badge = emailService.getBadgeSummary({
+            const rowTopics = normalizePledgeTopics({
+                pledgeTopic: metadata.pledgeTopic || '',
+                pledgeTopics: metadata.pledgeTopics || []
+            });
+            const rowBadges = emailService.getBadgeSummaries({
+                pledge: pledgeText,
+                pledgeTopic: metadata.pledgeTopic || '',
+                pledgeTopics: rowTopics
+            });
+            const primaryBadge = rowBadges[0] || emailService.getBadgeSummary({
                 pledge: pledgeText,
                 pledgeTopic: metadata.pledgeTopic || ''
             });
+            const topicLabels = rowTopics.map(topic => PASSPORT_TOPIC_LABELS[topic]).filter(Boolean);
             return {
                 createdAt: row.created_at,
-                badgeKey: badge.badgeKey,
-                badgeName: badge.badgeName,
-                badgeColor: badge.badgeColor,
-                pledgeTopic: metadata.pledgeTopic || '',
-                topicLabel: PASSPORT_TOPIC_LABELS[metadata.pledgeTopic] || 'General ESG feedback',
+                badgeKey: primaryBadge.badgeKey,
+                badgeName: rowBadges.map(badge => badge.badgeName).join(', ') || primaryBadge.badgeName,
+                badgeColor: primaryBadge.badgeColor,
+                badges: rowBadges,
+                pledgeTopic: rowTopics[0] || metadata.pledgeTopic || '',
+                pledgeTopics: rowTopics,
+                topicLabel: topicLabels.join(', ') || 'General ESG feedback',
                 pledgeSnippet: pledgeText.length > 90 ? `${pledgeText.slice(0, 87)}...` : pledgeText
             };
         })
@@ -438,6 +472,23 @@ router.post('/submit-feedback', async (req, res) => {
                 errors: validation.errors
             });
         }
+
+        const normalizedPledgeTopics = userData.pledgeSkipped ? [] : normalizePledgeTopics(userData);
+        userData.pledgeTopics = normalizedPledgeTopics;
+        userData.pledgeTopic = normalizedPledgeTopics[0] || '';
+
+        const dailyLimitCheck = await checkDailySubmissionLimit(userData.email, validationRules);
+        if (!dailyLimitCheck.allowed) {
+            return res.status(429).json({
+                success: false,
+                message: `Daily feedback limit reached for this email. You can submit ${dailyLimitCheck.limit} feedback form${dailyLimitCheck.limit === 1 ? '' : 's'} per day.`,
+                errors: [{
+                    field: 'email',
+                    message: `This email has already submitted ${dailyLimitCheck.usedToday} feedback form${dailyLimitCheck.usedToday === 1 ? '' : 's'} today. Please try again tomorrow.`
+                }],
+                dailyLimit: dailyLimitCheck
+            });
+        }
         
         console.log('📝 Feedback submitted:', {
             userName: userData.name,
@@ -447,7 +498,8 @@ router.post('/submit-feedback', async (req, res) => {
             retention: normalizedRetention
         });
 
-        const badgeSummary = emailService.getBadgeSummary(userData);
+        const badgeSummaries = emailService.getBadgeSummaries(userData);
+        const badgeSummary = badgeSummaries[0] || emailService.getBadgeSummary(userData);
 
         // Include visitor number for the thank-you milestone panel - changes made by nick
         const visitorNumber = await getActiveFeedbackCountForVisitorNumber();
@@ -465,19 +517,21 @@ router.post('/submit-feedback', async (req, res) => {
                 submittedAt: new Date().toISOString(),
                 emailQueued: false,
                 badgeKey: badgeSummary.badgeKey,
-                badgeName: badgeSummary.badgeName,
+                badgeName: badgeSummaries.map(badge => badge.badgeName).join(', ') || badgeSummary.badgeName,
                 badgeColor: badgeSummary.badgeColor,
+                badgeKeys: badgeSummaries.map(badge => badge.badgeKey),
+                badges: badgeSummaries,
                 visitorNumber
             }
         };
         
-        // Check if email should be queued for the photo thank-you email
-        const shouldQueueEmail = userData.email && userData.email.includes('@') && 
-                               (userData.photoId || userData.processedPhotoId);
+        // Check if the combined visitor email should be queued. Photo is optional; badge/passport details still send without it.
+        const shouldQueueEmail = isValidEmail(userData.email) &&
+            (featureFlags.thankYouEmailEnabled !== false || featureFlags.badgeEmailEnabled !== false);
         
         if (shouldQueueEmail) {
             responseData.data.emailQueued = true;
-            responseData.data.emailQueuedMessage = 'Combined thank-you, photo, and badge email will be sent shortly';
+            responseData.data.emailQueuedMessage = 'Combined thank-you and visitor passport email will be sent shortly';
             responseData.data.combinedEmailQueued = true;
         }
         
@@ -502,9 +556,9 @@ router.post('/submit-feedback', async (req, res) => {
                     const bgTime = Date.now() - bgStartTime;
                     console.log(`🔄 Database completed in ${bgTime}ms`);
                     
-                    // Send thank-you email AFTER database is committed (only if photo exists)
-                    if (featureFlags.thankYouEmailEnabled !== false && shouldQueueEmail && result && result.feedbackId) {
-                        const photoToSend = userData.processedPhotoId || userData.photoId;
+                    // Send combined visitor email AFTER database is committed.
+                    if (shouldQueueEmail && result && result.feedbackId) {
+                        const photoToSend = userData.processedPhotoId || userData.photoId || null;
                         
                         console.log(`📧 Starting thank-you email for ${userData.email}...`);
                         
@@ -518,11 +572,15 @@ router.post('/submit-feedback', async (req, res) => {
                                     {
                                         visitDate: new Date().toISOString(),
                                         pledgeTopic: userData.pledgeTopic || '',
+                                        pledgeTopics: userData.pledgeTopics || [],
                                         retention: normalizedRetention,
                                         includeBadge: featureFlags.badgeEmailEnabled !== false,
                                         badgeKey: badgeSummary.badgeKey,
                                         badgeName: badgeSummary.badgeName,
+                                        badgeNames: badgeSummaries.map(badge => badge.badgeName).join(', '),
                                         badgeColor: badgeSummary.badgeColor,
+                                        badgeKeys: badgeSummaries.map(badge => badge.badgeKey),
+                                        badges: badgeSummaries,
                                         treeLeafMessage: 'Your virtual leaf has been added to the RP ESG digital tree.'
                                     }
                                 );
@@ -576,10 +634,10 @@ router.post('/send-email', async (req, res) => {
     try {
         const { name, email, photoFilename, pledgeText } = req.body;
         
-        if (!name || !email || !photoFilename) {
+        if (!name || !email) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: name, email, or photoFilename'
+                error: 'Missing required fields: name or email'
             });
         }
         
@@ -650,10 +708,6 @@ router.post('/feedback/:id/retry-email', async (req, res) => {
             ? feedback.processed_photo_path.split('/').pop()
             : feedback.photo_path ? feedback.photo_path.split('/').pop() : null;
         
-        if (!photoFilename) {
-            return res.status(400).json({ error: 'No photo found' });
-        }
-        
         try {
             let metadata = {};
             try {
@@ -662,7 +716,16 @@ router.post('/feedback/:id/retry-email', async (req, res) => {
                 metadata = {};
             }
 
-            const retryBadgeSummary = emailService.getBadgeSummary({
+            const retryPledgeTopics = normalizePledgeTopics({
+                pledgeTopic: metadata.pledgeTopic || '',
+                pledgeTopics: metadata.pledgeTopics || []
+            });
+            const retryBadges = emailService.getBadgeSummaries({
+                pledge: feedback.comment || metadata.pledge || '',
+                pledgeTopic: metadata.pledgeTopic || '',
+                pledgeTopics: retryPledgeTopics
+            });
+            const retryBadgeSummary = retryBadges[0] || emailService.getBadgeSummary({
                 pledge: feedback.comment || metadata.pledge || '',
                 pledgeTopic: metadata.pledgeTopic || ''
             });
@@ -677,11 +740,15 @@ router.post('/feedback/:id/retry-email', async (req, res) => {
                 {
                     visitDate: feedback.created_at,
                     pledgeTopic: metadata.pledgeTopic || '',
+                    pledgeTopics: retryPledgeTopics,
                     retention: feedback.data_retention || metadata.retention || '',
                     includeBadge: retryFeatureFlags.badgeEmailEnabled !== false,
                     badgeKey: retryBadgeSummary.badgeKey,
                     badgeName: retryBadgeSummary.badgeName,
+                    badgeNames: retryBadges.map(badge => badge.badgeName).join(', '),
                     badgeColor: retryBadgeSummary.badgeColor,
+                    badgeKeys: retryBadges.map(badge => badge.badgeKey),
+                    badges: retryBadges,
                     treeLeafMessage: 'Your virtual leaf has been added to the RP ESG digital tree.'
                 }
             );
@@ -870,6 +937,92 @@ function getActiveFeedbackCountForVisitorNumber() {
     });
 }
 
+function dbAllAsync(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
+function dbGetAsync(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) reject(err);
+            else resolve(row || null);
+        });
+    });
+}
+
+function getDailySubmissionLimit(validationRules = {}) {
+    const configuredLimit = Number(validationRules.dailySubmissionLimitPerEmail ?? 1);
+    if (!Number.isFinite(configuredLimit)) return 1;
+    return Math.max(0, Math.floor(configuredLimit));
+}
+
+async function findUsersByEmail(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) return [];
+
+    const users = await dbAllAsync(
+        `SELECT id, name, email_encrypted, visit_count, created_at, last_visit
+         FROM users
+         WHERE email_encrypted IS NOT NULL
+           AND email_encrypted != ''`,
+        []
+    );
+
+    return users.filter((user) => {
+        const decrypted = auth.tryDecryptEmail
+            ? auth.tryDecryptEmail(user.email_encrypted)
+            : (() => {
+                try {
+                    return auth.decryptEmail(user.email_encrypted);
+                } catch {
+                    return null;
+                }
+            })();
+
+        return decrypted && decrypted.toLowerCase() === normalizedEmail;
+    });
+}
+
+async function checkDailySubmissionLimit(email, validationRules = {}) {
+    const limit = getDailySubmissionLimit(validationRules);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (limit <= 0 || !isValidEmail(normalizedEmail)) {
+        return { allowed: true, limit, usedToday: 0 };
+    }
+
+    const matchingUsers = await findUsersByEmail(normalizedEmail);
+    if (matchingUsers.length === 0) {
+        return { allowed: true, limit, usedToday: 0 };
+    }
+
+    const userIds = matchingUsers.map(user => user.id);
+    const placeholders = userIds.map(() => '?').join(',');
+    const row = await dbGetAsync(
+        `
+        SELECT COUNT(*) AS count
+        FROM feedback
+        WHERE user_id IN (${placeholders})
+          AND is_active = 1
+          AND (archive_status = 'not_archived' OR archive_status IS NULL)
+          AND DATE(CONVERT_TZ(created_at, '+00:00', '+08:00')) = DATE(CONVERT_TZ(NOW(), '+00:00', '+08:00'))
+        `,
+        userIds
+    );
+    const usedToday = Number(row?.count || 0);
+
+    return {
+        allowed: usedToday < limit,
+        limit,
+        usedToday
+    };
+}
+
 // Save feedback to database with encrypted email
 function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
     console.log('💾 Saving feedback with pledge and retention:', {
@@ -991,6 +1144,8 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
             improvementFeedback: userData.q3,
             pledge: userData.pledge,
             pledgeTopic: userData.pledgeTopic || null,
+            pledgeTopics: Array.isArray(userData.pledgeTopics) ? userData.pledgeTopics : normalizePledgeTopics(userData),
+            badgeKeys: emailService.determineBadgeKeys(userData),
             pledgeSentiment: pledgeAnalysis.sentiment,
             pledgeSentimentConfidence: pledgeAnalysis.confidence,
             pledgeSentimentSource: pledgeAnalysis.source,

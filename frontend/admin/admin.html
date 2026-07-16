@@ -225,6 +225,10 @@
                 <div class="sidebar-section" id="admin-section">
                     <h3>ADMINISTRATION</h3>
                     <nav>
+                        <a href="#" class="nav-item" onclick="showPage('asset')">
+                            <span class="nav-icon">🛡️</span>
+                            Assets Management
+                        </a>
                         <a href="#" class="nav-item" onclick="showPage('overlay')">
                             <span class="nav-icon">🎨</span>
                             Overlay Management
@@ -673,7 +677,7 @@
                                 <tbody id="feedback-table-body">
                                     <!-- This will be populated dynamically by JavaScript (DONE BY PRETI)-->
                                     <tr>
-                                        <td colspan="11" style="text-align: center; padding: 40px; color: #64748b;">
+                                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
                                             Loading feedback data...
                                         </td>
                                     </tr>
@@ -873,37 +877,6 @@
                         </button>
                     </div>
 
-                    <!--<div class="tree-adjustment-section">
-                        <div class="section-header">
-                            <h3>Tree Display</h3>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <button class="btn-primary" onclick="saveTreeStageSelection()">Apply Stage</button>
-                                <button class="btn-primary" onclick="saveTreeParameters()">Save Display</button>
-                                <button class="btn-primary" onclick="refreshTreeData()">Refresh Data</button>
-                            </div>
-                        </div>
-                        <div class="section-body">
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-                                <label for="param-treeStage" style="font-weight:600;">Current stage:</label>
-                                <select id="param-treeStage" style="padding:8px 10px;border:1px solid #d7dbe3;border-radius:6px;background:#fff;min-width:180px;">
-                                    <option value="0">Stage 0 - Bare Trunk</option>
-                                    <option value="1">Stage 1 - Early Growth</option>
-                                    <option value="2">Stage 2 - Young Canopy</option>
-                                    <option value="3">Stage 3 - Mature Canopy</option>
-                                    <option value="4">Stage 4 - Full Canopy</option>
-                                </select>
-                                <span id="tree-stage-status" style="font-size:13px;color:#64748b;">Shown on /tree after apply.</span>
-                            </div>
-                            <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#334155;">
-                                <input type="checkbox" id="param-showTitleBox">
-                                Show title box on tree display
-                            </label>
-                            <p style="font-size:12px;color:#666;margin-top:6px;">Turn this off to hide the ESG Digital Tree title panel on the /tree screen.</p>
-                        </div>
-                    </div>
-
-                    <br>-->
-
                     <div id="tree-elements-tab" class="tree-tab-content active">
                         <div class="tree-adjustment-section">
                             <div class="section-header">
@@ -1026,6 +999,46 @@
                             </div>
                         </div>
 
+                        <br>
+
+                        <div class="tree-adjustment-section">
+                            <div class="section-header">
+                                <h3>VIP Leaf Adjustments</h3>
+                                <button class="btn-primary" onclick="saveTreeParameters()">Save Changes</button>
+                            </div>
+                            <div class="section-body" style="display:flex;gap:20px;align-items:center;margin-top:12px;">
+                                <div style="flex:1;">
+                                    <label for="param-vipLeafUpload">Upload custom VIP leaf image</label><br>
+                                    <input type="file" id="param-vipLeafUpload" accept="image/png,image/jpeg,image/webp">
+                                    <div style="display:flex;gap:8px;margin-top:6px;">
+                                        <button class="btn-primary" onclick="uploadParameterVipLeaf()">Upload VIP Leaf</button>
+                                        <button class="btn-secondary" id="revert-vip-leaf-btn" onclick="revertParameterVipLeaf()" style="display:none;">↶ Revert</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Uploaded VIP leaf will be saved to <em>/assets/Tree/vip-leaf</em> and applied only to VIP users.</p>
+                                </div>
+                                <div style="flex:1;">
+                                    <label for="param-existingVipLeafList">Or select from existing VIP leaf</label><br>
+                                    <div id="param-existingVipLeafList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:190px;overflow:auto;padding:8px;border:1px solid #ccc;border-radius:4px;background:#fff;"></div>
+                                    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                                        <button class="btn-secondary" onclick="selectParameterVipLeaf()">Apply Selected</button>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Browse existing VIP leaf images with thumbnails and labels.</p>
+                                </div>
+                                <div style="width:260px;">
+                                    <label for="param-vipLeafDisplayScale">VIP leaf display scale</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="range" id="param-vipLeafDisplayScale" min="0.4" max="2" step="0.05" value="1" oninput="(function(v){document.getElementById('param-vipLeafDisplayScaleValue').textContent = v; const p=document.getElementById('previewVipLeafBox'); if(p) p.style.transform='scale('+v+')';})(this.value)">
+                                        <span id="param-vipLeafDisplayScaleValue">1</span>
+                                    </div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">Scale multiplier applied to base VIP leaf size on the tree.</p>
+                                </div>
+                                <div style="width:120px;text-align:center;">
+                                    <div class="preview-leaf-box" id="previewVipLeafBox" style="width:80px;height:80px;margin:auto;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid #e6e9ef;border-radius:6px;"></div>
+                                    <p style="font-size:12px;color:#666;margin-top:6px;">VIP Preview</p>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <br>
                         <div class="tree-adjustment-section">
                             <div class="section-header">
@@ -1171,7 +1184,7 @@
                         </div>
                     </div>
 
-                    <div id="tree-assets-tab" class="tree-tab-content">
+                    <!--<div id="tree-assets-tab" class="tree-tab-content">
                         <div class="tree-adjustment-section">
                             <div class="section-header">
                                 <h3>Tree Background</h3>
@@ -1238,7 +1251,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div>-->
 
                     <div id="tree-parameters-tab" class="tree-tab-content">
                         <div class="section-header">
@@ -1469,6 +1482,46 @@
                                 <span class="preview-leaf leaf-three"></span>
                                 <span class="preview-leaf leaf-four"></span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assets Management Page (Done By Yu Kang)-->
+                <div id="asset-page" class="page">
+                    <div class="page-header">
+                        <h2>Assets Management</h2>
+                        <p>Register Bluetooth-tracked assets and see which ones are currently detected nearby</p>
+                    </div>
+
+                    <div class="asset-section">
+                        <div class="asset-hero">
+                            <div>
+                                <h3>Bluetooth Asset Registry</h3>
+                                <p>Start by adding the Bluetooth ID, then attach a name, location, and notes for each asset.</p>
+                            </div>
+                            <div class="asset-hero-actions">
+                                <button class="btn-secondary" onclick="refreshAssetData()">Refresh</button>
+                                <button class="btn-primary" onclick="showAddAssetModal()">+ Add Asset</button>
+                            </div>
+                        </div>
+
+                        <div class="asset-summary" id="asset-summary">
+                            <div class="asset-summary-card">
+                                <span>Total Assets</span>
+                                <strong id="asset-total-count">0</strong>
+                            </div>
+                            <div class="asset-summary-card">
+                                <span>Detected Nearby</span>
+                                <strong id="asset-detected-count">0</strong>
+                            </div>
+                            <div class="asset-summary-card">
+                                <span>Offline</span>
+                                <strong id="asset-offline-count">0</strong>
+                            </div>
+                        </div>
+
+                        <div class="asset-grid" id="asset-grid">
+                            <div class="asset-empty-state">Loading assets...</div>
                         </div>
                     </div>
                 </div>
@@ -2887,6 +2940,12 @@
                             <label for="rule-emailPattern">Email Pattern</label>
                             <input type="text" id="rule-emailPattern" placeholder="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$">
                             <small class="text-muted">JavaScript regular expression used by frontend and backend validation</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rule-dailySubmissionLimitPerEmail">Daily Feedback Limit Per Email</label>
+                            <input type="number" id="rule-dailySubmissionLimitPerEmail" min="0" max="20" step="1">
+                            <small class="text-muted">Maximum feedback submissions per email per Singapore day. Use 0 for unlimited.</small>
                         </div>
 
                         <div class="form-row">

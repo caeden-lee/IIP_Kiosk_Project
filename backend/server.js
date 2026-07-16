@@ -344,7 +344,7 @@ function getActiveTreeDisplayMode() {
 
 function sendBlockedTreeRoute(res, activeMode) {
     const activeRoute = activeMode === '3d' ? '/3dtree' : '/tree';
-    return res.status(403).send(`Tree display is currently set to ${activeRoute}.`);
+    return res.status(403).send(`<p>Tree display is currently set to <a href="${activeRoute}">${activeRoute}</a>.</p>`);
 }
 
 // ==================== 2. NETWORK INTERFACE FUNCTIONS ====================

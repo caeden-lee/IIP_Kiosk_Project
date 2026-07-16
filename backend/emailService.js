@@ -667,13 +667,25 @@ const ACTIVE_BADGE_CONFIGS = Object.fromEntries(
     ACTIVE_BADGE_KEYS.map(key => [key, BADGE_CONFIGS[key]]).filter(([, badge]) => Boolean(badge))
 );
 
-function determineBadgeKeys(userData) {
-    const selectedTopic = typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.trim() : '';
-    if (selectedTopic && TOPIC_BADGE_MAP[selectedTopic]) {
-        return [TOPIC_BADGE_MAP[selectedTopic]];
-    }
+function normalizePledgeTopics(userData = {}) {
+    const rawTopics = Array.isArray(userData.pledgeTopics)
+        ? userData.pledgeTopics
+        : (typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.split(',') : []);
 
-    return ['feedback-completer'];
+    return [...new Set(rawTopics
+        .map(topic => String(topic || '').trim())
+        .filter(topic => TOPIC_BADGE_MAP[topic]))];
+}
+
+function determineBadgeKeys(userData) {
+    const selectedTopics = normalizePledgeTopics(userData);
+    const topicBadgeKeys = selectedTopics
+        .map(topic => TOPIC_BADGE_MAP[topic])
+        .filter(Boolean);
+
+    return topicBadgeKeys.length > 0
+        ? [...new Set(topicBadgeKeys)]
+        : ['feedback-completer'];
 }
 
 function determineBadge(userData) {
@@ -691,6 +703,18 @@ function getBadgeSummary(userData) {
         badgeDescription: badgeConfig.description,
         badgeColor: badgeConfig.color
     };
+}
+
+function getBadgeSummaries(userData) {
+    return determineBadgeKeys(userData).map((badgeKey) => {
+        const badgeConfig = BADGE_CONFIGS[badgeKey] || BADGE_CONFIGS['feedback-completer'];
+        return {
+            badgeKey,
+            badgeName: badgeConfig.name,
+            badgeDescription: badgeConfig.description,
+            badgeColor: badgeConfig.color
+        };
+    });
 }
 
 function buildBadgeEmailHtml(badgeConfigs) {
@@ -741,6 +765,17 @@ function formatTopic(topic) {
         .join(' ');
 }
 
+function formatTopicList(topics) {
+    const normalizedTopics = Array.isArray(topics)
+        ? topics
+        : (typeof topics === 'string' ? topics.split(',') : []);
+    const labels = normalizedTopics
+        .map(topic => formatTopic(topic))
+        .filter(Boolean);
+
+    return labels.length > 0 ? labels.join(', ') : '';
+}
+
 function formatVisitDate(value) {
     const date = value ? new Date(value) : new Date();
 
@@ -775,14 +810,23 @@ function formatRetentionSummary(retention, retentionDays) {
     return 'Visitor-selected retention';
 }
 
+function stripPhotoAttachmentSentence(text) {
+    const cleaned = String(text || '')
+        .replace(/\s*Attached below is your commemorative photo from your visit\./i, '')
+        .trim();
+
+    return cleaned || 'Thank you for taking the time to visit our ESG Experience Centre and sharing your feedback.';
+}
+
 function buildVisitSummary(options = {}) {
-    const topicLabel = formatTopic(options.pledgeTopic) || 'General ESG feedback';
+    const topicLabel = formatTopicList(options.pledgeTopics) || formatTopic(options.pledgeTopic) || 'General ESG feedback';
     const includeBadge = options.includeBadge !== false;
     const badgeName = includeBadge
-        ? (options.badgeName || getBadgeSummary({
+        ? (options.badgeNames || options.badgeName || getBadgeSummaries({
             pledge: options.pledgeText,
-            pledgeTopic: options.pledgeTopic
-        }).badgeName)
+            pledgeTopic: options.pledgeTopic,
+            pledgeTopics: options.pledgeTopics
+        }).map(badge => badge.badgeName).join(', '))
         : '';
 
     return {
@@ -802,6 +846,38 @@ function buildSummaryRows(summary, emailContent = {}) {
         [emailContent.visitSummaryRetentionLabel || 'Data retention', summary.retention],
         [emailContent.visitSummaryTreeLabel || 'Digital tree', summary.treeLeafMessage]
     ].filter(([, value]) => value);
+}
+
+function buildCombinedBadgeSectionHtml(badges = []) {
+    if (!Array.isArray(badges) || badges.length === 0) return '';
+
+    const cards = badges.map((badge) => `
+        <article style="border:1px solid #dbe7df; border-radius:12px; padding:14px; background:#ffffff; box-shadow:0 6px 18px rgba(15,23,42,0.06);">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="width:42px; height:42px; border-radius:999px; background:${escapeHtml(badge.badgeColor || '#006937')}; display:inline-flex; align-items:center; justify-content:center; color:#ffffff; font-size:20px;">&#127942;</span>
+                <span>
+                    <strong style="display:block; color:#0f172a; font-size:15px;">${escapeHtml(badge.badgeName)}</strong>
+                    <small style="display:block; color:#64748b; line-height:1.4;">${escapeHtml(badge.badgeDescription || 'ESG badge earned from this visit.')}</small>
+                </span>
+            </div>
+        </article>
+    `).join('');
+
+    return `
+        <div style="margin:24px 0; padding:18px; border-radius:14px; background:#f0fdf4; border:1px solid #bbf7d0;">
+            <p style="margin:0 0 12px 0; color:#006937; font-size:13px; font-weight:700;">
+                Visitor passport badge${badges.length === 1 ? '' : 's'} unlocked
+            </p>
+            <div style="display:grid; gap:12px;">
+                ${cards}
+            </div>
+        </div>
+    `;
+}
+
+function buildCombinedBadgeSectionText(badges = []) {
+    if (!Array.isArray(badges) || badges.length === 0) return '';
+    return `Visitor passport badges unlocked:\n${badges.map(badge => `- ${badge.badgeName}: ${badge.badgeDescription || 'ESG badge earned from this visit.'}`).join('\n')}\n`;
 }
 
 function applyEmailPlaceholders(text, badgeConfig, userData) {
@@ -1016,13 +1092,27 @@ async function sendThankYouEmail(name, email, photoFilename, pledgeText, visitOp
         const senderName = personalize(emailContent.senderName, 'ESG Centre Team');
         const footerNote = personalize(emailContent.footerNote, 'This is an automated email sent from the RP ESG kiosk system. Please do not reply to this message.');
         const emailSubject = personalize(emailContent.thankYouSubject, `Thank you for visiting RP ESG Centre, ${name}!`);
-        const emailIntroHtml = escapeHtml(emailIntro);
+        let emailIntroText = emailIntro;
+        const suppliedBadges = Array.isArray(visitOptions.badges) ? visitOptions.badges : [];
+        const badgeSummaries = suppliedBadges.length > 0
+            ? suppliedBadges
+            : getBadgeSummaries({
+                pledge: pledgeText,
+                pledgeTopic: visitOptions.pledgeTopic,
+                pledgeTopics: visitOptions.pledgeTopics
+            });
+        const includedBadges = visitOptions.includeBadge === false ? [] : badgeSummaries;
+        const badgeNames = includedBadges.map(badge => badge.badgeName).filter(Boolean).join(', ');
+        const badgeSectionHtml = buildCombinedBadgeSectionHtml(includedBadges);
+        const badgeSectionText = buildCombinedBadgeSectionText(includedBadges);
+        let emailIntroHtml = escapeHtml(emailIntroText);
         const emailClosingHtml = escapeHtml(emailClosing);
         const senderNameHtml = escapeHtml(senderName);
         const footerNoteHtml = escapeHtml(footerNote);
         const visitSummary = buildVisitSummary({
             ...visitOptions,
             pledgeText,
+            badgeNames,
             retentionDays: visitOptions.retentionDays || retentionDays,
             treeLeafMessage: visitOptions.treeLeafMessage || emailContent.visitSummaryTreeMessage
         });
@@ -1062,65 +1152,64 @@ async function sendThankYouEmail(name, email, photoFilename, pledgeText, visitOp
         }
         
         if (!photoFilename) {
-            console.error('❌ No photo filename provided');
-            return {
-                success: false,
-                error: 'No photo filename provided'
-            };
+            console.log('📧 No photo filename supplied; sending badge and visit email without photo attachment.');
         }
         
-        // Determine photo path - check multiple possible locations
         let fullPhotoPath = null;
-        const searchPaths = [
-            path.join(__dirname, '..', 'uploads', 'photos', photoFilename),
-            path.join(__dirname, '..', 'uploads', 'processed', photoFilename),
-            path.join(__dirname, '..', 'uploads', photoFilename),
-            path.join(__dirname, '..', '..', 'uploads', 'photos', photoFilename),
-            path.join(__dirname, '..', '..', 'uploads', 'processed', photoFilename),
-            path.join(__dirname, '..', '..', 'uploads', photoFilename)
-        ];
-        
-        console.log('🔍 Searching for photo:', photoFilename);
-        
-        for (const photoPath of searchPaths) {
-            if (fs.existsSync(photoPath)) {
-                fullPhotoPath = photoPath;
-                console.log(`✅ Found photo at: ${fullPhotoPath}`);
-                break;
+        if (photoFilename) {
+            // Determine photo path - check multiple possible locations
+            const searchPaths = [
+                path.join(__dirname, '..', 'uploads', 'photos', photoFilename),
+                path.join(__dirname, '..', 'uploads', 'processed', photoFilename),
+                path.join(__dirname, '..', 'uploads', photoFilename),
+                path.join(__dirname, '..', '..', 'uploads', 'photos', photoFilename),
+                path.join(__dirname, '..', '..', 'uploads', 'processed', photoFilename),
+                path.join(__dirname, '..', '..', 'uploads', photoFilename)
+            ];
+
+            console.log('🔍 Searching for photo:', photoFilename);
+
+            for (const photoPath of searchPaths) {
+                if (fs.existsSync(photoPath)) {
+                    fullPhotoPath = photoPath;
+                    console.log(`✅ Found photo at: ${fullPhotoPath}`);
+                    break;
+                }
+            }
+
+            if (!fullPhotoPath) {
+                console.warn('⚠️ Photo file not found; sending email without photo attachment. Searched in:');
+                searchPaths.forEach(p => console.log('   -', p));
+            }
+
+            // Check file size
+            if (fullPhotoPath) {
+                try {
+                    const stats = fs.statSync(fullPhotoPath);
+                    const fileSizeInMB = stats.size / (1024 * 1024);
+                    console.log(`📏 Photo size: ${fileSizeInMB.toFixed(2)}MB`);
+
+                    if (fileSizeInMB > 25) {
+                        console.warn(`⚠️ Photo file too large (${fileSizeInMB.toFixed(2)}MB); sending email without photo attachment.`);
+                        fullPhotoPath = null;
+                    }
+                } catch (err) {
+                    console.error('❌ Error checking file size:', err.message);
+                    fullPhotoPath = null;
+                }
             }
         }
-        
+
         if (!fullPhotoPath) {
-            console.error('❌ Photo file not found. Searched in:');
-            searchPaths.forEach(p => console.log('   -', p));
-            return {
-                success: false,
-                error: 'Photo file not found. Please check if the file exists in uploads folder.'
-            };
-        }
-        
-        // Check file size
-        try {
-            const stats = fs.statSync(fullPhotoPath);
-            const fileSizeInMB = stats.size / (1024 * 1024);
-            console.log(`📏 Photo size: ${fileSizeInMB.toFixed(2)}MB`);
-            
-            if (fileSizeInMB > 25) {
-                console.error(`❌ Photo file too large: ${fileSizeInMB.toFixed(2)}MB`);
-                return {
-                    success: false,
-                    error: `Photo file too large (${fileSizeInMB.toFixed(2)}MB). Maximum size is 25MB.`
-                };
-            }
-        } catch (err) {
-            console.error('❌ Error checking file size:', err.message);
+            emailIntroText = stripPhotoAttachmentSentence(emailIntroText);
+            emailIntroHtml = escapeHtml(emailIntroText);
         }
         
         // Plain text version of email
         const textBody = `
 Dear ${name},
 
-${emailIntro}
+${emailIntroText}
 
 Your pledge:
 "${pledgeText || '—'}"
@@ -1128,6 +1217,7 @@ Your pledge:
 ${summaryTitle}:
 ${textSummary}
 
+${badgeSectionText}
 ${emailClosing}
 
 Warm regards,
@@ -1156,6 +1246,17 @@ ${footerNote}
      </p>`
   : '';
 
+        const photoMemoryHtml = fullPhotoPath
+            ? `<div style="text-align:center; margin:24px 0; padding:16px; background:#f9f9f9; border-radius:4px;">
+                    <p style="font-size:13px; color:#666; margin:0 0 12px 0; font-weight:600;">Your ESG Centre Memory</p>
+                    <img src="cid:visit_photo" alt="Your RP ESG Centre memory" style="max-width:100%; height:auto; border-radius:4px; border:1px solid #ddd; max-height:400px;" />
+                    ${pledgeHtml}
+                </div>`
+            : `<div style="text-align:center; margin:24px 0; padding:16px; background:#f9f9f9; border-radius:4px;">
+                    <p style="font-size:13px; color:#666; margin:0 0 8px 0; font-weight:600;">Your ESG Centre Visit</p>
+                    ${pledgeHtml || '<p style="font-size:14px; color:#555; margin:0;">Your feedback has been recorded in your visitor passport.</p>'}
+                </div>`;
+
 
         // HTML email template
         const htmlBody = `
@@ -1180,11 +1281,9 @@ ${footerNote}
                     ${emailIntroHtml}
                 </p>
 
-                <div style="text-align:center; margin:24px 0; padding:16px; background:#f9f9f9; border-radius:4px;">
-                    <p style="font-size:13px; color:#666; margin:0 0 12px 0; font-weight:600;">Your ESG Centre Memory</p>
-                    <img src="cid:visit_photo" alt="Your RP ESG Centre memory" style="max-width:100%; height:auto; border-radius:4px; border:1px solid #ddd; max-height:400px;" />
-                    ${pledgeHtml}
-                </div>
+                ${photoMemoryHtml}
+
+                ${badgeSectionHtml}
 
                 <div style="margin:24px 0; border:1px solid #dbe7df; border-radius:10px; overflow:hidden; background:#f8fafc;">
                     <div style="background:#ecfdf5; padding:14px 16px; border-bottom:1px solid #dbe7df;">
@@ -1221,14 +1320,14 @@ ${footerNote}
             subject: emailSubject,
             text: textBody,
             html: htmlBody,
-            attachments: [
+            attachments: fullPhotoPath ? [
                 {
                     filename: photoFilename,
                     path: fullPhotoPath,
                     cid: 'visit_photo',
                     contentType: 'image/jpeg'
                 }
-            ]
+            ] : []
         };
 
         console.log(`📤 Sending email to: ${email}`);
@@ -1483,6 +1582,7 @@ module.exports = {
     determineBadge,
     determineBadgeKeys,
     getBadgeSummary,
+    getBadgeSummaries,
     BADGE_CONFIGS: ACTIVE_BADGE_CONFIGS,
     ACTIVE_BADGE_KEYS,
     testEmailService,

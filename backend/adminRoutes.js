@@ -263,6 +263,7 @@ const {
     analyzeFlaggedFeedbackText
 } = require('./flaggedFeedback');
 const badgeEmailTemplateStore = require('./badgeEmailTemplateStore');
+const assetStore = require('./assetStore');
 const parametersConfigStore = require('./parametersConfigStore');
 const dataRetentionCleanup = require('./dataRetentionCleanup');
 const feedbackAnalysisCacheStore = require('./feedbackAnalysisCacheStore');
@@ -6291,10 +6292,10 @@ function finalizeArchiveStats(archivedNow, archiveAfterDays, callback) {
 
       callback(null, {
         archiveAfterDays,
-          archivedNow,
-          archived: archivedResult.count,
-          active: activeResult.count
-        });
+        archivedNow,
+        archived: archivedResult.count,
+        active: activeResult.count
+      });
     });
   });
 }
@@ -6731,7 +6732,7 @@ router.post('/parameters/tree-background/upload', auth.requireAdmin, uploadTreeB
 router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
     try {
         console.log('🌳 Saving tree parameters');
-        const { treeStage, showTitleBox, leafDisplayScale, leafThresholds, treeTitleBox, treeDisplayMode } = req.body;
+        const { treeStage, showTitleBox, leafDisplayScale, vipLeafDisplayScale, leafThresholds, treeTitleBox, treeDisplayMode } = req.body;
         const normalizedDisplayMode = treeDisplayMode === undefined
             ? undefined
             : normalizeTreeDisplayMode({ treeDisplayMode }).treeDisplayMode;
@@ -6748,6 +6749,7 @@ router.put('/parameters/treeParameters', auth.requireAdmin, (req, res) => {
         if (treeStage !== undefined) config.treeParameters.treeStage = treeStage;
         if (showTitleBox !== undefined) config.treeParameters.showTitleBox = showTitleBox;
         if (leafDisplayScale !== undefined) config.treeParameters.leafDisplayScale = leafDisplayScale;
+        if (vipLeafDisplayScale !== undefined) config.treeParameters.vipLeafDisplayScale = vipLeafDisplayScale;
         if (leafThresholds) config.treeParameters.leafThresholds = leafThresholds;
         if (normalizedDisplayMode !== undefined) config.treeParameters.treeDisplayMode = normalizedDisplayMode;
 
@@ -7857,6 +7859,280 @@ function resolveHealthDetails() {
     };
 }
 
+function normalizeBluetoothAssetPayload(body = {}) {
+    const bluetoothId = String(body.bluetoothId || body.bluetooth_id || body.id || '').trim().toUpperCase();
+    return {
+        bluetoothId,
+        name: String(body.name || body.assetName || '').trim(),
+        category: String(body.category || '').trim(),
+        location: String(body.location || '').trim(),
+        notes: String(body.notes || '').trim(),
+        active: body.active !== false && body.active !== 'false'
+    };
+}
+
+function getNearbyDeviceMap() {
+    try {
+        const { nearbyDevices } = require('./bluetooth');
+        return nearbyDevices;
+    } catch (error) {
+        console.error('Failed to access nearby bluetooth devices:', error);
+        return new Map();
+    }
+}
+
+function enrichBluetoothAssets(list = []) {
+    const nearbyDevices = getNearbyDeviceMap();
+
+    return list.map((asset) => {
+        const normalizedId = String(asset.bluetoothId || '').trim().toUpperCase();
+        const nearby = nearbyDevices.get(normalizedId);
+
+        return {
+            ...asset,
+            isDetected: Boolean(nearby),
+            lastSeen: nearby?.lastSeen || null,
+            rssi: nearby?.rssi ?? null,
+            nearbyName: nearby?.name || null,
+            source: nearby?.source || null
+        };
+    });
+}
+
+// GET /api/admin/assets
+router.get('/assets', auth.requireAdmin, (req, res) => {
+    try {
+        const assets = enrichBluetoothAssets(assetStore.readBluetoothAssets());
+        res.json({ success: true, assets });
+    } catch (error) {
+        console.error('❌ Failed to load Bluetooth assets:', error);
+        res.status(500).json({ success: false, error: 'Failed to load assets' });
+    }
+});
+
+// POST /api/admin/parameters/vip-leaf - Upload a custom VIP leaf image and activate it
+// Storage for custom VIP leaf image uploads
+const vipLeafStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const destFolder = path.join(__dirname, '../assets/Tree/vip-leaf');
+        console.log('📂 VIP leaf destination folder:', destFolder);
+        try {
+            if (!fs.existsSync(destFolder)) {
+                console.log('📁 Creating VIP leaf directory:', destFolder);
+                fs.mkdirSync(destFolder, { recursive: true });
+                console.log('✅ VIP leaf directory created successfully');
+            }
+        } catch (err) {
+            console.error('❌ Failed to create VIP leaf directory:', err.message);
+            return cb(err);
+        }
+        cb(null, destFolder);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.png';
+        const filename = `CustomVipLeaf${ext}`;
+        console.log(`📁 VIP leaf filename: ${filename}`);
+        cb(null, filename);
+    }
+});
+
+const uploadParameterVipLeaf = multer({
+    storage: vipLeafStorage,
+    fileFilter: (req, file, cb) => {
+        console.log('🔍 Checking VIP leaf file type:', file.mimetype, 'name:', file.originalname);
+        if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            console.log('✅ VIP leaf file type accepted');
+            cb(null, true);
+        } else {
+            console.error('❌ VIP leaf file type rejected:', file.mimetype);
+            cb(new Error('Only PNG, JPG, and WebP files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
+router.post('/parameters/vip-leaf', auth.requireAdmin, uploadParameterVipLeaf.single('vipLeaf'), (req, res) => {
+    try {
+        console.log('🍃 VIP leaf upload endpoint hit');
+        console.log('📦 Received file:', req.file);
+
+        if (!req.file) {
+            console.error('❌ No file received in VIP leaf upload request');
+            return res.status(400).json({ success: false, error: 'No VIP leaf file uploaded' });
+        }
+
+        const assetPath = `/assets/Tree/vip-leaf/${req.file.filename}`;
+        const config = parametersConfigStore.readParametersConfig();
+        if (config.visualAssets?.vipLeafImage) {
+            config.visualAssets.previousVipLeafImage = config.visualAssets.vipLeafImage;
+            console.log('💾 Previous VIP leaf image saved:', config.visualAssets.previousVipLeafImage);
+        }
+
+        config.visualAssets = { ...config.visualAssets, vipLeafImage: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            return res.status(500).json({ success: false, error: 'Failed to save VIP leaf image setting' });
+        }
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_VIP_LEAF_UPLOADED', req.session.user.username, 'config', 'visualAssets.vipLeafImage', req);
+        }
+
+        res.json({
+            success: true,
+            message: 'VIP leaf image uploaded successfully',
+            assetPath,
+            parameters: parametersConfigStore.readParametersConfig()
+        });
+    } catch (error) {
+        console.error('❌ Error uploading VIP leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to upload VIP leaf image' });
+    }
+});
+
+// POST /api/admin/parameters/vip-leaf/revert - Revert to previous VIP leaf image
+router.post('/parameters/vip-leaf/revert', auth.requireAdmin, (req, res) => {
+    try {
+        const config = parametersConfigStore.readParametersConfig();
+        const assets = config.visualAssets || {};
+
+        if (!assets.previousVipLeafImage) {
+            return res.status(400).json({ success: false, error: 'No previous VIP leaf image to revert to' });
+        }
+
+        const currentVipLeafImage = assets.vipLeafImage;
+        config.visualAssets.vipLeafImage = assets.previousVipLeafImage;
+        config.visualAssets.previousVipLeafImage = currentVipLeafImage;
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            return res.status(500).json({ success: false, error: 'Failed to revert VIP leaf image' });
+        }
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_VIP_LEAF_REVERTED', req.session.user.username, 'config', 'visualAssets.vipLeafImage', req);
+        }
+
+        res.json({
+            success: true,
+            message: 'VIP leaf image reverted successfully',
+            parameters: parametersConfigStore.readParametersConfig()
+        });
+    } catch (error) {
+        console.error('❌ Error reverting VIP leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to revert VIP leaf image' });
+    }
+});
+
+// GET /api/admin/parameters/vip-leaf/list - List available VIP leaf images
+router.get('/parameters/vip-leaf/list', auth.requireAdmin, (req, res) => {
+    try {
+        const vipLeafDir = path.join(__dirname, '../assets/Tree/vip-leaf');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const vipLeafImages = [];
+
+        if (!fs.existsSync(vipLeafDir)) {
+            return res.json({ success: true, vipLeafImages: [] });
+        }
+
+        const files = fs.readdirSync(vipLeafDir);
+        files.forEach(file => {
+            const ext = path.extname(file).toLowerCase();
+            if (imageExtensions.includes(ext)) {
+                vipLeafImages.push({
+                    filename: file,
+                    path: `/assets/Tree/vip-leaf/${file}`,
+                    name: path.parse(file).name
+                });
+            }
+        });
+
+        res.json({ success: true, vipLeafImages });
+    } catch (error) {
+        console.error('❌ Error listing VIP leaf images:', error.message);
+        res.status(500).json({ success: false, error: error.message || 'Failed to list VIP leaf images' });
+    }
+});
+
+// POST /api/admin/parameters/vip-leaf/select - Select an existing VIP leaf image
+router.post('/parameters/vip-leaf/select', auth.requireAdmin, (req, res) => {
+    try {
+        const { vipLeafImage } = req.body;
+
+        if (!vipLeafImage) {
+            return res.status(400).json({ success: false, error: 'VIP leaf image path is required' });
+        }
+
+        const vipLeafDir = path.join(__dirname, '../assets/Tree/vip-leaf');
+        const fullPath = path.join(vipLeafDir, path.basename(vipLeafImage));
+
+        if (!fullPath.startsWith(vipLeafDir)) {
+            return res.status(400).json({ success: false, error: 'Invalid VIP leaf image path' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(400).json({ success: false, error: 'VIP leaf image file does not exist' });
+        }
+
+        const assetPath = `/assets/Tree/vip-leaf/${path.basename(vipLeafImage)}`;
+        const config = parametersConfigStore.readParametersConfig();
+        if (config.visualAssets?.vipLeafImage) {
+            config.visualAssets.previousVipLeafImage = config.visualAssets.vipLeafImage;
+        }
+
+        config.visualAssets = { ...config.visualAssets, vipLeafImage: assetPath };
+
+        const success = parametersConfigStore.writeParametersConfig(config);
+        if (!success) {
+            return res.status(500).json({ success: false, error: 'Failed to select VIP leaf image' });
+        }
+
+        if (req.session?.user?.username) {
+            logAudit('PARAMETER_VIP_LEAF_SELECTED', req.session.user.username, 'config', 'visualAssets.vipLeafImage', req);
+        }
+
+        res.json({
+            success: true,
+            message: 'VIP leaf image selected successfully',
+            parameters: parametersConfigStore.readParametersConfig()
+        });
+    } catch (error) {
+        console.error('❌ Error selecting VIP leaf image:', error.message, error.stack);
+        res.status(500).json({ success: false, error: error.message || 'Failed to select VIP leaf image' });
+    }
+});
+
+// POST /api/admin/assets
+router.post('/assets', auth.requireAdmin, express.json(), (req, res) => {
+    try {
+        const payload = normalizeBluetoothAssetPayload(req.body);
+        if (!payload.bluetoothId) {
+            return res.status(400).json({ success: false, error: 'Bluetooth ID is required' });
+        }
+
+        const assets = assetStore.addBluetoothAsset(payload);
+        res.json({ success: true, assets: enrichBluetoothAssets(assets) });
+    } catch (error) {
+        console.error('❌ Failed to save Bluetooth asset:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to save asset' });
+    }
+});
+
+// DELETE /api/admin/assets/:bluetoothId
+router.delete('/assets/:bluetoothId', auth.requireAdmin, (req, res) => {
+    try {
+        const bluetoothId = String(req.params.bluetoothId || '').trim().toUpperCase();
+        const assets = assetStore.removeBluetoothAsset(bluetoothId);
+        res.json({ success: true, assets: enrichBluetoothAssets(assets) });
+    } catch (error) {
+        console.error('❌ Failed to delete Bluetooth asset:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete asset' });
+    }
+});
+
 // POST /api/admin/server/start
 // Manually start the kiosk service
 router.post('/server/start', auth.requireAuth, (req, res) => {
@@ -7934,6 +8210,7 @@ router.post('/server/start', auth.requireAuth, (req, res) => {
         });
     });
 });
+
 
 // POST /api/admin/server/restart
 // Restart the kiosk application stack from the admin panel

@@ -55,32 +55,38 @@ ESG_KIOSK_PROJECT
 │   │   ├── DesktopOverlay/
 │   │   └── MobileOverlay/
 │   ├── static/
-│   ├── Tree/
+│   └── Tree/
 │       ├── background/
 │       └── leaf/
 │  
 ├── backend/ 
 │   ├── cache/
 │   │   └── feedback-analysis-cache.json
+│   │ 
 │   ├── certs/ 
 │   │   ├── selfsigned.key
 │   │   └── selfsigned.pem
-│   ├── config /
+│   │ 
+│   ├── config/
 │   │   ├── badgeEmailTemplates.json
+│   │   ├── bluetoothAssets.json
 │   │   ├── emailConfig.json
 │   │   ├── form-ui.json
 │   │   ├── parametersConfig.json
 │   │   ├── pledge-topics.json
 │   │   └── schedule-Setup.sh
+│   │ 
 │   ├── Procedural_Orchestration_Module/ 
 │   │   ├── AuthLayer_Reconstitution.js
 │   │   ├── check_database.js
 │   │   ├── Datastore_Assembly.js 
 │   │   ├── Purge_Actuator.js
 │   │   └── Simulation_Generator.js 
+│   │ 
 │   ├── .env
 │   ├── adminRoutes.js
 │   ├── adminServer.js
+│   ├── assetStore.js
 │   ├── auth.js
 │   ├── badgeEmailTemplateStore.js
 │   ├── badgeSystem.js
@@ -119,17 +125,10 @@ ESG_KIOSK_PROJECT
 │   │   ├── admin.css
 │   │   ├── admin.html
 │   │   └── admin.js
-│   ├── connect/
-│   │   ├── connect.css
-│   │   ├── connect.html
-│   │   └── connect.js
 │   ├── feedback/
-│   │   ├── bluetooth-client.js
 │   │   ├── feedback.css
 │   │   ├── feedback.html
 │   │   └── feedback.js
-│   ├── offline/
-│   │   └── offline.html
 │   ├── Pledgeboard/
 │   │   ├── Pledgeboard.css
 │   │   ├── Pledgeboard.html
@@ -138,11 +137,10 @@ ESG_KIOSK_PROJECT
 │   │   ├── pulse.css
 │   │   ├── pulse.html
 │   │   └── pulse.js
-│   ├── tree/ 
-│   │   ├── tree.css
-│   │   ├── tree.html
-│   │   └── tree.js
-│   └── bluetooth-test.html 
+│   └── tree/ 
+│       ├── tree.css
+│       ├── tree.html
+│       └── tree.js
 │
 ├── node_modules/ 
 ├── Team_Documentation/
@@ -181,6 +179,8 @@ Contains:
 - Digital Tree APIs
 - Pulse APIs
 - Pledgeboard APIs
+- Bluetooth proximity APIs
+- Bluetooth asset registry storage
 
 ### frontend/
 Contains all user interfaces:
@@ -191,6 +191,7 @@ Contains all user interfaces:
 - Pulse
 - Pledgeboard
 - Bluetooth test
+- Bluetooth asset management UI
 
 ---
 
@@ -394,6 +395,7 @@ Supports:
 - Digital Tree customization
 - Feedback page customization
 - Data export
+- Bluetooth asset management
 
 Tree configuration includes:
 - Growth stage
@@ -406,6 +408,12 @@ Tree configuration includes:
 - Badge leaf type
 - Tree title
 - Title box adjustment
+
+Bluetooth asset management includes:
+- Store a Bluetooth ID first, then add the asset name, category, location, and notes
+- Detect whether a registered asset is currently nearby using live Bluetooth reports
+- Add, edit, and delete asset records from the admin page
+- Use the browser test endpoint to simulate a nearby Bluetooth device during development
 
 ## Pulse
 
@@ -431,6 +439,31 @@ Displays visitor pledges.
 7. Verify required AI models are installed.
 8. Start the project with `node startAll.js`.
 
+## Bluetooth Asset Testing
+
+1. Start the backend and open the Admin panel.
+2. Go to `Assets Management`.
+3. Add a Bluetooth asset with a valid Bluetooth ID first, for example:
+
+```text
+AA:BB:CC:DD:EE:FF
+```
+
+4. Simulate a nearby device by opening:
+
+```text
+/api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestTag&rssi=-50
+```
+
+5. Refresh the Assets Management page.
+6. The asset should change to `Detected Nearby`.
+
+You can also inspect the current live list at:
+
+```text
+/nearby-devices
+```
+
 ---
 
 # Troubleshooting
@@ -451,6 +484,12 @@ Displays visitor pledges.
 ```bash
 npm install
 ```
+
+## Bluetooth asset page shows HTTP 404
+
+- Restart the running backend process after pulling the latest code.
+- Make sure you are using the same server that mounts `app.use('/api/admin', adminRoutes)`.
+- Verify `/api/admin/assets` returns JSON instead of a 404.
 
 ## Port already in use
 

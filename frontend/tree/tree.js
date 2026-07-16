@@ -108,6 +108,9 @@ class TreeManager {
         this.treeTitle = document.getElementById('treeTitle');
         this.treeSubtitle = document.getElementById('treeSubtitle');
         this.yearReviewToggle = document.getElementById('yearReviewToggle');
+        this.treeDemoControls = document.getElementById('treeDemoControls');
+        this.demoLandingButton = document.getElementById('demoLandingButton');
+        this.demoFallingButton = document.getElementById('demoFallingButton');
         this.yearReviewBook = document.getElementById('yearReviewBook');
         this.bookYear = document.getElementById('bookYear');
         this.bookCount = document.getElementById('bookCount');
@@ -204,6 +207,7 @@ class TreeManager {
         this.leafFallDuration = 4200;
         this.leafGreenResetTime = '00:00';
         this.leafDisplayScale = 1;
+        this.vipLeafDisplayScale = 1;
         this.badgeLeafColors = {};
         this.treeStage = 0;
         this.showTitleBox = true;
@@ -218,7 +222,13 @@ class TreeManager {
         this.landingCleanupTimers = new Map();
         this.recentLandingWindowMs = 2 * 60 * 1000;
         this.demoLandingEnabled = this.urlParams.get('demoLanding') === '1';
+        this.demoLandingRunNumber = 0;
+        this.manualDemoFallActive = false;
+        this.demoMotionTimer = null;
         this.liveTreeRefreshInterval = 5000;
+        this.leafGlowDurationMs = 10 * 60 * 1000; //Timing for leaf glow effect (10 minutes)
+        this.leafGlowRefreshInterval = 1000;
+        this.leafGlowTimer = null;
         this.activeLeafCycle = null;
 
         // Mask cache
@@ -332,6 +342,7 @@ class TreeManager {
             // Load VIP list first, then visitors
             this.bindYearReviewControls();
             this.bindLeafDetailControls();
+            this.bindDemoControls();
             await this.fetchVipNames();
             await this.fetchYearReviewData();
             await this.fetchVisitorData(this.currentYear);
@@ -339,6 +350,7 @@ class TreeManager {
             this.renderYearReviewBook();
 
             this.createLeaves();
+            this.startLeafGlowMonitor();
         } catch (err) {
             console.error('Init error:', err);
         } finally {
@@ -393,16 +405,23 @@ class TreeManager {
             }
             // Leaf override image and shared display scale
             const configuredLeafScale = Number(tree.leafDisplayScale);
+            const configuredVipLeafScale = Number(tree.vipLeafDisplayScale);
             const configuredBadgeLeafScale = Number(badgeLeafStyles.leafScale);
             this.leafDisplayScale = Number.isFinite(configuredLeafScale)
                 ? configuredLeafScale
                 : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
+            this.vipLeafDisplayScale = Number.isFinite(configuredVipLeafScale)
+                ? configuredVipLeafScale
+                : this.leafDisplayScale;
             this.badgeLeafColors = {
                 ...Object.fromEntries(Object.keys(this.badgeLeafProfiles).map(key => [key, '#4a7c59'])),
                 ...(badgeLeafStyles.colors || {})
             };
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
+                : null;
+            this.vipLeafOverrideImage = assets.vipLeafImage
+                ? (assets.vipLeafImage.startsWith('/') ? assets.vipLeafImage : `/assets/Tree/vip-leaf/${assets.vipLeafImage}`)
                 : null;
         } catch (error) {
             console.warn('Tree parameter config unavailable:', error);
@@ -425,6 +444,11 @@ class TreeManager {
 
     stageHasLeaves() {
         return this.normalizeTreeStage(this.treeStage) > 0;
+    }
+
+    stageLeavesShouldShiftUp() {
+        const stage = this.normalizeTreeStage(this.treeStage);
+        return stage >= 1 && stage <= 3;
     }
 
     applyTreeStageAssets(stageNumber) {
@@ -565,6 +589,46 @@ class TreeManager {
         return createdAt < this.getCurrentGreenResetDate();
     }
 
+    getLeafGlowTimestamp(visitor) {
+        const sourceValue = visitor?.user_created_at || visitor?.created_at;
+        const createdAt = new Date(sourceValue);
+        return Number.isNaN(createdAt.getTime()) ? null : createdAt;
+    }
+
+    shouldLeafGlow(visitor) {
+        const createdAt = this.getLeafGlowTimestamp(visitor);
+        if (!createdAt) return false;
+
+        const ageMs = Date.now() - createdAt.getTime();
+        return ageMs >= 0 && ageMs <= this.leafGlowDurationMs;
+    }
+
+    syncLeafGlowStates() {
+        if (!this.leavesContainer) return;
+
+        const now = Date.now();
+        const leaves = Array.from(this.leavesContainer.querySelectorAll('.leaf'));
+        leaves.forEach((leaf) => {
+            const glowTimestamp = new Date(leaf.dataset.leafGlowTimestamp || '');
+            const isGlowing = !Number.isNaN(glowTimestamp.getTime())
+                && (now - glowTimestamp.getTime()) >= 0
+                && (now - glowTimestamp.getTime()) <= this.leafGlowDurationMs;
+
+            leaf.classList.toggle('leaf-neon-glow', isGlowing);
+        });
+    }
+
+    startLeafGlowMonitor() {
+        if (this.leafGlowTimer) {
+            window.clearInterval(this.leafGlowTimer);
+        }
+
+        this.syncLeafGlowStates();
+        this.leafGlowTimer = window.setInterval(() => {
+            this.syncLeafGlowStates();
+        }, this.leafGlowRefreshInterval);
+    }
+
     getVisitorSeed(visitor, index) {
         return [
             visitor.id || visitor.feedback_id || '',
@@ -678,11 +742,17 @@ class TreeManager {
             const data = await response.json();
 
             this.visitors = Array.isArray(data) ? data : [];
+            if (this.demoLandingEnabled && !this.isReviewMode && !this.visitors.length) {
+                this.visitors = [this.createDemoLandingVisitor()];
+            }
             this.updateLandingLeafState(this.visitors);
             console.log(`Loaded ${this.visitors.length} visitors`);
         } catch (error) {
             console.error('Error fetching visitor data:', error);
-            this.visitors = [];
+            this.visitors = this.demoLandingEnabled && !this.isReviewMode
+                ? [this.createDemoLandingVisitor()]
+                : [];
+            this.updateLandingLeafState(this.visitors);
         }
     }
 
@@ -785,6 +855,100 @@ class TreeManager {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') this.closeLeafDetail();
         });
+    }
+
+    bindDemoControls() {
+        if (this.demoLandingButton) {
+            this.demoLandingButton.addEventListener('click', () => this.playDemoLanding());
+        }
+
+        if (this.demoFallingButton) {
+            this.demoFallingButton.addEventListener('click', () => this.playDemoFalling());
+        }
+    }
+
+    playDemoLanding() {
+        this.manualDemoFallActive = false;
+        this.enableDemoMotion(7600);
+        this.closeYearReviewBook();
+        this.isReviewMode = false;
+        this.selectedYear = this.currentYear;
+
+        const threshold = Math.max(3, Number(this.leafFallThreshold) || 15);
+        this.leafFallThreshold = threshold;
+        const baseVisitors = (Array.isArray(this.visitors) ? this.visitors : [])
+            .filter(visitor => !String(visitor?.id || '').startsWith('demo-'))
+            .slice(-(threshold - 2));
+        const demoVisitor = this.createDemoLandingVisitor();
+
+        this.visitors = [...baseVisitors, demoVisitor];
+        this.pendingLandingLeafKeys.clear();
+        this.pendingLandingLeafKeys.add(this.getLeafKey(demoVisitor, this.visitors.length - 1));
+        this.knownLeafKeys = new Set(this.visitors.map((visitor, index) => this.getLeafKey(visitor, index)));
+        this.initialVisitorSnapshotReady = true;
+        this.leafFallStarted = false;
+        this.leafGreenified = false;
+        this.activeLeafCycle = null;
+
+        this.updateTreeHeading();
+        this.renderYearReviewBook();
+        this.refreshTree();
+        this.resumeLiveRefreshAfter(7600);
+    }
+
+    playDemoFalling() {
+        this.closeYearReviewBook();
+        this.isReviewMode = false;
+        this.selectedYear = this.currentYear;
+        this.manualDemoFallActive = true;
+
+        const count = this.demoFallLeafCount || Math.max(3, Number(this.leafFallThreshold) || 15);
+        const fallPlaybackMs = Math.min(1600, count * 105 + 1070) + Math.max(1200, Number(this.leafFallDuration) || 4200) + 1400;
+        this.enableDemoMotion(fallPlaybackMs);
+        this.leafFallThreshold = count;
+        this.leafFallDuration = Math.max(1200, Number(this.leafFallDuration) || 4200);
+        this.visitors = this.createDemoFallVisitors(count);
+        this.pendingLandingLeafKeys.clear();
+        this.knownLeafKeys = new Set(this.visitors.map((visitor, index) => this.getLeafKey(visitor, index)));
+        this.initialVisitorSnapshotReady = true;
+        this.leafFallStarted = false;
+        this.leafGreenified = false;
+        this.leafFallCycleNumber = 0;
+        this.activeLeafCycle = null;
+
+        this.updateTreeHeading();
+        this.renderYearReviewBook();
+        this.refreshTree();
+
+        this.resumeLiveRefreshAfter(fallPlaybackMs);
+    }
+
+    enableDemoMotion(durationMs) {
+        document.body.classList.add('tree-demo-motion-active');
+
+        if (this.demoMotionTimer) {
+            window.clearTimeout(this.demoMotionTimer);
+        }
+
+        this.demoMotionTimer = window.setTimeout(() => {
+            document.body.classList.remove('tree-demo-motion-active');
+            this.demoMotionTimer = null;
+        }, Math.max(1000, Number(durationMs) || 5000));
+    }
+
+    resumeLiveRefreshAfter(delayMs) {
+        if (typeof treeRefreshTimer !== 'undefined') {
+            window.clearTimeout(treeRefreshTimer);
+            treeRefreshTimer = window.setTimeout(() => {
+                this.manualDemoFallActive = false;
+                document.body.classList.remove('tree-demo-motion-active');
+                if (this.demoMotionTimer) {
+                    window.clearTimeout(this.demoMotionTimer);
+                    this.demoMotionTimer = null;
+                }
+                refreshTreeFromServer();
+            }, Math.max(1000, Number(delayMs) || 5000));
+        }
     }
 
     formatLeafDate(value) {
@@ -921,7 +1085,7 @@ class TreeManager {
     }
 
     updateTreeHeading() {
-        if (this.demoFallEnabled && !this.isReviewMode) {
+        if ((this.demoFallEnabled || this.manualDemoFallActive) && !this.isReviewMode) {
             if (this.treeTitle) {
                 this.treeTitle.textContent = 'ESG Digital Tree - Leaf Fall Demo';
             }
@@ -1010,6 +1174,28 @@ class TreeManager {
         });
     }
 
+    createDemoLandingVisitor() {
+        this.demoLandingRunNumber += 1;
+        const badgeKey = 'sustainable-living-advocate';
+        const badgeProfile = this.badgeLeafProfiles[badgeKey];
+
+        return {
+            id: `demo-landing-${Date.now()}-${this.demoLandingRunNumber}`,
+            name: 'Demo Landing',
+            visit_count: 1,
+            created_at: new Date().toISOString(),
+            isVip: false,
+            badgeKey,
+            badgeName: badgeProfile.label,
+            badgeColor: '',
+            pledgeTopic: badgeKey,
+            pledgeSnippet: 'Demo leaf for showing the kiosk landing animation.',
+            hasPublicName: false,
+            privacyLabel: 'Demo mode - no database record',
+            isDemoLanding: true
+        };
+    }
+
     createDemoFallVisitors(count) {
         const badgeKeys = Object.keys(this.badgeLeafProfiles);
         const now = Date.now();
@@ -1071,7 +1257,7 @@ class TreeManager {
         const threshold = Math.max(1, Number(this.leafFallThreshold) || 15);
         const visitors = Array.isArray(this.visitors) ? this.visitors : [];
 
-        if (this.demoFallEnabled && !this.isReviewMode) {
+        if ((this.demoFallEnabled || this.manualDemoFallActive) && !this.isReviewMode) {
             return {
                 visibleVisitors: visitors.slice(0, threshold),
                 shouldFallAway: visitors.length > 0,
@@ -1285,6 +1471,10 @@ class TreeManager {
         if (isGreenified) {
             leaf.classList.add('leaf-greenified');
         }
+        const isNeonGlowing = this.shouldLeafGlow(visitor);
+        if (isNeonGlowing) {
+            leaf.classList.add('leaf-neon-glow');
+        }
 
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
@@ -1317,17 +1507,28 @@ class TreeManager {
                     : 'Old' + side;
         }
 
-        if (this.leafOverrideImage) {
+        const leafBasePath = isVip ? '/assets/Tree/vip-leaf' : '/assets/Tree/leaf';
+
+        if (isVip) {
+            if (this.vipLeafOverrideImage) {
+                leaf.style.backgroundImage = `url('${this.vipLeafOverrideImage}')`;
+            } else {
+                leaf.style.backgroundImage = `url('${leafBasePath}/${finalLeafImage}')`;
+            }
+        } else if (this.leafOverrideImage) {
             leaf.style.backgroundImage = `url('${this.leafOverrideImage}')`;
         } else {
-            leaf.style.backgroundImage = `url('/assets/Tree/leaf/${finalLeafImage}')`;
+            leaf.style.backgroundImage = `url('${leafBasePath}/${finalLeafImage}')`;
         }
         leaf.style.opacity = String(this.leafOpacity);
         leaf.style.setProperty('--leaf-visible-opacity', String(this.leafOpacity));
         leaf.style.setProperty('--leaf-appear-duration', `${this.leafAnimationDuration}ms`);
         leaf.style.setProperty('--leaf-fall-duration', `${this.leafFallDuration}ms`);
         const windDirection = seededRandom() > 0.5 ? 1 : -1;
-        const fallDelay = Math.min(index * 105 + Math.round(seededRandom() * 170), 1600);
+        let fallDelay = Math.min(index * 105 + Math.round(seededRandom() * 170), 1600);
+        if (this.manualDemoFallActive && !this.isReviewMode) {
+            fallDelay += 900;
+        }
         const fallDistance = Math.round(Math.max(360, Math.min(window.innerHeight * (0.5 + seededRandom() * 0.32), 760)));
         const finalDrift = Math.round(windDirection * (90 + seededRandom() * 230));
         const swayA = Math.round(windDirection * (28 + seededRandom() * 68));
@@ -1364,11 +1565,17 @@ class TreeManager {
         leaf.style.setProperty('--leaf-appear-rotation', `${appearRotation}deg`);
 
         const baseLeafSize = 80 + ((visitor.visit_count || 1) * 5);
-        const scale = typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1;
+        const scale = isVip
+            ? (typeof this.vipLeafDisplayScale === 'number' ? this.vipLeafDisplayScale : this.leafDisplayScale)
+            : (typeof this.leafDisplayScale === 'number' ? this.leafDisplayScale : 1);
         const leafSize = Math.max(8, Math.round(baseLeafSize * scale));
         leaf.style.width = `${leafSize}px`;
         leaf.style.height = `${leafSize}px`;
         leaf.style.setProperty('--leaf-size', `${leafSize}px`);
+        const glowTimestamp = this.getLeafGlowTimestamp(visitor);
+        if (glowTimestamp) {
+            leaf.dataset.leafGlowTimestamp = glowTimestamp.toISOString();
+        }
 
         // 1) Place within mask
         let position = this.findRandomPositionInLeavesMask(leafSize, `${visitorSeed}|position`);
@@ -1381,10 +1588,11 @@ class TreeManager {
         leaf.style.left = `${position.x}px`;
         leaf.style.top = `${position.y}px`;
 
-        const useFlippedOverride = Boolean(this.leafOverrideImage) && seededRandom() > 0.5;
-        const leafImageUrl = this.leafOverrideImage
-            ? this.leafOverrideImage
-            : `/assets/Tree/leaf/${finalLeafImage}`;
+        const leafOverrideUrl = isVip
+            ? this.vipLeafOverrideImage
+            : this.leafOverrideImage;
+        const useFlippedOverride = Boolean(leafOverrideUrl) && seededRandom() > 0.5;
+        const leafImageUrl = leafOverrideUrl || `${leafBasePath}/${finalLeafImage}`;
 
         leaf.classList.toggle('leaf-image-flipped', useFlippedOverride);
         leaf.style.setProperty('--leaf-image-url', `url('${leafImageUrl}')`);
@@ -1392,7 +1600,7 @@ class TreeManager {
         leaf.style.backgroundImage = 'none';
 
         if (this.pendingLandingLeafKeys.has(leafKey) && !this.activeLeafCycle?.shouldFallAway) {
-            this.configureLeafLandingAnimation(leaf, leafKey, position, leafSize, seededRandom, index);
+            this.configureLeafLandingAnimation(leaf, leafKey, position, leafSize, seededRandom, index, visitor);
         }
 
         const nameElement = document.createElement('div');
@@ -1415,17 +1623,26 @@ class TreeManager {
         this.leavesContainer.appendChild(leaf);
     }
 
-    configureLeafLandingAnimation(leaf, leafKey, position, leafSize, random, index) {
+    configureLeafLandingAnimation(leaf, leafKey, position, leafSize, random, index, visitor) {
         const windDirection = random() > 0.5 ? 1 : -1;
-        const landingDuration = Math.round(3200 + random() * 900);
-        const landingDelay = Math.min(index * 70 + Math.round(random() * 120), 640);
+        const isDemoLanding = visitor?.isDemoLanding === true;
+        const landingDuration = isDemoLanding
+            ? Math.round(4300 + random() * 500)
+            : Math.round(3200 + random() * 900);
+        const landingDelay = isDemoLanding
+            ? 80
+            : Math.min(index * 70 + Math.round(random() * 120), 640);
         const containerRect = this.leavesContainer?.getBoundingClientRect();
         const containerWidth = containerRect?.width || window.innerWidth || 1920;
         const containerHeight = containerRect?.height || window.innerHeight || 1080;
         const finalCenterX = (position?.x || 0) + (leafSize / 2);
         const finalCenterY = (position?.y || 0) + (leafSize / 2);
-        const startCenterX = (containerWidth * (0.5 + ((random() - 0.5) * 0.12)));
-        const startCenterY = (containerHeight * (0.62 + (random() * 0.12)));
+        const startCenterX = isDemoLanding
+            ? containerWidth * (0.5 + ((random() - 0.5) * 0.2))
+            : containerWidth * (0.5 + ((random() - 0.5) * 0.12));
+        const startCenterY = isDemoLanding
+            ? containerHeight * (0.9 + (random() * 0.08))
+            : containerHeight * (0.62 + (random() * 0.12));
         const startX = Math.round(startCenterX - finalCenterX);
         const startY = Math.round(startCenterY - finalCenterY);
         const swayAX = Math.round((startX * 0.68) + (windDirection * (80 + random() * 120)));
@@ -1442,12 +1659,13 @@ class TreeManager {
         const approachRotate = Math.round(windDirection * (14 + random() * 24));
         const finalRotate = Math.round(windDirection * -(5 + random() * 18));
         const flutterDuration = Math.round(500 + random() * 360);
-        const closeScale = (2.25 + random() * 0.55).toFixed(2);
-        const nearScale = (1.76 + random() * 0.26).toFixed(2);
-        const midScale = (1.36 + random() * 0.18).toFixed(2);
-        const farScale = (1.1 + random() * 0.12).toFixed(2);
+        const closeScale = (isDemoLanding ? 3.1 + random() * 0.4 : 2.25 + random() * 0.55).toFixed(2);
+        const nearScale = (isDemoLanding ? 2.24 + random() * 0.3 : 1.76 + random() * 0.26).toFixed(2);
+        const midScale = (isDemoLanding ? 1.62 + random() * 0.22 : 1.36 + random() * 0.18).toFixed(2);
+        const farScale = (isDemoLanding ? 1.14 + random() * 0.14 : 1.1 + random() * 0.12).toFixed(2);
 
         leaf.classList.add('leaf-landing');
+        leaf.classList.toggle('leaf-demo-landing', isDemoLanding);
         leaf.style.setProperty('--leaf-land-duration', `${landingDuration}ms`);
         leaf.style.setProperty('--leaf-land-delay', `${landingDelay}ms`);
         leaf.style.setProperty('--leaf-land-start-x', `${startX}px`);
@@ -1585,6 +1803,8 @@ class TreeManager {
             return;
         }
 
+        this.treeImageLeaves.classList.toggle('stage-leaves-upward', this.stageLeavesShouldShiftUp());
+
         if (!this.stageHasLeaves()) {
             this.treeImageLeaves.style.display = 'none';
             return;
@@ -1600,6 +1820,7 @@ class TreeManager {
         this.maskData = this.buildMaskCanvas();
 
         this.createLeaves();
+        this.syncLeafGlowStates();
     }
 
     // ==================== CONFIG ====================
@@ -1631,6 +1852,22 @@ window.addEventListener('load', () => {
 });
 
 let treeRefreshTimer;
+
+function triggerTreeVipRefresh() {
+    if (!treeManager) return;
+
+    Promise.all([
+        treeManager.fetchVipNames(),
+        treeManager.fetchYearReviewData(),
+        treeManager.fetchVisitorData(treeManager.isReviewMode ? treeManager.selectedYear : treeManager.currentYear)
+    ]).then(() => {
+        treeManager.updateTreeHeading();
+        treeManager.renderYearReviewBook();
+        treeManager.refreshTree();
+    }).catch((error) => {
+        console.warn('VIP refresh failed:', error);
+    });
+}
 
 function refreshTreeFromServer() {
     if (treeManager) {
@@ -1665,6 +1902,13 @@ function scheduleTreeRefresh() {
 }
 
 scheduleTreeRefresh();
+
+window.addEventListener('tree-vip-refresh', triggerTreeVipRefresh);
+window.addEventListener('storage', (event) => {
+    if (event.key === 'tree-vip-refresh') {
+        triggerTreeVipRefresh();
+    }
+});
 
 window.addEventListener('resize', () => {
     if (treeManager) {

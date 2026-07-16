@@ -22,8 +22,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESG Digital Tree</title>
-    <link rel="stylesheet" href="tree.css">
-    <script src="tree.js" defer></script>
+    <link rel="stylesheet" href="tree.css?v=demo-animations-20260713">
+    <script src="tree.js?v=demo-animations-20260713" defer></script>
 </head>
 <body>
     <div id="treeContainer">
@@ -35,6 +35,11 @@
         <button class="year-review-toggle" id="yearReviewToggle" type="button" aria-expanded="false" aria-controls="yearReviewBook">
             Year Review
         </button>
+
+        <div class="tree-demo-controls" id="treeDemoControls" aria-label="Tree animation demos">
+            <button class="tree-demo-button" id="demoLandingButton" type="button">Demo Landing</button>
+            <button class="tree-demo-button" id="demoFallingButton" type="button">Demo Falling</button>
+        </div>
 
         <aside class="year-review-book" id="yearReviewBook" aria-label="Year review book" aria-hidden="true">
             <div class="book-topline">

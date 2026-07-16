@@ -194,9 +194,6 @@
                         📜 View Pledgeboards
                     </button>
 
-                    <!-- <button class="cta-button" id="connect-btn" onclick="openConnectPage()" style="margin-top: 15px; background: linear-gradient(135deg, #10B981, #059669); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
-                        📡 Connect 
-                    </button> -->
                 </div>
             </div>
         </div>
@@ -241,9 +238,6 @@
                         📜 View Pledgeboards
                     </button>
 
-                    <button class="cta-button" id="connect-btn-qrcode" onclick="openConnectPage()" style="margin-top: 15px; background: linear-gradient(135deg, #10B981, #059669); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
-                        📡 Connect 
-                    </button>
                 </div>
 
     <!---- Remove QR code section for now, can be added back in later if needed (Yu Kang) ---->
@@ -424,17 +418,34 @@
                 <!-- Added by XY: explicit pledge topic selector used for topic-specific badge mapping - done by XY -->
                 <div class="form-group">
                     <label for="pledge-topic" id="pledge-topic-label">Choose your sustainability focus</label>
-                    <div class="themed-select">
-                        <select id="pledge-topic" required>
-                            <option value="">Select a focus area</option>
-                            <option value="climate-change">Climate Change</option>
-                            <option value="renewable-energy">Renewable Energy</option>
-                            <option value="sustainable-living">Sustainable Living</option>
-                            <option value="ocean-conservation">Ocean Conservation</option>
-                            <option value="ethical-governance">Ethical Governance</option>
-                            <option value="community-impact">Community Impact</option>
-                        </select>
+                    <input type="hidden" id="pledge-topic" required>
+                    <div id="pledge-topic-options" class="topic-checkbox-grid" role="group" aria-labelledby="pledge-topic-label" tabindex="-1">
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="climate-change">
+                            <span data-topic-label="climate-change">Climate Change</span>
+                        </label>
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="renewable-energy">
+                            <span data-topic-label="renewable-energy">Renewable Energy</span>
+                        </label>
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="sustainable-living">
+                            <span data-topic-label="sustainable-living">Sustainable Living</span>
+                        </label>
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="ocean-conservation">
+                            <span data-topic-label="ocean-conservation">Ocean Conservation</span>
+                        </label>
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="ethical-governance">
+                            <span data-topic-label="ethical-governance">Ethical Governance</span>
+                        </label>
+                        <label class="topic-checkbox-card">
+                            <input type="checkbox" name="pledge-topics" value="community-impact">
+                            <span data-topic-label="community-impact">Community Impact</span>
+                        </label>
                     </div>
+                    <small class="topic-help-text" id="pledge-topic-help">Choose one or more. Each selected focus unlocks a passport badge.</small>
                 </div>
                 <div class="privacy-notice">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -974,7 +985,6 @@
 
     <!-- facial detection (Done by Yu Kang) -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- <script src="bluetooth-client.js"></script> -->
     <script src="feedback.js"></script>
 </body>
 </html>

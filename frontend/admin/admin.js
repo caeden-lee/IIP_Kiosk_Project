@@ -8530,6 +8530,246 @@ function closeDeleteModal() {
 
 // ==================== 17. NAVIGATION & PAGE MANAGEMENT ====================
 
+let bluetoothAssetData = [];
+
+function getAssetElements() {
+    return {
+        grid: document.getElementById('asset-grid'),
+        totalCount: document.getElementById('asset-total-count'),
+        detectedCount: document.getElementById('asset-detected-count'),
+        offlineCount: document.getElementById('asset-offline-count')
+    };
+}
+
+function escapeAssetHtml(value) {
+    if (typeof window.escapeHtml === 'function') {
+        return window.escapeHtml(value);
+    }
+
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function formatAssetDate(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
+}
+
+async function fetchAssetJson(url, options = {}) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return data;
+}
+
+function renderBluetoothAssets() {
+    const { grid, totalCount, detectedCount, offlineCount } = getAssetElements();
+    if (!grid) return;
+
+    const total = bluetoothAssetData.length;
+    const detected = bluetoothAssetData.filter((asset) => asset.isDetected).length;
+    const offline = Math.max(total - detected, 0);
+
+    if (totalCount) totalCount.textContent = String(total);
+    if (detectedCount) detectedCount.textContent = String(detected);
+    if (offlineCount) offlineCount.textContent = String(offline);
+
+    if (!total) {
+        grid.innerHTML = `
+            <div class="asset-empty-state">
+                <strong>No Bluetooth assets yet</strong>
+                Add the first Bluetooth ID to start building your asset registry.
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = bluetoothAssetData.map((asset) => {
+        const name = escapeAssetHtml(asset.name || asset.bluetoothId);
+        const bluetoothId = escapeAssetHtml(asset.bluetoothId || '-');
+        const category = escapeAssetHtml(asset.category || '-');
+        const location = escapeAssetHtml(asset.location || '-');
+        const notes = escapeAssetHtml(asset.notes || '-');
+        const lastSeen = formatAssetDate(asset.lastSeen || asset.addedAt);
+        const statusClass = asset.isDetected ? 'detected' : 'offline';
+        const statusText = asset.isDetected ? 'Detected Nearby' : 'Not Detected';
+        const safeBluetoothId = String(asset.bluetoothId || '').replace(/'/g, "\\'");
+
+        return `
+            <article class="asset-card">
+                <div class="asset-card-header">
+                    <div>
+                        <div class="asset-card-title">${name}</div>
+                        <div class="asset-card-subtitle">Bluetooth ID: ${bluetoothId}</div>
+                    </div>
+                    <span class="asset-status-pill ${statusClass}">${statusText}</span>
+                </div>
+
+                <div class="asset-details">
+                    <div class="asset-detail-row">
+                        <span class="asset-detail-label">Category</span>
+                        <span class="asset-detail-value">${category}</span>
+                    </div>
+                    <div class="asset-detail-row">
+                        <span class="asset-detail-label">Location</span>
+                        <span class="asset-detail-value">${location}</span>
+                    </div>
+                    <div class="asset-detail-row">
+                        <span class="asset-detail-label">Notes</span>
+                        <span class="asset-detail-value">${notes}</span>
+                    </div>
+                    <div class="asset-detail-row">
+                        <span class="asset-detail-label">Last Seen</span>
+                        <span class="asset-detail-value">${lastSeen}</span>
+                    </div>
+                </div>
+
+                <div class="asset-card-actions">
+                    <button class="btn-secondary" onclick="showAddAssetModal('${safeBluetoothId}')">Edit</button>
+                    <button class="btn-warning" onclick="deleteAsset('${safeBluetoothId}')">Delete</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadAssetData() {
+    const { grid } = getAssetElements();
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="asset-empty-state">Loading assets...</div>';
+
+    try {
+        const data = await fetchAssetJson('/api/admin/assets');
+        bluetoothAssetData = Array.isArray(data.assets) ? data.assets : [];
+        renderBluetoothAssets();
+    } catch (error) {
+        console.error('Asset load error:', error);
+        grid.innerHTML = `
+            <div class="asset-empty-state" style="color:#b91c1c;">
+                <strong>Failed to load assets</strong>
+                Please try again after checking the admin API.
+            </div>
+        `;
+    }
+}
+
+function refreshAssetData() {
+    loadAssetData();
+}
+
+function closeAssetModal() {
+    const modal = document.getElementById('asset-modal');
+    if (modal) modal.remove();
+}
+
+function showAddAssetModal(defaultBluetoothId = '') {
+    closeAssetModal();
+
+    const modal = document.createElement('div');
+    modal.id = 'asset-modal';
+    modal.className = 'asset-modal';
+    modal.innerHTML = `
+        <div class="asset-modal-panel">
+            <div class="asset-modal-header">
+                <div>
+                    <h3>${defaultBluetoothId ? 'Edit Asset' : 'Add Bluetooth Asset'}</h3>
+                    <p>${defaultBluetoothId ? 'Update the asset details for this Bluetooth ID.' : 'Enter the Bluetooth ID first so the kiosk can match the device when it appears nearby.'}</p>
+                </div>
+                <button type="button" class="asset-modal-close" onclick="closeAssetModal()">×</button>
+            </div>
+
+            <form id="asset-form">
+                <div class="asset-form-grid">
+                    <div class="full-span">
+                        <label for="asset-bluetooth-id">Bluetooth ID</label>
+                        <input id="asset-bluetooth-id" name="bluetoothId" type="text" placeholder="AA:BB:CC:DD:EE:FF" value="${escapeAssetHtml(defaultBluetoothId)}" required>
+                    </div>
+                    <div>
+                        <label for="asset-name">Asset Name</label>
+                        <input id="asset-name" name="name" type="text" placeholder="Main Kiosk Tablet">
+                    </div>
+                    <div>
+                        <label for="asset-category">Category</label>
+                        <input id="asset-category" name="category" type="text" placeholder="Tablet / Tag / Sensor">
+                    </div>
+                    <div>
+                        <label for="asset-location">Location</label>
+                        <input id="asset-location" name="location" type="text" placeholder="Level 3, ESG Centre">
+                    </div>
+                    <div class="full-span">
+                        <label for="asset-notes">Notes</label>
+                        <textarea id="asset-notes" name="notes" placeholder="Any extra info for the asset."></textarea>
+                    </div>
+                </div>
+
+                <div class="asset-form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAssetModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Asset</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    if (defaultBluetoothId) {
+        const current = bluetoothAssetData.find((asset) => asset.bluetoothId === defaultBluetoothId.toUpperCase());
+        if (current) {
+            document.getElementById('asset-name').value = current.name || '';
+            document.getElementById('asset-category').value = current.category || '';
+            document.getElementById('asset-location').value = current.location || '';
+            document.getElementById('asset-notes').value = current.notes || '';
+        }
+    }
+
+    document.getElementById('asset-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            await fetchAssetJson('/api/admin/assets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            closeAssetModal();
+            await loadAssetData();
+            showNotification('Asset saved successfully', 'success');
+        } catch (error) {
+            console.error('Asset save error:', error);
+            showNotification(error.message || 'Failed to save asset', 'error');
+        }
+    });
+}
+
+async function deleteAsset(bluetoothId) {
+    if (!bluetoothId) return;
+    const confirmed = confirm(`Delete the asset with Bluetooth ID "${bluetoothId}"?`);
+    if (!confirmed) return;
+
+    try {
+        await fetchAssetJson(`/api/admin/assets/${encodeURIComponent(bluetoothId)}`, {
+            method: 'DELETE'
+        });
+        await loadAssetData();
+        showNotification('Asset deleted successfully', 'success');
+    } catch (error) {
+        console.error('Asset delete error:', error);
+        showNotification(error.message || 'Failed to delete asset', 'error');
+    }
+}
+
 // Show page with role-based access control
 function showPage(pageName) {
 
@@ -8541,7 +8781,7 @@ function showPage(pageName) {
     const userRole = sessionStorage.getItem('userRole');
     
     // Check if user is trying to access admin pages without system_admin role
-    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates', 'parameter-adjustment'];
+    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates', 'parameter-adjustment', 'asset'];
     if (adminPages.includes(pageName) && userRole !== 'system_admin') {
         alert('Access denied. System Administrator privileges required.');
         return;
@@ -8588,6 +8828,8 @@ function showPage(pageName) {
         loadAdminPledgeboard();
     } else if (pageName === 'overlay') {
         loadOverlayData();
+    } else if (pageName === 'asset') {
+        loadAssetData();
     } else if (pageName === 'users') {
         loadUserManagementData();
     } else if (pageName === 'questions') {
@@ -8847,12 +9089,15 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
         const treeStage = Math.max(0, Math.min(4, Number(treeStageSelect.value) || 0));
         const showTitleBox = showTitleBoxCheck.checked;
         const leafDisplayScale = parseFloat(leafScaleSlider.value) || 1.0;
+        const vipLeafScaleSlider = document.getElementById('param-vipLeafDisplayScale');
+        const vipLeafDisplayScale = vipLeafScaleSlider ? parseFloat(vipLeafScaleSlider.value) || 1.0 : leafDisplayScale;
 
         // 2. Build payload (adjust field names to match your backend expectations)
         const payload = {
             treeStage: treeStage,
             showTitleBox: showTitleBox,
-            leafDisplayScale: leafDisplayScale
+            leafDisplayScale: leafDisplayScale,
+            vipLeafDisplayScale: vipLeafDisplayScale
         };
 
         // 3. Send to backend – use the same endpoint as saveTreeStageSelection
@@ -8879,6 +9124,10 @@ document.getElementById('threshold-stage4')?.addEventListener('input', updateAut
         const previewBox = document.getElementById('previewLeafBox');
         if (previewBox) {
             previewBox.style.transform = `scale(${leafDisplayScale})`;
+        }
+        const vipPreviewBox = document.getElementById('previewVipLeafBox');
+        if (vipPreviewBox) {
+            vipPreviewBox.style.transform = `scale(${vipLeafDisplayScale})`;
         }
 
     } catch (error) {
@@ -9263,6 +9512,39 @@ async function uploadParameterLeaf() {
     }
 }
 
+async function uploadParameterVipLeaf() {
+    const fileInput = document.getElementById('param-vipLeafUpload');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        setParameterStatus('Choose a VIP leaf image first.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Uploading VIP leaf image...', 'info');
+        const formData = new FormData();
+        formData.append('vipLeaf', file);
+
+        const response = await fetch('/api/admin/parameters/vip-leaf', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to upload VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        if (fileInput) fileInput.value = '';
+        setParameterStatus(data.message || 'VIP leaf image uploaded.', 'success');
+    } catch (error) {
+        console.error('Error uploading VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to upload VIP leaf image.', 'error');
+    }
+}
+
 async function revertParameterLeaf() {
     try {
         setParameterStatus('Reverting to previous leaf image...', 'info');
@@ -9285,6 +9567,27 @@ async function revertParameterLeaf() {
     }
 }
 
+async function revertParameterVipLeaf() {
+    try {
+        setParameterStatus('Reverting to previous VIP leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/vip-leaf/revert', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to revert VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'VIP leaf image reverted.', 'success');
+    } catch (error) {
+        console.error('Error reverting VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to revert VIP leaf image.', 'error');
+    }
+}
+
 async function loadAvailableLeafImages(currentLeafImagePath = '') {
     try {
         console.log('📂 Loading available leaf images...');
@@ -9299,6 +9602,7 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
         }
 
         const picker = document.getElementById('param-existingLeafList');
+        const previewBox = document.getElementById('previewLeafBox');
         if (!picker) return;
 
         picker.innerHTML = '';
@@ -9338,6 +9642,9 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
                     tile.style.background = '#eff6ff';
                     tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
                     window.selectedLeafImage = leaf.filename;
+                    if (previewBox) {
+                        previewBox.style.backgroundImage = `url('${leaf.path}')`;
+                    }
                 };
 
                 if (currentLeafImagePath && (currentLeafImagePath.endsWith('/' + leaf.filename) || currentLeafImagePath.endsWith(leaf.filename))) {
@@ -9355,6 +9662,93 @@ async function loadAvailableLeafImages(currentLeafImagePath = '') {
         }
     } catch (error) {
         console.error('Error loading available leaf images:', error);
+    }
+}
+
+async function loadAvailableVipLeafImages(currentVipLeafImagePath = '') {
+    try {
+        console.log('📂 Loading available VIP leaf images...');
+        const response = await fetch('/api/admin/parameters/vip-leaf/list', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error('Failed to load VIP leaf images:', data.error);
+            return;
+        }
+
+        const picker = document.getElementById('param-existingVipLeafList');
+        const previewBox = document.getElementById('previewVipLeafBox');
+        if (!picker) return;
+
+        picker.innerHTML = '';
+        window.selectedVipLeafImage = '';
+
+        const renderVipLeafTiles = (vipLeafImages) => {
+            if (!Array.isArray(vipLeafImages) || vipLeafImages.length === 0) {
+                picker.innerHTML = '<div style="grid-column:1 / -1;padding:16px;text-align:center;color:#64748b;">No existing VIP leaf images found.</div>';
+                return;
+            }
+
+            vipLeafImages.forEach(leaf => {
+                const tile = document.createElement('button');
+                tile.type = 'button';
+                tile.dataset.leafFilename = leaf.filename;
+                tile.dataset.leafPath = leaf.path;
+                tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:1px solid #d7dbe3;border-radius:8px;background:#f8fafc;cursor:pointer;transition:all 0.15s ease;text-align:center;';
+
+                const img = document.createElement('img');
+                img.src = leaf.path;
+                img.alt = leaf.name;
+                img.style.cssText = 'width:64px;height:64px;object-fit:contain;display:block;';
+
+                const label = document.createElement('span');
+                label.textContent = leaf.name;
+                label.style.cssText = 'font-size:12px;color:#1f2937;word-break:break-word;';
+
+                tile.appendChild(img);
+                tile.appendChild(label);
+
+                tile.onclick = () => {
+                    picker.querySelectorAll('[data-selected="true"]').forEach(el => {
+                        el.dataset.selected = 'false';
+                        el.style.borderColor = '#d7dbe3';
+                        el.style.background = '#f8fafc';
+                        el.style.boxShadow = 'none';
+                    });
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedVipLeafImage = leaf.filename;
+                    if (previewBox) {
+                        previewBox.style.backgroundImage = `url('${leaf.path}')`;
+                    }
+                };
+
+                if (currentVipLeafImagePath && (currentVipLeafImagePath.endsWith('/' + leaf.filename) || currentVipLeafImagePath.endsWith(leaf.filename))) {
+                    tile.dataset.selected = 'true';
+                    tile.style.borderColor = '#2563eb';
+                    tile.style.background = '#eff6ff';
+                    tile.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.12)';
+                    window.selectedVipLeafImage = leaf.filename;
+                }
+
+                picker.appendChild(tile);
+            });
+        };
+
+        if (data.vipLeafImages && data.vipLeafImages.length > 0) {
+            renderVipLeafTiles(data.vipLeafImages);
+        } else {
+            renderVipLeafTiles([
+                { filename: 'GoldLeftLeaf.png', path: '/assets/Tree/vip-leaf/GoldLeftLeaf.png', name: 'GoldLeftLeaf' },
+                { filename: 'GoldRightLeaf.png', path: '/assets/Tree/vip-leaf/GoldRightLeaf.png', name: 'GoldRightLeaf' }
+            ]);
+        }
+    } catch (error) {
+        console.error('Error loading available VIP leaf images:', error);
     }
 }
 
@@ -9389,12 +9783,44 @@ async function selectParameterLeaf() {
     }
 }
 
+async function selectParameterVipLeaf() {
+    const vipLeafImage = window.selectedVipLeafImage;
+
+    if (!vipLeafImage) {
+        setParameterStatus('Choose a VIP leaf image tile to apply.', 'error');
+        return;
+    }
+
+    try {
+        setParameterStatus('Applying VIP leaf image...', 'info');
+        const response = await fetch('/api/admin/parameters/vip-leaf/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ vipLeafImage })
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to apply VIP leaf image');
+        }
+
+        populateParameterForm(data.parameters || {});
+        setParameterStatus(data.message || 'VIP leaf image applied.', 'success');
+    } catch (error) {
+        console.error('Error selecting VIP leaf image:', error);
+        setParameterStatus(error.message || 'Failed to apply VIP leaf image.', 'error');
+    }
+}
+
 // Refresh tree data
 async function refreshTreeData() {
+    await loadParameters();
     await loadDigitalTreeData();
 
-    // Reload existing leaf images
+    // Reload existing leaf images from the latest saved config
     await loadAvailableLeafImages(window.currentLeafImagePath || '');
+    await loadAvailableVipLeafImages(window.currentVipLeafImagePath || '');
 }
 
 
@@ -9516,6 +9942,13 @@ window.addEventListener('DOMContentLoaded', function() {
         
         // Load dashboard data
         loadDashboardData();
+
+        // Initialize the tree stage preview so the current leaf count is shown
+        // when the admin tree settings section is available on the page.
+        if (document.getElementById('currentLeafCount')) {
+            initTreeStageMode();
+            updateAutoStagePreview();
+        }
         
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('admin-dashboard').style.display = 'block';
@@ -13437,6 +13870,9 @@ function setSharedLeafScale(value) {
     const oldOutput = document.getElementById('param-leafDisplayScaleValue');
     if (oldOutput) oldOutput.textContent = String(normalized);
 
+    const oldOutputVip = document.getElementById('param-vipLeafDisplayScaleValue');
+    if (oldOutputVip) oldOutputVip.textContent = String(normalized);
+
     document.querySelectorAll('.badge-leaf-preview').forEach(preview => {
         preview.style.setProperty('--badge-preview-scale', normalized);
     });
@@ -13683,6 +14119,7 @@ function populateParameterForm(config) {
     setInputValue('rule-nameMaxLength', rules.nameMaxLength);
     setCheckedValue('rule-emailRequired', rules.emailRequired);
     setInputValue('rule-emailPattern', rules.emailPattern);
+    setInputValue('rule-dailySubmissionLimitPerEmail', typeof rules.dailySubmissionLimitPerEmail === 'undefined' ? 1 : rules.dailySubmissionLimitPerEmail);
     setCheckedValue('rule-requiredQuestionsEnabled', rules.requiredQuestionsEnabled);
     setCheckedValue('rule-pledgeRequired', rules.pledgeRequired);
     setInputValue('rule-pledgeMinLength', rules.pledgeMinLength);
@@ -13715,13 +14152,23 @@ function populateParameterForm(config) {
     const leafScale = typeof tree.leafDisplayScale !== 'undefined'
         ? tree.leafDisplayScale
         : (Number.isFinite(badgeLeafScale) ? badgeLeafScale : 1);
+    const vipLeafScale = typeof tree.vipLeafDisplayScale !== 'undefined'
+        ? tree.vipLeafDisplayScale
+        : leafScale;
     const leafScaleEl = document.getElementById('param-leafDisplayScale');
     if (leafScaleEl) {
         leafScaleEl.value = leafScale;
         const valEl = document.getElementById('param-leafDisplayScaleValue');
         if (valEl) valEl.textContent = String(leafScale);
     }
+    const vipLeafScaleEl = document.getElementById('param-vipLeafDisplayScale');
+    if (vipLeafScaleEl) {
+        vipLeafScaleEl.value = vipLeafScale;
+        const vipValEl = document.getElementById('param-vipLeafDisplayScaleValue');
+        if (vipValEl) vipValEl.textContent = String(vipLeafScale);
+    }
     setSharedLeafScale(leafScale);
+
     const badgeLeafColors = getBadgeLeafStyleColors(badgeLeafStyles.colors);
     const defaultBadgeLeafColors = getDefaultBadgeLeafColors();
     DEFAULT_BADGE_EMAIL_BADGES.forEach((badge) => {
@@ -13776,14 +14223,32 @@ function populateParameterForm(config) {
         // apply scale to preview
         previewBox.style.transform = `scale(${leafScale})`;
     }
+    const vipPreviewBox = document.getElementById('previewVipLeafBox');
+    if (vipPreviewBox) {
+        if (assets.vipLeafImage) {
+            const vipLeafPreviewPath = assets.vipLeafImage.startsWith('/')
+                ? assets.vipLeafImage
+                : `/assets/Tree/vip-leaf/${assets.vipLeafImage}`;
+            vipPreviewBox.style.backgroundImage = `url('${vipLeafPreviewPath}')`;
+        } else {
+            vipPreviewBox.style.backgroundImage = '';
+        }
+        vipPreviewBox.style.transform = `scale(${vipLeafScale})`;
+    }
     // Show/hide revert button based on previous leaf image - Done by Yu Kang
     const revertBtn = document.getElementById('revert-leaf-btn');
     if (revertBtn) {
         revertBtn.style.display = assets.previousLeafImage ? 'block' : 'none';
     }
+    const revertVipBtn = document.getElementById('revert-vip-leaf-btn');
+    if (revertVipBtn) {
+        revertVipBtn.style.display = assets.previousVipLeafImage ? 'block' : 'none';
+    }
     // Load available leaf images from server - Done by Yu Kang
     window.currentLeafImagePath = assets.leafImage || '';
     loadAvailableLeafImages(window.currentLeafImagePath);
+    window.currentVipLeafImagePath = assets.vipLeafImage || '';
+    loadAvailableVipLeafImages(window.currentVipLeafImagePath);
     setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
     setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
     setInputValue('archive-keepRecentFeedbackCount', archive.keepRecentFeedbackCount || 0);
@@ -13851,6 +14316,7 @@ function collectParameterForm() {
             nameMaxLength: Number(getInputValue('rule-nameMaxLength')) || 80,
             emailRequired: getCheckedValue('rule-emailRequired'),
             emailPattern: getInputValue('rule-emailPattern') || '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+            dailySubmissionLimitPerEmail: Math.max(0, Number(getInputValue('rule-dailySubmissionLimitPerEmail')) || 0),
             requiredQuestionsEnabled: getCheckedValue('rule-requiredQuestionsEnabled'),
             pledgeRequired: getCheckedValue('rule-pledgeRequired'),
             pledgeMinLength: Number(getInputValue('rule-pledgeMinLength')) || 0,
@@ -13873,6 +14339,7 @@ function collectParameterForm() {
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
             treeDisplayMode: getInputValue('param-treeDisplayMode') === '3d' ? '3d' : '2d',
             leafDisplayScale: sharedLeafScale,
+            vipLeafDisplayScale: parseFloat(getInputValue('param-vipLeafDisplayScale')) || 1.0,
             showTitleBox: getCheckedValue('param-showTitleBox')
         },
         feedbackPageStyle: {
@@ -15240,6 +15707,17 @@ async function addVip() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: trimmed })
         });
+
+        // Notify any open tree view to re-fetch VIP names immediately.
+        const vipRefreshStamp = String(Date.now());
+        try {
+            localStorage.setItem('tree-vip-refresh', vipRefreshStamp);
+        } catch (storageError) {
+            console.warn('Could not write VIP refresh signal:', storageError);
+        }
+        window.dispatchEvent(new CustomEvent('tree-vip-refresh', {
+            detail: { timestamp: vipRefreshStamp, name: trimmed }
+        }));
 
         // Refresh list
         loadVipData();

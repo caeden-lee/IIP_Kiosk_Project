@@ -256,6 +256,43 @@ const PLEDGE_COACH_TOPIC_SUGGESTIONS = {
 };
 let pledgeCoachSuggestion = '';
 
+const PLEDGE_TOPIC_LABELS = {
+    'climate-change': 'Climate Change',
+    'renewable-energy': 'Renewable Energy',
+    'sustainable-living': 'Sustainable Living',
+    'ocean-conservation': 'Ocean Conservation',
+    'ethical-governance': 'Ethical Governance',
+    'community-impact': 'Community Impact'
+};
+
+function getSelectedPledgeTopics() {
+    return Array.from(document.querySelectorAll('input[name="pledge-topics"]:checked'))
+        .map(input => input.value)
+        .filter(value => PLEDGE_TOPIC_LABELS[value]);
+}
+
+function syncPledgeTopicField() {
+    const selectedTopics = getSelectedPledgeTopics();
+    const hiddenTopic = document.getElementById('pledge-topic');
+    if (hiddenTopic) hiddenTopic.value = selectedTopics[0] || '';
+    return selectedTopics;
+}
+
+function formatPledgeTopicLabel(topic) {
+    return PLEDGE_TOPIC_LABELS[topic] || String(topic || '')
+        .split('-')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function formatPledgeTopicList(topics) {
+    const labels = (Array.isArray(topics) ? topics : [])
+        .map(formatPledgeTopicLabel)
+        .filter(Boolean);
+    return labels.join(', ');
+}
+
 const FLOW_STEPS = [
     { key: 'details', label: 'Details', pageIds: ['details-page'] },
     { key: 'feedback', label: 'Feedback', pageIds: ['feedback-page'] },
@@ -971,21 +1008,6 @@ async function loadDynamicQRCode() {
     }
 }
 
-function getTokenFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('token') || '';
-}
-
-function openConnectPage() {
-    const token = getTokenFromUrl();
-    if (!token) {
-        alert('No token found in this session. Please scan the latest QR code again.');
-        return;
-    }
-
-    window.location.href = `/connect?token=${encodeURIComponent(token)}`;
-}
-
 function startQrRefreshLoop() {
     if (qrRefreshTimer) {
         clearInterval(qrRefreshTimer);
@@ -1141,13 +1163,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const pledgeTopicSelect = document.getElementById('pledge-topic');
-    if (pledgeTopicSelect) {
-        pledgeTopicSelect.addEventListener('change', function() {
+    document.querySelectorAll('input[name="pledge-topics"]').forEach((topicInput) => {
+        topicInput.addEventListener('change', function() {
+            syncPledgeTopicField();
             updatePledgeCoach();
             resetInactivityTimer();
         });
-    }
+    });
 
     updatePledgeCoach();
 
@@ -1285,6 +1307,7 @@ function returnToLandingPage() {
     
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
+    syncPledgeTopicField();
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
     
     // Reset character counter if it exists
@@ -1744,13 +1767,16 @@ function updatePledgeCoach() {
     if (!textarea || !feedback || !suggestion || !applyBtn) return;
 
     const text = textarea.value.trim();
-    const topic = topicSelect ? topicSelect.value : '';
+    const selectedTopics = syncPledgeTopicField();
+    const topic = selectedTopics[0] || (topicSelect ? topicSelect.value : '');
     const wordCount = text ? text.split(/\s+/).length : 0;
     const quality = getPledgeQuality(text);
     pledgeCoachSuggestion = buildSpecificPledgeSuggestion(text, topic);
 
     if (!text) {
-        feedback.textContent = topic
+        feedback.textContent = selectedTopics.length > 1
+            ? `Good range. You selected ${selectedTopics.length} focus areas; write one action that connects them.`
+            : topic
             ? 'Good topic. Start with one action, then make it specific enough to try this week.'
             : 'Choose a focus area or type a pledge. The coach will make it more specific.';
     } else if (wordCount < 4) {
@@ -1967,7 +1993,8 @@ function submitPledge(event) {
     clearValidationMessages();
     const rules = getValidationRules();
     userData.pledge = document.getElementById('pledge-text').value.trim();
-    userData.pledgeTopic = document.getElementById('pledge-topic').value;
+    userData.pledgeTopics = syncPledgeTopicField();
+    userData.pledgeTopic = userData.pledgeTopics[0] || '';
     userData.pledgeSkipped = false;
 
     if (rules.pledgeRequired !== false && !userData.pledge) {
@@ -1985,8 +2012,8 @@ function submitPledge(event) {
         return;
     }
 
-    if (rules.pledgeTopicRequired !== false && !userData.pledgeTopic) {
-        showFieldError('pledge-topic', 'Choose your sustainability focus before continuing.');
+    if (rules.pledgeTopicRequired !== false && userData.pledgeTopics.length === 0) {
+        showFieldError('pledge-topic-options', 'Choose at least one sustainability focus before continuing.');
         return;
     }
 
@@ -1996,6 +2023,7 @@ function submitPledge(event) {
 function skipPledge() {
     userData.pledge = '';
     userData.pledgeTopic = '';
+    userData.pledgeTopics = [];
     userData.pledgeSkipped = true;
 
     const pledgeText = document.getElementById('pledge-text');
@@ -2003,6 +2031,9 @@ function skipPledge() {
     const charCount = document.getElementById('char-count');
     if (pledgeText) pledgeText.value = '';
     if (pledgeTopic) pledgeTopic.value = '';
+    document.querySelectorAll('input[name="pledge-topics"]').forEach(input => {
+        input.checked = false;
+    });
     if (charCount) charCount.textContent = '0';
     updatePledgeCoach();
 
@@ -3172,9 +3203,13 @@ function confirmStyle() {
 // Update confirmation page with user data
 function updateConfirmationDetails() {
     // Update confirmation page with user data
+    const focusList = formatPledgeTopicList(userData.pledgeTopics || (userData.pledgeTopic ? [userData.pledgeTopic] : []));
+    const pledgeSummary = userData.pledgeSkipped
+        ? 'Skipped - Feedback Contributor badge'
+        : `${userData.pledge || 'Not provided'}${focusList ? ` | Focus: ${focusList}` : ''}`;
     document.getElementById('confirm-name').textContent = userData.name || 'Not provided';
     document.getElementById('confirm-email').textContent = userData.email || 'Not provided';
-    document.getElementById('confirm-pledge').textContent = userData.pledgeSkipped ? 'Skipped - Feedback Contributor badge' : (userData.pledge || 'Not provided');
+    document.getElementById('confirm-pledge').textContent = pledgeSummary;
     document.getElementById('confirm-theme').textContent = userData.photoSkipped ? 'Not selected' : selectedTheme;
     document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : getTemporaryRetentionLabel();
     const photoReady = document.getElementById('confirm-photo-ready');
@@ -3297,7 +3332,8 @@ function getShareText() {
     if (userData.pledgeSkipped) {
         return 'I shared feedback with the Republic Polytechnic sustainability initiative! #RPGreen #Sustainability #ESG';
     }
-    const topicText = userData.pledgeTopic ? ` (${userData.pledgeTopic.replace('-', ' ')})` : '';
+    const topicList = formatPledgeTopicList(userData.pledgeTopics || (userData.pledgeTopic ? [userData.pledgeTopic] : []));
+    const topicText = topicList ? ` (${topicList})` : '';
     const pledgeMessage = pledgeText ? `I just pledged: "${pledgeText}"${topicText}.` : 'I just made a sustainability pledge.';
     return `${pledgeMessage} Join me in supporting the Republic Polytechnic sustainability initiative! #RPGreen #Sustainability #ESG`;
 }
@@ -3339,11 +3375,17 @@ function setupBadgeReward(data) {
 
     const badgeKey = data?.badgeKey || 'feedback-completer';
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+    const badges = Array.isArray(data?.badges) && data.badges.length
+        ? data.badges
+        : [{ badgeKey, badgeName: data?.badgeName || reward.badgeName }];
+    const badgeNames = badges.map(badge => badge.badgeName).filter(Boolean).join(', ');
 
-    message.textContent = `Your feedback has been recorded. You earned the ${reward.badgeName} badge, and your name will appear on the digital tree as a ${reward.leaf}.`;
+    message.textContent = `Your feedback has been recorded. You earned ${badgeNames || reward.badgeName}, and your name will appear on the digital tree as a ${reward.leaf}.`;
 }
 
 function getCelebrationBadgeKey(data) {
+    if (Array.isArray(data?.badgeKeys) && data.badgeKeys[0]) return data.badgeKeys[0];
+    if (Array.isArray(data?.badges) && data.badges[0]?.badgeKey) return data.badges[0].badgeKey;
     return data?.badgeKey || 'feedback-completer';
 }
 
@@ -3650,8 +3692,11 @@ function setupCelebrationMoment(data) {
     const title = document.getElementById('celebration-keepsake-title');
     const copy = document.getElementById('celebration-keepsake-copy');
 
-    if (badgeName) badgeName.textContent = reward.badgeName;
-    if (badgeCaption) badgeCaption.textContent = userData.pledgeSkipped ? 'Feedback recorded' : 'Badge unlocked';
+    const badgeListText = Array.isArray(data?.badges) && data.badges.length
+        ? data.badges.map(badge => badge.badgeName).filter(Boolean).join(', ')
+        : reward.badgeName;
+    if (badgeName) badgeName.textContent = badgeListText || reward.badgeName;
+    if (badgeCaption) badgeCaption.textContent = userData.pledgeSkipped ? 'Feedback recorded' : (Array.isArray(data?.badges) && data.badges.length > 1 ? 'Badges unlocked' : 'Badge unlocked');
 
     if (photo) {
         const keepsakePhoto = userData.processedPhoto || photoData || '';
@@ -3702,12 +3747,21 @@ function getPassportPhotoStatus(data) {
     const flags = getFeatureFlags();
     const hasPhoto = Boolean(userData.processedPhotoId || userData.photoId || userData.processedPhoto || photoData);
     const hasEmail = Boolean(userData.email && userData.email.includes('@'));
+    const visitorEmailEnabled = flags.thankYouEmailEnabled !== false || flags.badgeEmailEnabled !== false;
 
-    if (flags.thankYouEmailEnabled === false) {
+    if (!visitorEmailEnabled) {
         return {
             status: 'optional',
-            title: 'Photo email disabled',
-            detail: 'The admin setting has photo emails turned off.'
+            title: 'Visitor email disabled',
+            detail: 'The admin setting has visitor emails turned off.'
+        };
+    }
+
+    if (data?.emailQueued && hasEmail) {
+        return {
+            status: 'complete',
+            title: hasPhoto ? 'Visitor email queued' : 'Badge email queued',
+            detail: `Your visitor passport update is being sent to ${userData.email}.`
         };
     }
 
@@ -3715,7 +3769,9 @@ function getPassportPhotoStatus(data) {
         return {
             status: 'optional',
             title: 'No photo email needed',
-            detail: 'This visit was saved without a keepsake photo.'
+            detail: hasEmail
+                ? 'This visit was saved without a keepsake photo; your badge can still be emailed.'
+                : 'This visit was saved without a keepsake photo.'
         };
     }
 
@@ -3724,14 +3780,6 @@ function getPassportPhotoStatus(data) {
             status: 'optional',
             title: 'Photo kept local',
             detail: 'No email address was provided for this visit.'
-        };
-    }
-
-    if (data?.emailQueued) {
-        return {
-            status: 'complete',
-            title: 'Photo email queued',
-            detail: `Your keepsake is being sent to ${userData.email}.`
         };
     }
 
@@ -3777,6 +3825,24 @@ function getCurrentPassportBadge(data) {
     };
 }
 
+function getCurrentPassportBadges(data) {
+    const responseBadges = Array.isArray(data?.badges) ? data.badges : [];
+    if (responseBadges.length > 0) {
+        return responseBadges.map((badge) => {
+            const badgeKey = badge.badgeKey || 'feedback-completer';
+            const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+            return {
+                key: badgeKey,
+                name: badge.badgeName || reward.badgeName,
+                color: badge.badgeColor || getCelebrationBadgeColor(badgeKey, data),
+                count: 1
+            };
+        });
+    }
+
+    return [getCurrentPassportBadge(data)];
+}
+
 function formatPassportTopicLabel(topic) {
     return String(topic || '')
         .split('-')
@@ -3807,20 +3873,22 @@ function renderVisitorPassportHistory(passportData, data) {
     const title = document.getElementById('passport-title');
     if (!history || !summary || !badgeGrid || !recentList) return;
 
-    const currentBadge = getCurrentPassportBadge(data);
+    const currentBadges = getCurrentPassportBadges(data);
+    const currentBadge = currentBadges[0] || getCurrentPassportBadge(data);
     const passport = passportData || {};
     const backendBadges = Array.isArray(passport.badges) ? passport.badges : [];
     const backendVisits = Array.isArray(passport.recentVisits) ? passport.recentVisits : [];
     const currentVisit = {
         createdAt: data?.submittedAt || new Date().toISOString(),
         badgeKey: currentBadge.key,
-        badgeName: currentBadge.name,
+        badgeName: currentBadges.map(badge => badge.name).join(', ') || currentBadge.name,
         badgeColor: currentBadge.color,
+        badges: currentBadges,
         isCurrentVisit: true,
-        topicLabel: formatPassportTopicLabel(userData.pledgeTopic) || 'Current feedback',
+        topicLabel: formatPledgeTopicList(userData.pledgeTopics || (userData.pledgeTopic ? [userData.pledgeTopic] : [])) || 'Current feedback',
         pledgeSnippet: userData.pledgeSkipped ? 'Feedback-only visit.' : (userData.pledge || 'Feedback submitted.')
     };
-    const backendCurrentIndex = backendVisits.findIndex(visit => isCurrentPassportVisit(visit, data, currentBadge));
+    const backendCurrentIndex = backendVisits.findIndex(visit => currentBadges.some(badge => isCurrentPassportVisit(visit, data, badge)));
     const backendIncludesCurrent = backendCurrentIndex >= 0;
     const recentVisits = (backendIncludesCurrent
         ? backendVisits.map((visit, index) => index === backendCurrentIndex ? { ...visit, isCurrentVisit: true } : visit)
@@ -3828,15 +3896,17 @@ function renderVisitorPassportHistory(passportData, data) {
     ).slice(0, 5);
     const visibleBadges = backendBadges.length
         ? backendBadges.map((badge) => ({ ...badge }))
-        : [currentBadge];
-    const matchingBadge = visibleBadges.find(badge => badge.key === currentBadge.key);
+        : currentBadges.map((badge) => ({ ...badge }));
 
     if (!backendIncludesCurrent) {
-        if (matchingBadge && backendBadges.length) {
-            matchingBadge.count = Number(matchingBadge.count || 0) + 1;
-        } else if (!matchingBadge) {
-            visibleBadges.unshift(currentBadge);
-        }
+        currentBadges.forEach((current) => {
+            const matchingBadge = visibleBadges.find(badge => badge.key === current.key);
+            if (matchingBadge && backendBadges.length) {
+                matchingBadge.count = Number(matchingBadge.count || 0) + 1;
+            } else if (!matchingBadge) {
+                visibleBadges.unshift(current);
+            }
+        });
     }
 
     const backendVisitCount = Number(passport.visitCount || 0);
@@ -3921,6 +3991,8 @@ function setupJourneyPassport(data) {
     const flags = getFeatureFlags();
     const badgeKey = getCelebrationBadgeKey(data);
     const reward = BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer'];
+    const currentBadges = getCurrentPassportBadges(data);
+    const currentBadgeNames = currentBadges.map(badge => badge.name).filter(Boolean).join(', ') || reward.badgeName;
     const photoStatus = getPassportPhotoStatus(data);
     const pledgeEnabled = flags.pledgeEnabled !== false;
     const pledgeMade = pledgeEnabled && !userData.pledgeSkipped && Boolean((userData.pledge || '').trim());
@@ -3932,7 +4004,9 @@ function setupJourneyPassport(data) {
     const pledgeDetail = !pledgeEnabled
         ? 'The admin setting has pledge collection turned off.'
         : pledgeMade
-            ? (userData.pledgeTopic ? `Added under ${userData.pledgeTopic.replace('-', ' ')}.` : 'Your action joined the pledgeboard.')
+            ? (formatPledgeTopicList(userData.pledgeTopics || (userData.pledgeTopic ? [userData.pledgeTopic] : []))
+                ? `Added under ${formatPledgeTopicList(userData.pledgeTopics || (userData.pledgeTopic ? [userData.pledgeTopic] : []))}.`
+                : 'Your action joined the pledgeboard.')
             : 'You chose to finish with feedback only.';
 
     setPassportStamp(
@@ -3957,9 +4031,9 @@ function setupJourneyPassport(data) {
         'passport-badge-stamp',
         'complete',
         'passport-badge-title',
-        'Badge earned',
+        currentBadges.length > 1 ? 'Badges earned' : 'Badge earned',
         'passport-badge-detail',
-        `${reward.badgeName} unlocked for this visit.`
+        `${currentBadgeNames} unlocked for this visit.`
     );
 
     setPassportStamp(
@@ -4117,13 +4191,21 @@ function showCelebrationDemoIfRequested() {
         },
         pledgeSkipped: isFeedbackOnly,
         pledgeTopic,
+        pledgeTopics: pledgeTopic ? [pledgeTopic] : [],
         pledge: isFeedbackOnly ? '' : 'I pledge to bring a reusable bottle for three school days this week.',
         submittedAt
     };
 
     const submissionData = {
         badgeKey,
+        badgeKeys: [badgeKey],
+        badgeName: (BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer']).badgeName,
         badgeColor: getCelebrationBadgeColor(badgeKey, null),
+        badges: [{
+            badgeKey,
+            badgeName: (BADGE_LEAF_REWARDS[badgeKey] || BADGE_LEAF_REWARDS['feedback-completer']).badgeName,
+            badgeColor: getCelebrationBadgeColor(badgeKey, null)
+        }],
         emailQueued: false,
         submittedAt
     };
@@ -4534,6 +4616,7 @@ function getValidationRules() {
         pledgeMaxLength: 500,
         pledgeTopicRequired: true,
         photoRequired: true,
+        dailySubmissionLimitPerEmail: 1,
         maxPhotoFileSizeMb: 5,
         allowedPhotoFormats: ['jpeg', 'jpg', 'png', 'webp'],
         ...(kioskParameters.validationRules || {})
@@ -5067,6 +5150,8 @@ function setPlaceholder(id, value) {
 function setSelectOptionText(selectId, value, text) {
     const option = document.querySelector(`#${selectId} option[value="${value}"]`);
     if (option) option.textContent = text;
+    const topicLabel = document.querySelector(`[data-topic-label="${value}"]`);
+    if (topicLabel) topicLabel.textContent = text;
 }
 
 function updateLanguageButtons() {

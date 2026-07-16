@@ -18,6 +18,25 @@ function getString(value) {
   return String(value || '').trim();
 }
 
+const ALLOWED_PLEDGE_TOPICS = new Set([
+  'climate-change',
+  'renewable-energy',
+  'sustainable-living',
+  'ocean-conservation',
+  'ethical-governance',
+  'community-impact'
+]);
+
+function normalizePledgeTopics(userData = {}) {
+  const rawTopics = Array.isArray(userData.pledgeTopics)
+    ? userData.pledgeTopics
+    : (typeof userData.pledgeTopic === 'string' ? userData.pledgeTopic.split(',') : []);
+
+  return [...new Set(rawTopics
+    .map(topic => getString(topic))
+    .filter(Boolean))];
+}
+
 function isEnabled(value) {
   return value !== false;
 }
@@ -36,7 +55,7 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
   const name = getString(userData.name);
   const email = getString(userData.email);
   const pledge = getString(userData.pledge);
-  const pledgeTopic = getString(userData.pledgeTopic);
+  const pledgeTopics = normalizePledgeTopics(userData);
   const pledgeSkipped = Boolean(userData.pledgeSkipped);
   const photoSkipped = Boolean(userData.photoSkipped); // Optional photo skip - changes made by nick
   const hasPhoto = Boolean(userData.photoId || userData.processedPhotoId || userData.photo || userData.processedPhoto);
@@ -75,8 +94,13 @@ function validateFeedbackSubmission(payload, validationRules = {}, featureFlags 
       errors.push({ field: 'pledge', message: `Pledge must be ${validationRules.pledgeMaxLength} characters or fewer.` });
     }
 
-    if (isEnabled(validationRules.pledgeTopicRequired) && !pledgeTopic) {
+    if (isEnabled(validationRules.pledgeTopicRequired) && pledgeTopics.length === 0) {
       errors.push({ field: 'pledgeTopic', message: 'Pledge topic is required.' });
+    }
+
+    const invalidTopic = pledgeTopics.find(topic => !ALLOWED_PLEDGE_TOPICS.has(topic));
+    if (invalidTopic) {
+      errors.push({ field: 'pledgeTopic', message: `Pledge topic "${invalidTopic}" is not supported.` });
     }
   }
 
