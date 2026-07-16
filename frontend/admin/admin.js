@@ -30,9 +30,8 @@
 //    Removed inactive badges         - Eco Warrior and Commitment Champion removed from editor fallback list (DONE BY XY)
 //
 // 4. TREE LEAF FALL PARAMETER ADMIN
-//    populateParameterForm           - Load leaf fall threshold, duration and green reset time into admin controls (DONE BY XY)
-//    collectParameterForm            - Save leaf fall threshold, duration and daily green reset time to tree parameters (DONE BY XY)
-//    param-leafGreenResetTime        - Store reset as a daily time instead of a millisecond delay (DONE BY XY)
+//    populateParameterForm           - Load leaf fall threshold and duration into admin controls (DONE BY XY)
+//    collectParameterForm            - Save leaf fall threshold and duration to tree parameters (DONE BY XY)
 //
 // 5. CONSENT AND PLEDGE TEXT PARAMETERS
 //    populateParameterForm           - Load temporary retention days and editable pledge examples (DONE BY XY)
@@ -14136,7 +14135,6 @@ function populateParameterForm(config) {
     setInputValue('param-leafAnimationDuration', tree.leafAnimationDuration);
     setInputValue('param-leafFallThreshold', tree.leafFallThreshold);
     setInputValue('param-leafFallDuration', tree.leafFallDuration);
-    setInputValue('param-leafGreenResetTime', tree.leafGreenResetTime || '00:00');
     const normalizedTreeStage = Number.isInteger(Number(tree.treeStage))
         ? Math.max(0, Math.min(4, Number(tree.treeStage)))
         : 0;
@@ -14335,7 +14333,6 @@ function collectParameterForm() {
             leafAnimationDuration: getNumberValue('param-leafAnimationDuration', 500),
             leafFallThreshold: getNumberValue('param-leafFallThreshold', 15),
             leafFallDuration: getNumberValue('param-leafFallDuration', 4200),
-            leafGreenResetTime: getInputValue('param-leafGreenResetTime') || '00:00',
             treeStage: Math.max(0, Math.min(4, Number(getInputValue('param-treeStage')) || 0)),
             treeDisplayMode: getInputValue('param-treeDisplayMode') === '3d' ? '3d' : '2d',
             leafDisplayScale: sharedLeafScale,

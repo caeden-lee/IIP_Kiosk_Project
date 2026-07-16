@@ -16,11 +16,10 @@
 //    turnReviewPage()                 - Flips between yearly review pages with animation (DONE BY XY)
 //    demoYearsEnabled                 - Supports ?demoYears=1 preview years without database edits (DONE BY XY)
 //
-// 4. LEAF FALL AND MIDNIGHT GREEN RESET
-//    leafFallThreshold                - Trigger full-batch leaf falling when the tree reaches the configured count (DONE BY XY)
-//    getLeafCycleState()              - Clear fallen batches so the next pledge starts a new visible leaf batch (DONE BY XY)
-//    leafGreenResetTime               - Turn badge-coloured leaves green after the configured daily reset time, default midnight (DONE BY XY)
-//    shouldLeafBeGreen()              - Keep VIP leaves gold while older badge leaves become green after reset time (DONE BY XY)
+// 4. LEAF FALL AND BADGE COLOR CONSISTENCY
+//    leafFallThreshold                - Maximum live leaves before the oldest leaf falls away (DONE BY XY)
+//    getLeafCycleState()              - Keep a persistent oldest-first rolling leaf queue (DONE BY XY)
+//    badgeLeafColors                  - Keep every visible non-VIP leaf aligned with its assigned badge colour (DONE BY XY)
 //
 // 5. INTERACTIVE LEAF DETAILS
 //    bindLeafDetailControls()         - Close leaf detail card with button or Escape key (DONE BY XY)
@@ -96,6 +95,16 @@
 //   - resize                           - Refresh on resize
 // ============================================================
 
+const DEFAULT_BADGE_LEAF_COLORS = Object.freeze({
+    'feedback-completer': '#4a7c59',
+    'climate-champion': '#0f766e',
+    'renewable-innovator': '#f59e0b',
+    'sustainable-living-advocate': '#16a34a',
+    'ocean-guardian': '#0284c7',
+    'governance-guardian': '#7c3aed',
+    'social-champion': '#d97706'
+});
+
 class TreeManager {
 
     constructor() {
@@ -108,9 +117,12 @@ class TreeManager {
         this.treeTitle = document.getElementById('treeTitle');
         this.treeSubtitle = document.getElementById('treeSubtitle');
         this.yearReviewToggle = document.getElementById('yearReviewToggle');
+        this.isDemoPage = /^\/tree-demo\/?$/i.test(window.location.pathname);
+        this.mountDemoControls();
         this.treeDemoControls = document.getElementById('treeDemoControls');
         this.demoLandingButton = document.getElementById('demoLandingButton');
         this.demoFallingButton = document.getElementById('demoFallingButton');
+        this.demoStatus = document.getElementById('demoStatus');
         this.yearReviewBook = document.getElementById('yearReviewBook');
         this.bookYear = document.getElementById('bookYear');
         this.bookCount = document.getElementById('bookCount');
@@ -139,8 +151,8 @@ class TreeManager {
         this.isReviewMode = false;
         this.isBookOpen = false;
         this.urlParams = new URLSearchParams(window.location.search);
-        this.demoYearsEnabled = this.urlParams.get('demoYears') === '1';
-        this.demoFallEnabled = this.urlParams.get('demoFall') === '1';
+        this.demoYearsEnabled = this.isDemoPage && this.urlParams.get('demoYears') === '1';
+        this.demoFallEnabled = this.isDemoPage && this.urlParams.get('demoFall') === '1';
         this.demoFallLeafCount = this.parseDemoLeafCount(this.urlParams.get('leaves'));
         this.isBookFlipping = false;
 
@@ -205,15 +217,13 @@ class TreeManager {
         this.leafAnimationDuration = 500;
         this.leafFallThreshold = 15;
         this.leafFallDuration = 4200;
-        this.leafGreenResetTime = '00:00';
         this.leafDisplayScale = 1;
         this.vipLeafDisplayScale = 1;
-        this.badgeLeafColors = {};
+        this.badgeLeafColors = { ...DEFAULT_BADGE_LEAF_COLORS };
         this.treeStage = 0;
         this.showTitleBox = true;
         this.activeCampaign = null;
         this.leafFallStarted = false;
-        this.leafGreenified = false;
         this.leafGreenTimer = null;
         this.leafFallCycleNumber = 0;
         this.initialVisitorSnapshotReady = false;
@@ -221,15 +231,18 @@ class TreeManager {
         this.pendingLandingLeafKeys = new Set();
         this.landingCleanupTimers = new Map();
         this.recentLandingWindowMs = 2 * 60 * 1000;
-        this.demoLandingEnabled = this.urlParams.get('demoLanding') === '1';
+        this.demoLandingEnabled = this.isDemoPage && this.urlParams.get('demoLanding') === '1';
         this.demoLandingRunNumber = 0;
         this.manualDemoFallActive = false;
         this.demoMotionTimer = null;
+        this.demoControlsBound = false;
+        this.demoPlaybackActive = false;
         this.liveTreeRefreshInterval = 5000;
         this.leafGlowDurationMs = 10 * 60 * 1000; //Timing for leaf glow effect (10 minutes)
         this.leafGlowRefreshInterval = 1000;
         this.leafGlowTimer = null;
         this.activeLeafCycle = null;
+        this.clearedLeafOverflowByKey = new Map();
 
         // Mask cache
         this.maskData = null;
@@ -237,8 +250,29 @@ class TreeManager {
         // Debug overlay toggle (set true if you want to see an oval)
         this.debugOval = false;
 
-        this.init();
+        this.bindDemoControls();
+        this.initializationPromise = this.init();
 
+    }
+
+    mountDemoControls() {
+        if (!this.isDemoPage || document.getElementById('treeDemoControls')) return;
+
+        const treeContainer = document.getElementById('treeContainer');
+        if (!treeContainer) return;
+
+        const controls = document.createElement('div');
+        controls.className = 'tree-demo-controls';
+        controls.id = 'treeDemoControls';
+        controls.setAttribute('aria-label', 'Tree animation demos');
+        controls.innerHTML = `
+            <button class="tree-demo-button" id="demoLandingButton" type="button">Demo Landing</button>
+            <button class="tree-demo-button" id="demoFallingButton" type="button">Demo Falling</button>
+            <span class="tree-demo-status" id="demoStatus" role="status" aria-live="polite">Ready</span>
+        `;
+        treeContainer.appendChild(controls);
+        document.body.classList.add('tree-demo-page');
+        document.title = 'ESG Digital Tree Animation Demo';
     }
 
     // ==================== TREE TITLE BOX ====================
@@ -342,7 +376,6 @@ class TreeManager {
             // Load VIP list first, then visitors
             this.bindYearReviewControls();
             this.bindLeafDetailControls();
-            this.bindDemoControls();
             await this.fetchVipNames();
             await this.fetchYearReviewData();
             await this.fetchVisitorData(this.currentYear);
@@ -356,6 +389,9 @@ class TreeManager {
         } finally {
             if (this.loadingMessage) {
                 this.loadingMessage.style.display = 'none';
+            }
+            if (this.isDemoPage && !this.demoPlaybackActive) {
+                this.setDemoStatus('Ready');
             }
         }
     }
@@ -379,7 +415,6 @@ class TreeManager {
             this.leafAnimationDuration = Number(tree.leafAnimationDuration) || this.leafAnimationDuration;
             this.leafFallThreshold = Number(tree.leafFallThreshold) || this.leafFallThreshold;
             this.leafFallDuration = Number(tree.leafFallDuration) || this.leafFallDuration;
-            this.leafGreenResetTime = this.normalizeResetTime(tree.leafGreenResetTime) || this.leafGreenResetTime;
             this.treeStage = this.normalizeTreeStage(tree.treeStage);
             this.showTitleBox = tree.showTitleBox !== false;
             this.activeCampaign = campaign.enabled === true ? campaign : null;
@@ -414,7 +449,7 @@ class TreeManager {
                 ? configuredVipLeafScale
                 : this.leafDisplayScale;
             this.badgeLeafColors = {
-                ...Object.fromEntries(Object.keys(this.badgeLeafProfiles).map(key => [key, '#4a7c59'])),
+                ...DEFAULT_BADGE_LEAF_COLORS,
                 ...(badgeLeafStyles.colors || {})
             };
             this.leafOverrideImage = assets.leafImage
@@ -560,33 +595,10 @@ class TreeManager {
 
     getBadgeLeafColor(visitor) {
         const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
-        return this.badgeLeafColors[badgeKey] || visitor?.badgeColor || '#4a7c59';
-    }
-
-    normalizeResetTime(value) {
-        const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
-        return match ? `${match[1]}:${match[2]}` : null;
-    }
-
-    getCurrentGreenResetDate(now = new Date()) {
-        const [hours, minutes] = (this.normalizeResetTime(this.leafGreenResetTime) || '00:00')
-            .split(':')
-            .map(Number);
-        const reset = new Date(now);
-        reset.setHours(hours, minutes, 0, 0);
-
-        if (now < reset) {
-            reset.setDate(reset.getDate() - 1);
-        }
-
-        return reset;
-    }
-
-    shouldLeafBeGreen(visitor, isVip) {
-        if (isVip) return false;
-        const createdAt = new Date(visitor?.created_at);
-        if (Number.isNaN(createdAt.getTime())) return false;
-        return createdAt < this.getCurrentGreenResetDate();
+        return this.badgeLeafColors[badgeKey]
+            || visitor?.badgeColor
+            || DEFAULT_BADGE_LEAF_COLORS[badgeKey]
+            || DEFAULT_BADGE_LEAF_COLORS['feedback-completer'];
     }
 
     getLeafGlowTimestamp(visitor) {
@@ -631,11 +643,10 @@ class TreeManager {
 
     getVisitorSeed(visitor, index) {
         return [
-            visitor.id || visitor.feedback_id || '',
+            this.getLeafKey(visitor, index),
             visitor.name || 'visitor',
             visitor.created_at || '',
-            visitor.badgeKey || '',
-            index
+            visitor.badgeKey || ''
         ].join('|');
     }
 
@@ -649,8 +660,7 @@ class TreeManager {
             'leaf',
             visitor?.created_at || '',
             visitor?.name || 'visitor',
-            visitor?.badgeKey || '',
-            index
+            visitor?.badgeKey || ''
         ].join('|');
     }
 
@@ -858,16 +868,67 @@ class TreeManager {
     }
 
     bindDemoControls() {
+        if (this.demoControlsBound) return;
+
         if (this.demoLandingButton) {
-            this.demoLandingButton.addEventListener('click', () => this.playDemoLanding());
+            this.demoLandingButton.addEventListener('click', () => {
+                this.playDemoLanding().catch(error => this.handleDemoPlaybackError(error));
+            });
         }
 
         if (this.demoFallingButton) {
-            this.demoFallingButton.addEventListener('click', () => this.playDemoFalling());
+            this.demoFallingButton.addEventListener('click', () => {
+                this.playDemoFalling().catch(error => this.handleDemoPlaybackError(error));
+            });
+        }
+
+        this.demoControlsBound = Boolean(this.demoLandingButton || this.demoFallingButton);
+    }
+
+    setDemoStatus(message) {
+        if (this.demoStatus) {
+            this.demoStatus.textContent = message;
         }
     }
 
-    playDemoLanding() {
+    setDemoControlsDisabled(disabled) {
+        [this.demoLandingButton, this.demoFallingButton].forEach(button => {
+            if (button) button.disabled = disabled;
+        });
+    }
+
+    async prepareDemoPlayback(label) {
+        if (!this.isDemoPage) return false;
+
+        this.demoPlaybackActive = true;
+        this.setDemoControlsDisabled(true);
+        this.setDemoStatus('Preparing demo...');
+
+        if (this.initializationPromise) {
+            await this.initializationPromise;
+        }
+
+        if (this.normalizeTreeStage(this.treeStage) !== 4) {
+            this.applyTreeStageAssets(4);
+            await this.loadTreeImage();
+        }
+
+        this.updateLeavesTransparency();
+        this.maskData = this.buildMaskCanvas();
+        this.setDemoStatus(`Playing ${label}...`);
+        return true;
+    }
+
+    handleDemoPlaybackError(error) {
+        console.error('Tree demo playback failed:', error);
+        this.demoPlaybackActive = false;
+        this.setDemoControlsDisabled(false);
+        this.setDemoStatus('Demo failed - try again');
+    }
+
+    async playDemoLanding() {
+        if (!await this.prepareDemoPlayback('landing')) return;
+
         this.manualDemoFallActive = false;
         this.enableDemoMotion(7600);
         this.closeYearReviewBook();
@@ -887,7 +948,6 @@ class TreeManager {
         this.knownLeafKeys = new Set(this.visitors.map((visitor, index) => this.getLeafKey(visitor, index)));
         this.initialVisitorSnapshotReady = true;
         this.leafFallStarted = false;
-        this.leafGreenified = false;
         this.activeLeafCycle = null;
 
         this.updateTreeHeading();
@@ -896,7 +956,9 @@ class TreeManager {
         this.resumeLiveRefreshAfter(7600);
     }
 
-    playDemoFalling() {
+    async playDemoFalling() {
+        if (!await this.prepareDemoPlayback('falling')) return;
+
         this.closeYearReviewBook();
         this.isReviewMode = false;
         this.selectedYear = this.currentYear;
@@ -912,7 +974,6 @@ class TreeManager {
         this.knownLeafKeys = new Set(this.visitors.map((visitor, index) => this.getLeafKey(visitor, index)));
         this.initialVisitorSnapshotReady = true;
         this.leafFallStarted = false;
-        this.leafGreenified = false;
         this.leafFallCycleNumber = 0;
         this.activeLeafCycle = null;
 
@@ -946,6 +1007,9 @@ class TreeManager {
                     window.clearTimeout(this.demoMotionTimer);
                     this.demoMotionTimer = null;
                 }
+                this.demoPlaybackActive = false;
+                this.setDemoControlsDisabled(false);
+                this.setDemoStatus('Ready');
                 refreshTreeFromServer();
             }, Math.max(1000, Number(delayMs) || 5000));
         }
@@ -975,6 +1039,7 @@ class TreeManager {
         }
         if (this.leafDetailBadge) {
             this.leafDetailBadge.textContent = badgeName;
+            this.leafDetailBadge.style.setProperty('--leaf-detail-badge-color', this.getBadgeLeafColor(visitor));
         }
         if (this.leafDetailDate) {
             this.leafDetailDate.textContent = this.formatLeafDate(visitor.created_at);
@@ -1255,67 +1320,124 @@ class TreeManager {
 
     getLeafCycleState() {
         const threshold = Math.max(1, Number(this.leafFallThreshold) || 15);
-        const visitors = Array.isArray(this.visitors) ? this.visitors : [];
+        const visitors = this.sortVisitorsOldestFirst(this.visitors);
 
         if ((this.demoFallEnabled || this.manualDemoFallActive) && !this.isReviewMode) {
+            const visibleVisitors = visitors.slice(0, threshold);
+            const fallingLeafKeys = new Set(
+                visibleVisitors.map((visitor, index) => this.getLeafKey(visitor, index))
+            );
             return {
-                visibleVisitors: visitors.slice(0, threshold),
+                visibleVisitors,
                 shouldFallAway: visitors.length > 0,
                 cycleNumber: Date.now(),
-                threshold
+                threshold,
+                fallingLeafKeys,
+                fallingLeafOrder: this.createFallingLeafOrder(visibleVisitors),
+                fallingLeafCount: visibleVisitors.length,
+                isDemoCycle: true
             };
         }
 
-        if (this.isReviewMode || visitors.length < threshold) {
+        if (this.isReviewMode) {
             return {
                 visibleVisitors: visitors,
                 shouldFallAway: false,
                 cycleNumber: 0,
-                threshold
+                threshold,
+                fallingLeafKeys: new Set(),
+                fallingLeafOrder: new Map(),
+                fallingLeafCount: 0
             };
         }
 
-        const completedCycles = Math.floor(visitors.length / threshold);
-        const remainder = visitors.length % threshold;
+        const overflowCount = Math.max(0, visitors.length - threshold);
+        let clearedOverflow = this.getClearedLeafOverflow(threshold);
 
-        if (remainder > 0) {
-            return {
-                visibleVisitors: visitors.slice(-remainder),
-                shouldFallAway: false,
-                cycleNumber: completedCycles,
-                threshold
-            };
+        // A fresh browser starts from the current live tree instead of replaying historical falls.
+        if (clearedOverflow === null) {
+            clearedOverflow = overflowCount;
+            this.setClearedLeafOverflow(threshold, clearedOverflow);
         }
 
-        const clearedCycle = this.getClearedLeafCycle(threshold);
-        if (completedCycles <= clearedCycle) {
-            return {
-                visibleVisitors: [],
-                shouldFallAway: false,
-                cycleNumber: completedCycles,
-                threshold
-            };
+        if (clearedOverflow > overflowCount) {
+            clearedOverflow = overflowCount;
+            this.setClearedLeafOverflow(threshold, clearedOverflow);
         }
+
+        const fallingVisitors = visitors.slice(clearedOverflow, overflowCount);
+        const retainedVisitors = visitors.slice(overflowCount);
+        const visibleVisitors = [...fallingVisitors, ...retainedVisitors];
 
         return {
-            visibleVisitors: visitors.slice(-threshold),
-            shouldFallAway: true,
-            cycleNumber: completedCycles,
-            threshold
+            visibleVisitors,
+            shouldFallAway: fallingVisitors.length > 0,
+            cycleNumber: overflowCount,
+            threshold,
+            overflowCount,
+            fallingLeafKeys: new Set(
+                fallingVisitors.map((visitor, index) => this.getLeafKey(visitor, clearedOverflow + index))
+            ),
+            fallingLeafOrder: this.createFallingLeafOrder(fallingVisitors, clearedOverflow),
+            fallingLeafCount: fallingVisitors.length,
+            isDemoCycle: false
         };
     }
 
-    getClearedLeafCycleKey(threshold) {
-        return `rp-tree-cleared-cycle:${this.selectedYear}:${threshold}`;
+    sortVisitorsOldestFirst(visitors) {
+        return [...(Array.isArray(visitors) ? visitors : [])].sort((first, second) => {
+            const firstTime = new Date(first?.created_at).getTime();
+            const secondTime = new Date(second?.created_at).getTime();
+            const safeFirstTime = Number.isFinite(firstTime) ? firstTime : Number.MAX_SAFE_INTEGER;
+            const safeSecondTime = Number.isFinite(secondTime) ? secondTime : Number.MAX_SAFE_INTEGER;
+
+            if (safeFirstTime !== safeSecondTime) return safeFirstTime - safeSecondTime;
+
+            return String(first?.feedback_id || first?.id || '')
+                .localeCompare(String(second?.feedback_id || second?.id || ''), undefined, { numeric: true });
+        });
     }
 
-    getClearedLeafCycle(threshold) {
-        const value = Number(localStorage.getItem(this.getClearedLeafCycleKey(threshold)));
-        return Number.isFinite(value) ? value : 0;
+    createFallingLeafOrder(visitors, startIndex = 0) {
+        return new Map((visitors || []).map((visitor, index) => [
+            this.getLeafKey(visitor, startIndex + index),
+            index
+        ]));
     }
 
-    setClearedLeafCycle(threshold, cycleNumber) {
-        localStorage.setItem(this.getClearedLeafCycleKey(threshold), String(cycleNumber));
+    getClearedLeafOverflowKey(threshold) {
+        return `rp-tree-cleared-overflow:${this.selectedYear}:${threshold}`;
+    }
+
+    getClearedLeafOverflow(threshold) {
+        const key = this.getClearedLeafOverflowKey(threshold);
+        if (this.clearedLeafOverflowByKey.has(key)) {
+            return this.clearedLeafOverflowByKey.get(key);
+        }
+
+        try {
+            const storedValue = localStorage.getItem(key);
+            if (storedValue === null) return null;
+
+            const value = Number(storedValue);
+            if (!Number.isInteger(value) || value < 0) return null;
+            this.clearedLeafOverflowByKey.set(key, value);
+            return value;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    setClearedLeafOverflow(threshold, overflowCount) {
+        const key = this.getClearedLeafOverflowKey(threshold);
+        const value = Math.max(0, Number(overflowCount) || 0);
+        this.clearedLeafOverflowByKey.set(key, value);
+
+        try {
+            localStorage.setItem(key, String(value));
+        } catch (error) {
+            console.warn('Leaf queue state could not be saved:', error);
+        }
     }
 
     calculateOvalArea(treeRect, containerRect) {
@@ -1467,10 +1589,6 @@ class TreeManager {
         if (isVip) {
             leaf.classList.add('vip');
         }
-        const isGreenified = this.shouldLeafBeGreen(visitor, isVip);
-        if (isGreenified) {
-            leaf.classList.add('leaf-greenified');
-        }
         const isNeonGlowing = this.shouldLeafGlow(visitor);
         if (isNeonGlowing) {
             leaf.classList.add('leaf-neon-glow');
@@ -1478,11 +1596,14 @@ class TreeManager {
 
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
-        if (!isVip && !isGreenified) {
+        const badgeLeafColor = this.getBadgeLeafColor(visitor);
+        leaf.dataset.badgeColor = badgeLeafColor;
+        if (!isVip) {
             leaf.classList.add('leaf-tinted');
-            leaf.style.setProperty('--leaf-badge-color', this.getBadgeLeafColor(visitor));
+            leaf.style.setProperty('--leaf-badge-color', badgeLeafColor);
         }
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
+        leaf.dataset.leafKey = leafKey;
         leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
         leaf.setAttribute('role', 'button');
         leaf.setAttribute('tabindex', '0');
@@ -1525,8 +1646,11 @@ class TreeManager {
         leaf.style.setProperty('--leaf-appear-duration', `${this.leafAnimationDuration}ms`);
         leaf.style.setProperty('--leaf-fall-duration', `${this.leafFallDuration}ms`);
         const windDirection = seededRandom() > 0.5 ? 1 : -1;
-        let fallDelay = Math.min(index * 105 + Math.round(seededRandom() * 170), 1600);
-        if (this.manualDemoFallActive && !this.isReviewMode) {
+        const fallOrder = this.activeLeafCycle?.fallingLeafOrder?.get(leafKey);
+        const fallingLeafCount = Math.max(1, Number(this.activeLeafCycle?.fallingLeafCount) || 1);
+        const fallStep = Math.min(120, 1600 / Math.max(1, fallingLeafCount - 1));
+        let fallDelay = Number.isInteger(fallOrder) ? Math.round(fallOrder * fallStep) : 0;
+        if (Number.isInteger(fallOrder) && this.manualDemoFallActive && !this.isReviewMode) {
             fallDelay += 900;
         }
         const fallDistance = Math.round(Math.max(360, Math.min(window.innerHeight * (0.5 + seededRandom() * 0.32), 760)));
@@ -1599,7 +1723,8 @@ class TreeManager {
         leaf.style.setProperty('--leaf-image-scale-x', useFlippedOverride ? '-1' : '1');
         leaf.style.backgroundImage = 'none';
 
-        if (this.pendingLandingLeafKeys.has(leafKey) && !this.activeLeafCycle?.shouldFallAway) {
+        const isFallingLeaf = this.activeLeafCycle?.fallingLeafKeys?.has(leafKey) === true;
+        if (this.pendingLandingLeafKeys.has(leafKey) && !isFallingLeaf) {
             this.configureLeafLandingAnimation(leaf, leafKey, position, leafSize, seededRandom, index, visitor);
         }
 
@@ -1725,7 +1850,6 @@ class TreeManager {
     applyLeafThresholdEffect(leafCycle) {
         if (!leafCycle.shouldFallAway) {
             this.leafFallStarted = false;
-            this.leafGreenified = false;
             this.leafFallCycleNumber = leafCycle.cycleNumber || 0;
             if (this.leafGreenTimer) {
                 window.clearTimeout(this.leafGreenTimer);
@@ -1734,13 +1858,19 @@ class TreeManager {
             return;
         }
 
-        const leaves = Array.from(this.leavesContainer.querySelectorAll('.leaf'));
+        const fallingLeafKeys = leafCycle.fallingLeafKeys || new Set();
+        const leaves = Array.from(this.leavesContainer.querySelectorAll('.leaf'))
+            .filter(leaf => fallingLeafKeys.has(leaf.dataset.leafKey));
 
         leaves.forEach(leaf => {
             leaf.classList.add('leaf-falling');
         });
 
         if (this.leafFallStarted && this.leafFallCycleNumber === leafCycle.cycleNumber) return;
+        if (this.leafGreenTimer) {
+            window.clearTimeout(this.leafGreenTimer);
+            this.leafGreenTimer = null;
+        }
         this.leafFallStarted = true;
         this.leafFallCycleNumber = leafCycle.cycleNumber;
 
@@ -1750,12 +1880,14 @@ class TreeManager {
         }, 0);
         const clearDelay = maxFallDelay + Math.max(500, Number(this.leafFallDuration) || 4200);
         this.leafGreenTimer = window.setTimeout(() => {
-            this.leafGreenified = true;
-            this.setClearedLeafCycle(leafCycle.threshold, leafCycle.cycleNumber);
-            this.leavesContainer.querySelectorAll('.leaf').forEach(leaf => {
+            if (!leafCycle.isDemoCycle) {
+                this.setClearedLeafOverflow(leafCycle.threshold, leafCycle.overflowCount);
+            }
+            leaves.forEach(leaf => {
                 leaf.classList.remove('leaf-falling');
-                leaf.classList.add('leaf-fallen', 'leaf-greenified', 'leaf-cleared');
+                leaf.classList.add('leaf-fallen', 'leaf-cleared');
             });
+            this.leafFallStarted = false;
             this.leafGreenTimer = null;
         }, clearDelay);
     }

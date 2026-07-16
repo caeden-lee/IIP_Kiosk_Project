@@ -89,6 +89,7 @@ const dataExportRoutes = require('./dataExportRoutes');
 const emailService = require('./emailService');
 const auth = require('./auth');
 const pulseRoutes = require('./pulseRoutes');
+const parametersConfigStore = require('./parametersConfigStore');
 
 // Data fetching for Tree + Pledgeboard routes
 const pledgeboardRoutes = require('./pledgeboardRoutes');
@@ -251,6 +252,15 @@ app.use('/api/tree', treeRoutes);
 // Pledgeboard data fetching for Pledgeboard tab
 app.use('/api/pledgeboard', pledgeboardRoutes);
 
+app.get('/api/parameters', (req, res) => {
+  try {
+    res.json({ success: true, parameters: parametersConfigStore.readParametersConfig() });
+  } catch (error) {
+    console.error('Error loading public parameters:', error);
+    res.status(500).json({ success: false, error: 'Failed to load parameters' });
+  }
+});
+
 // Optional test route 
 app.get('/api/test-db', (req, res) => {
   db.query(
@@ -289,6 +299,10 @@ app.get('/api/test-email-service', (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
+});
+
+app.get(['/tree-demo', '/tree-demo/'], auth.requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
 });
 
 app.get('/pulse', (req, res) => {

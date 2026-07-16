@@ -16,9 +16,8 @@
      removed inactive badges        - Eco Warrior and Commitment Champion hidden from admin editor (DONE BY XY)
 
   4. TREE LEAF FALL PARAMETERS
-     param-leafFallThreshold        - Added admin setting for how many leaves trigger a falling batch (DONE BY XY)
+     param-leafFallThreshold        - Added admin setting for the rolling live-tree leaf limit (DONE BY XY)
      param-leafFallDuration         - Added admin setting for smooth leaf falling animation duration (DONE BY XY)
-     param-leafGreenResetTime       - Added admin time picker for daily badge-leaf green reset, default midnight (DONE BY XY)
 
   5. CONSENT AND PLEDGE TEXT PARAMETERS
      content-tab                    - Added admin tab for retention days and pledge example text (DONE BY XY)
@@ -214,6 +213,10 @@
                         <a href="#" class="nav-item" onclick="showPage('tree-adjustment')">
                             <span class="nav-icon">🌴</span>
                             Digital Tree Adjustment
+                        </a>
+                        <a href="/tree-demo" class="nav-item" target="_blank" rel="noopener">
+                            <span class="nav-icon">&#127916;</span>
+                            Tree Animation Demo
                         </a>
                         <a href="#" class="nav-item" onclick="showPage('parameter-adjustment')">
                             <span class="nav-icon">⚙️</span>
@@ -1309,21 +1312,15 @@
                         <div class="divider"></div>
 
                         <div class="form-group">
-                            <label for="param-leafFallThreshold">Leaf Fall Threshold</label>
+                            <label for="param-leafFallThreshold">Maximum Visible Leaves</label>
                             <input type="number" id="param-leafFallThreshold" min="1" max="500" step="1" placeholder="15">
-                            <small class="text-muted">Start the falling animation when the live tree reaches this many leaves</small>
+                            <small class="text-muted">Keep this many live leaves; when a new leaf exceeds the limit, the oldest falls first</small>
                         </div>
 
                         <div class="form-group">
                             <label for="param-leafFallDuration">Leaf Fall Duration (milliseconds)</label>
                             <input type="number" id="param-leafFallDuration" min="500" max="10000" step="100" placeholder="4200">
                             <small class="text-muted">How long the falling animation takes</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="param-leafGreenResetTime">Turn Badge Leaves Green At</label>
-                            <input type="time" id="param-leafGreenResetTime" value="00:00">
-                            <small class="text-muted">Daily time when badge-coloured leaves become green (00:00 = midnight)</small>
                         </div>
 
                         <div class="divider"></div>

@@ -856,6 +856,10 @@ app.get(['/admin', '/admin/'], (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/admin/admin.html'));
 });
 
+app.get(['/tree-demo', '/tree-demo/'], auth.requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/tree/tree.html'));
+});
+
 // Tree page is selected from admin settings; inactive route returns 403.
 app.get('/tree', (req, res) => {
     const activeMode = getActiveTreeDisplayMode();
