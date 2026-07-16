@@ -157,6 +157,23 @@ body {
     filter: hue-rotate(302deg) saturate(1.35) brightness(1.1) drop-shadow(0 8px 12px rgba(217, 119, 6, 0.32));
 }
 
+.leaf.leaf-tinted:not(.vip) {
+    filter: drop-shadow(0 8px 12px rgba(12, 50, 27, 0.28));
+}
+
+.leaf.leaf-tinted:not(.vip)::before {
+    background-image: none;
+    background-color: var(--leaf-badge-color, #4a7c59);
+    -webkit-mask-image: var(--leaf-image-url);
+    mask-image: var(--leaf-image-url);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .leaf.vip {
     filter: drop-shadow(0 8px 14px rgba(180, 132, 21, 0.42));
 }
@@ -179,10 +196,6 @@ body {
     opacity: 0 !important;
     visibility: hidden;
     transition: opacity 420ms ease;
-}
-
-.leaf.leaf-greenified:not(.vip) {
-    filter: drop-shadow(0 8px 10px rgba(12, 50, 27, 0.25));
 }
 
 @keyframes leafFall {
@@ -360,6 +373,12 @@ body {
     color: #24583a;
     font-size: 12px;
     font-weight: 700;
+}
+
+#leafDetailBadge {
+    border: 1px solid var(--leaf-detail-badge-color, #4a7c59);
+    background: color-mix(in srgb, var(--leaf-detail-badge-color, #4a7c59) 16%, white);
+    color: color-mix(in srgb, var(--leaf-detail-badge-color, #4a7c59) 78%, black);
 }
 
 .leaf-detail-quote {

@@ -201,9 +201,6 @@ let faceLandmarkerLoadPromise = null;
 let faceAccessoryAnimationFrame = null;
 let latestFaceAccessoryLandmarks = null;
 let latestFaceAccessoryVideoTime = -1;
-let hypeCounterRefreshTimer = null; // Live home-screen pledge ticker refresh - changes made by nick
-let hypeCounterCurrentValue = 1248; // Fallback display until live pulse data loads - changes made by nick
-let hypeCounterHasLoadedLiveValue = false; // Avoid animating down from fallback on first live sync - changes made by nick
 const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
@@ -1334,84 +1331,6 @@ function startQrRefreshLoop() {
     }, 25000);
 }
 
-function formatHypeCounterNumber(value) {
-    return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('en-SG');
-}
-
-function setHypeCounterDisplay(value, isTicking = false) {
-    document.querySelectorAll('[data-hype-counter]').forEach(counter => {
-        counter.textContent = formatHypeCounterNumber(value);
-        counter.classList.toggle('is-ticking', isTicking);
-    });
-}
-
-function animateHypeCounter(targetValue) {
-    const safeTarget = Math.max(0, Math.round(Number(targetValue) || 0));
-    const startValue = Math.max(0, Math.round(Number(hypeCounterCurrentValue) || 0));
-    const difference = safeTarget - startValue;
-
-    if (difference === 0) {
-        setHypeCounterDisplay(safeTarget);
-        return;
-    }
-
-    const duration = 900;
-    const startTime = performance.now();
-
-    function step(now) {
-        const progress = Math.min(1, (now - startTime) / duration);
-        const easedProgress = 1 - Math.pow(1 - progress, 3);
-        const currentValue = startValue + (difference * easedProgress);
-
-        setHypeCounterDisplay(currentValue, true);
-
-        if (progress < 1) {
-            requestAnimationFrame(step);
-            return;
-        }
-
-        hypeCounterCurrentValue = safeTarget;
-        setHypeCounterDisplay(safeTarget);
-    }
-
-    requestAnimationFrame(step);
-}
-
-async function loadHypeCounter() {
-    try {
-        const response = await fetch('/api/pulse/summary', { headers: { 'Cache-Control': 'no-cache' } });
-        const data = await response.json();
-        const weeklyCount = Number(data?.stats?.pledgesThisWeek);
-
-        if (!response.ok || !data.success || !Number.isFinite(weeklyCount)) {
-            throw new Error('Weekly pledge count unavailable');
-        }
-
-        if (!hypeCounterHasLoadedLiveValue && weeklyCount < hypeCounterCurrentValue) {
-            hypeCounterCurrentValue = weeklyCount;
-            hypeCounterHasLoadedLiveValue = true;
-            setHypeCounterDisplay(weeklyCount);
-            return;
-        }
-
-        hypeCounterHasLoadedLiveValue = true;
-        animateHypeCounter(weeklyCount);
-    } catch (error) {
-        console.warn('Using fallback hype counter:', error.message);
-        animateHypeCounter(hypeCounterCurrentValue);
-    }
-}
-
-function startHypeCounterRefreshLoop() {
-    loadHypeCounter();
-
-    if (hypeCounterRefreshTimer) {
-        clearInterval(hypeCounterRefreshTimer);
-    }
-
-    hypeCounterRefreshTimer = setInterval(loadHypeCounter, 15000);
-}
-
 // Detect if user is on mobile or desktop
 function detectDeviceType() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1463,7 +1382,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dynamic QR code
     loadDynamicQRCode();
     startQrRefreshLoop();
-    startHypeCounterRefreshLoop();
     initializeProgressIndicators();
     updateCaptureModeButtons();
     
@@ -3713,11 +3631,11 @@ function getConfiguredBadgeLeafStyles() {
     const fallbackColors = {
         'climate-champion': '#0f766e',
         'renewable-innovator': '#f59e0b',
-        'sustainable-living-advocate': '#4a7c59',
+        'sustainable-living-advocate': '#16a34a',
         'ocean-guardian': '#0284c7',
         'governance-guardian': '#7c3aed',
         'social-champion': '#d97706',
-        'feedback-completer': '#2f6f45'
+        'feedback-completer': '#4a7c59'
     };
     const styles = kioskParameters.badgeLeafStyles || {};
     const leafScale = Number(styles.leafScale);
@@ -4485,10 +4403,6 @@ function stopCelebrationDemoTimers() {
         clearInterval(qrRefreshTimer);
         qrRefreshTimer = null;
     }
-    if (hypeCounterRefreshTimer) {
-        clearInterval(hypeCounterRefreshTimer);
-        hypeCounterRefreshTimer = null;
-    }
     hideIdleWarning();
 }
 
@@ -4681,9 +4595,6 @@ window.addEventListener('beforeunload', () => {
     }
     if (idleWarningInterval) {
         clearInterval(idleWarningInterval);
-    }
-    if (hypeCounterRefreshTimer) {
-        clearInterval(hypeCounterRefreshTimer);
     }
 });
 

@@ -18,9 +18,8 @@
 // ============================================================
 //
 // 1. TREE LEAF FALL PARAMETER DEFAULTS
-//    leafFallThreshold               - Default number of visible leaves before the batch falls from the tree (DONE BY XY)
+//    leafFallThreshold               - Maximum visible leaves before the oldest leaf falls from the tree (DONE BY XY)
 //    leafFallDuration                - Default smooth falling animation duration for tree leaves (DONE BY XY)
-//    leafGreenResetTime              - Default daily time for badge-coloured leaves to turn green, midnight by default (DONE BY XY)
 //
 // 2. CONSENT AND PLEDGE CONTENT DEFAULTS
 //    contentSettings                 - Stores admin-editable retention duration and pledge examples (DONE BY XY)
@@ -141,7 +140,6 @@ const DEFAULT_CONFIG = {
     leafAnimationDuration: 500,
     leafFallThreshold: 15,
     leafFallDuration: 4200,
-    leafGreenResetTime: "00:00",
     leafDisplayScale: 1,
     vipLeafDisplayScale: 1,
     showTitleBox: true

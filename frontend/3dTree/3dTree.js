@@ -16,11 +16,10 @@
 //    turnReviewPage()                 - Flips between yearly review pages with animation (DONE BY XY)
 //    demoYearsEnabled                 - Supports ?demoYears=1 preview years without database edits (DONE BY XY)
 //
-// 4. LEAF FALL AND MIDNIGHT GREEN RESET
+// 4. LEAF FALL AND BADGE COLOR CONSISTENCY
 //    leafFallThreshold                - Trigger full-batch leaf falling when the tree reaches the configured count (DONE BY XY)
 //    getLeafCycleState()              - Clear fallen batches so the next pledge starts a new visible leaf batch (DONE BY XY)
-//    leafGreenResetTime               - Turn badge-coloured leaves green after the configured daily reset time, default midnight (DONE BY XY)
-//    shouldLeafBeGreen()              - Keep VIP leaves gold while older badge leaves become green after reset time (DONE BY XY)
+//    badgeLeafColors                  - Keep every visible non-VIP leaf aligned with its assigned badge colour (DONE BY XY)
 //
 // 5. INTERACTIVE LEAF DETAILS
 //    bindLeafDetailControls()         - Close leaf detail card with button or Escape key (DONE BY XY)
@@ -95,6 +94,16 @@
 //   - setInterval refresh              - Refresh every 30s (VIP + visitors)
 //   - resize                           - Refresh on resize
 // ============================================================
+
+const DEFAULT_BADGE_LEAF_COLORS = Object.freeze({
+    'feedback-completer': '#4a7c59',
+    'climate-champion': '#0f766e',
+    'renewable-innovator': '#f59e0b',
+    'sustainable-living-advocate': '#16a34a',
+    'ocean-guardian': '#0284c7',
+    'governance-guardian': '#7c3aed',
+    'social-champion': '#d97706'
+});
 
 class TreeManager {
 
@@ -202,12 +211,11 @@ class TreeManager {
         this.leafAnimationDuration = 500;
         this.leafFallThreshold = 15;
         this.leafFallDuration = 4200;
-        this.leafGreenResetTime = '00:00';
+        this.badgeLeafColors = { ...DEFAULT_BADGE_LEAF_COLORS };
         this.treeStage = 0;
         this.showTitleBox = true;
         this.activeCampaign = null;
         this.leafFallStarted = false;
-        this.leafGreenified = false;
         this.leafGreenTimer = null;
         this.leafFallCycleNumber = 0;
 
@@ -271,7 +279,6 @@ class TreeManager {
             this.leafAnimationDuration = Number(tree.leafAnimationDuration) || this.leafAnimationDuration;
             this.leafFallThreshold = Number(tree.leafFallThreshold) || this.leafFallThreshold;
             this.leafFallDuration = Number(tree.leafFallDuration) || this.leafFallDuration;
-            this.leafGreenResetTime = this.normalizeResetTime(tree.leafGreenResetTime) || this.leafGreenResetTime;
             this.treeStage = this.normalizeTreeStage(tree.treeStage);
             this.showTitleBox = tree.showTitleBox !== false;
             this.activeCampaign = campaign.enabled === true ? campaign : null;
@@ -293,6 +300,10 @@ class TreeManager {
             this.leafDisplayScale = Number.isFinite(configuredLeafScale)
                 ? configuredLeafScale
                 : (Number.isFinite(configuredBadgeLeafScale) ? configuredBadgeLeafScale : 1);
+            this.badgeLeafColors = {
+                ...DEFAULT_BADGE_LEAF_COLORS,
+                ...(badgeLeafStyles.colors || {})
+            };
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;
@@ -426,30 +437,12 @@ class TreeManager {
         return this.badgeLeafProfiles[badgeKey] || this.badgeLeafProfiles['feedback-completer'];
     }
 
-    normalizeResetTime(value) {
-        const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
-        return match ? `${match[1]}:${match[2]}` : null;
-    }
-
-    getCurrentGreenResetDate(now = new Date()) {
-        const [hours, minutes] = (this.normalizeResetTime(this.leafGreenResetTime) || '00:00')
-            .split(':')
-            .map(Number);
-        const reset = new Date(now);
-        reset.setHours(hours, minutes, 0, 0);
-
-        if (now < reset) {
-            reset.setDate(reset.getDate() - 1);
-        }
-
-        return reset;
-    }
-
-    shouldLeafBeGreen(visitor, isVip) {
-        if (isVip) return false;
-        const createdAt = new Date(visitor?.created_at);
-        if (Number.isNaN(createdAt.getTime())) return false;
-        return createdAt < this.getCurrentGreenResetDate();
+    getBadgeLeafColor(visitor) {
+        const badgeKey = visitor && visitor.badgeKey ? visitor.badgeKey : 'feedback-completer';
+        return this.badgeLeafColors[badgeKey]
+            || visitor?.badgeColor
+            || DEFAULT_BADGE_LEAF_COLORS[badgeKey]
+            || DEFAULT_BADGE_LEAF_COLORS['feedback-completer'];
     }
 
     getVisitorSeed(visitor, index) {
@@ -638,6 +631,7 @@ class TreeManager {
         }
         if (this.leafDetailBadge) {
             this.leafDetailBadge.textContent = badgeName;
+            this.leafDetailBadge.style.setProperty('--leaf-detail-badge-color', this.getBadgeLeafColor(visitor));
         }
         if (this.leafDetailDate) {
             this.leafDetailDate.textContent = this.formatLeafDate(visitor.created_at);
@@ -1103,12 +1097,14 @@ class TreeManager {
         if (isVip) {
             leaf.classList.add('vip');
         }
-        if (this.shouldLeafBeGreen(visitor, isVip)) {
-            leaf.classList.add('leaf-greenified');
-        }
-
         const badgeProfile = this.getBadgeLeafProfile(visitor);
         leaf.classList.add(badgeProfile.className);
+        const badgeLeafColor = this.getBadgeLeafColor(visitor);
+        leaf.dataset.badgeColor = badgeLeafColor;
+        if (!isVip) {
+            leaf.classList.add('leaf-tinted');
+            leaf.style.setProperty('--leaf-badge-color', badgeLeafColor);
+        }
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
         leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
         leaf.setAttribute('role', 'button');
@@ -1224,7 +1220,6 @@ class TreeManager {
     applyLeafThresholdEffect(leafCycle) {
         if (!leafCycle.shouldFallAway) {
             this.leafFallStarted = false;
-            this.leafGreenified = false;
             this.leafFallCycleNumber = leafCycle.cycleNumber || 0;
             if (this.leafGreenTimer) {
                 window.clearTimeout(this.leafGreenTimer);
@@ -1246,11 +1241,10 @@ class TreeManager {
         const maxFallDelay = Math.min(Math.max(0, leaves.length - 1) * 90, 1200);
         const clearDelay = maxFallDelay + Math.max(500, Number(this.leafFallDuration) || 4200);
         this.leafGreenTimer = window.setTimeout(() => {
-            this.leafGreenified = true;
             this.setClearedLeafCycle(leafCycle.threshold, leafCycle.cycleNumber);
             this.leavesContainer.querySelectorAll('.leaf').forEach(leaf => {
                 leaf.classList.remove('leaf-falling');
-                leaf.classList.add('leaf-fallen', 'leaf-greenified', 'leaf-cleared');
+                leaf.classList.add('leaf-fallen', 'leaf-cleared');
             });
             this.leafGreenTimer = null;
         }, clearDelay);
