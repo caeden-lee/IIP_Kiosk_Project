@@ -1,3 +1,16 @@
+//==============================================================
+// feedbackAnalysisCacheStore.js (Done by Yu Kang)
+// This module provides a caching mechanism for feedback analysis results.
+// It supports both JSON file storage and MySQL database storage, allowing for flexible caching strategies.
+// - The cache is keyed by a combination of analysis mode, model name, and normalized text, ensuring that identical analyses are reused.
+// - The cache entries include sentiment results, hit counts, and timestamps for when the analysis was performed and last used.
+// - The module provides functions to retrieve and save multiple cache entries, as well as to manage the storage mode (JSON, database, or both).
+// - The cache is automatically hydrated from the chosen storage medium upon initialization, ensuring that previously cached results are available for reuse.
+// - The module also includes functions to normalize text and model names, ensuring consistent cache key generation.
+// - The cache settings are persisted in a JSON file, allowing for easy configuration of the storage mode.
+//==============================================================
+
+
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +20,7 @@ const db = require('./db');
 const CACHE_SCHEMA_VERSION = 1;
 const CACHE_DIR = path.join(__dirname, 'cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'feedback-analysis-cache.json');
-const CACHE_SETTINGS_FILE = path.join(CACHE_DIR, 'feedback-analysis-cache.json');
+const CACHE_SETTINGS_FILE = path.join(CACHE_DIR, 'feedback-analysis-cache-settings.json');
 const CACHE_TABLE = 'feedback_analysis_cache';
 
 const MODE_MODEL_NAMES = {
@@ -65,12 +78,80 @@ function readStorageMode() {
     }
 }
 
+
+
+function writeCacheToFile() {
+    ensureCacheDir();
+
+    const filePayload = {
+        version: CACHE_SCHEMA_VERSION,
+        updatedAt: mysqlDate(),
+        entries: Object.fromEntries(cacheMap.entries())
+    };
+
+    fs.writeFileSync(
+        CACHE_FILE,
+        JSON.stringify(filePayload, null, 2),
+        'utf8'
+    );
+
+    console.log(`✅ JSON cache synced (${cacheMap.size} entries)`);
+}
+
+async function writeCacheToDatabase() {
+    if (cacheMap.size === 0) {
+        return;
+    }
+
+    const values = Array.from(cacheMap.values()).map(entry => [
+        entry.cacheKey,
+        entry.mode,
+        entry.modelName,
+        entry.normalizedText,
+        entry.sourceText,
+        entry.sentiment,
+        entry.hitCount,
+        entry.analyzedAt,
+        entry.lastUsedAt
+    ]);
+
+    const sql = `
+        INSERT INTO ${CACHE_TABLE}
+        (
+            cache_key,
+            analysis_mode,
+            model_name,
+            normalized_text,
+            source_text,
+            sentiment,
+            hit_count,
+            analyzed_at,
+            last_used_at
+        )
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+            analysis_mode = VALUES(analysis_mode),
+            model_name = VALUES(model_name),
+            normalized_text = VALUES(normalized_text),
+            source_text = VALUES(source_text),
+            sentiment = VALUES(sentiment),
+            hit_count = VALUES(hit_count),
+            analyzed_at = VALUES(analyzed_at),
+            last_used_at = VALUES(last_used_at)
+    `;
+
+    await db.pool.promise().query(sql, [values]);
+
+    console.log(`✅ Database cache synced (${cacheMap.size} entries)`);
+}
+
+
 function writeStorageMode(mode) {
     try {
         ensureSettingsDir();
         const payload = {
             storageMode: normalizeStorageMode(mode),
-            updatedAt: new Date().toISOString()
+            updatedAt: mysqlDate()
         };
 
         fs.writeFileSync(CACHE_SETTINGS_FILE, JSON.stringify(payload, null, 2), 'utf8');
@@ -251,12 +332,21 @@ async function ensureReady() {
                 console.warn('⚠️ Feedback analysis cache table could not be ensured:', error.message);
             }
 
-            if (storageMode === 'json' || storageMode === 'both') {
+            if (storageMode === 'json') {
                 hydrateFromFile();
             }
 
-            if (storageMode === 'database' || storageMode === 'both') {
+            if (storageMode === 'database') {
                 await hydrateFromDatabase();
+            }
+
+            if (storageMode === 'both') {
+                hydrateFromFile();
+                await hydrateFromDatabase();
+
+                // Make both storage locations identical
+                writeCacheToFile();
+                await writeCacheToDatabase();
             }
             return true;
         })();
@@ -279,8 +369,13 @@ async function getMany(mode, modelName, texts) {
 
         const cacheKey = buildCacheKey(mode, resolvedModelName, normalizedText);
         const entry = cacheMap.get(cacheKey);
+
         if (entry) {
             lookup.set(normalizedText, entry);
+
+            // Update statistics
+            entry.hitCount++;
+            entry.lastUsedAt = mysqlDate();
         }
     });
 
@@ -288,6 +383,7 @@ async function getMany(mode, modelName, texts) {
 }
 
 async function saveMany(entries) {
+    console.log(`Saving ${entries.length} cache entries`);
     await ensureReady();
 
     const preparedEntries = [];
@@ -327,10 +423,11 @@ async function saveMany(entries) {
 
         const filePayload = {
             version: CACHE_SCHEMA_VERSION,
-            updatedAt: new Date().toISOString(),
+            updatedAt: mysqlDate(),
             entries: Object.fromEntries(cacheMap.entries())
         };
 
+        console.log(`Writing ${cacheMap.size} entries to ${CACHE_FILE}`);
         fs.writeFileSync(CACHE_FILE, JSON.stringify(filePayload, null, 2), 'utf8');
     }
 
