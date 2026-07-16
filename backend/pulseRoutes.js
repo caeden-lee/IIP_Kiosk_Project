@@ -152,7 +152,7 @@ router.get('/summary', async (req, res) => {
         const safeBadgeLeafScale = Number.isFinite(badgeLeafScale)
             ? Math.min(2, Math.max(0.4, badgeLeafScale))
             : 1;
-        const [today, month, total, recentPledges, badgeRows, treeVisitors] = await Promise.all([
+        const [today, week, month, total, recentPledges, badgeRows, treeVisitors] = await Promise.all([
             queryOne(`
                 SELECT COUNT(*) AS count
                 FROM feedback
@@ -161,6 +161,16 @@ router.get('/summary', async (req, res) => {
                   AND comment IS NOT NULL
                   AND comment != ''
                   AND DATE(CONVERT_TZ(created_at, '+00:00', '+08:00')) = DATE(CONVERT_TZ(NOW(), '+00:00', '+08:00'))
+            `),
+            queryOne(`
+                SELECT COUNT(*) AS count
+                FROM feedback
+                WHERE is_active = 1
+                  AND archive_status = 'not_archived'
+                  AND comment IS NOT NULL
+                  AND comment != ''
+                  AND DATE(CONVERT_TZ(created_at, '+00:00', '+08:00')) >= DATE_SUB(DATE(CONVERT_TZ(NOW(), '+00:00', '+08:00')), INTERVAL WEEKDAY(CONVERT_TZ(NOW(), '+00:00', '+08:00')) DAY)
+                  AND DATE(CONVERT_TZ(created_at, '+00:00', '+08:00')) <= DATE(CONVERT_TZ(NOW(), '+00:00', '+08:00'))
             `),
             queryOne(`
                 SELECT COUNT(*) AS count
@@ -229,6 +239,7 @@ router.get('/summary', async (req, res) => {
             generatedAt: new Date().toISOString(),
             stats: {
                 pledgesToday: Number(today.count || 0),
+                pledgesThisWeek: Number(week.count || 0),
                 pledgesThisMonth,
                 totalPledges: Number(total.count || 0),
                 campaignGoal: goal,

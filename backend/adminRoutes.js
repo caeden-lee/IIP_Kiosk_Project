@@ -6041,6 +6041,16 @@ function normalizeArchiveSettings(archiveSettings) {
     normalized.archiveAfterDays = days;
   }
 
+  if (Object.prototype.hasOwnProperty.call(normalized, 'keepRecentFeedbackCount')) {
+    const keepRecent = Number(normalized.keepRecentFeedbackCount);
+    if (!Number.isFinite(keepRecent) || keepRecent < 0 || keepRecent > 100000) {
+      const error = new Error('Feedback retention count must be between 0 and 100000');
+      error.statusCode = 400;
+      throw error;
+    }
+    normalized.keepRecentFeedbackCount = Math.floor(keepRecent);
+  }
+
   return normalized;
 }
 
@@ -6202,6 +6212,7 @@ function runConfiguredArchive(callback) {
   const config = parametersConfigStore.readParametersConfig();
   const archiveSettings = normalizeArchiveSettings(config.archiveSettings || {}) || {};
   const archiveAfterDays = archiveSettings.archiveAfterDays || 90;
+  const keepRecentFeedbackCount = Number(archiveSettings.keepRecentFeedbackCount || 0);
 
   const updateQuery = `
     UPDATE feedback
@@ -6218,28 +6229,72 @@ function runConfiguredArchive(callback) {
     }
 
     const archivedNow = this.changes || 0;
-    const archivedCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "archived" AND is_active = 1';
-    const activeCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "not_archived" AND is_active = 1';
 
-    db.get(archivedCountQuery, [], (archivedErr, archivedResult) => {
-      if (archivedErr) {
-        callback(archivedErr);
-        return;
-      }
+    if (keepRecentFeedbackCount > 0) {
+      const countQuery = `
+        SELECT id
+        FROM feedback
+        WHERE is_active = 1
+          AND archive_status = 'not_archived'
+        ORDER BY created_at ASC, id ASC
+      `;
 
-      db.get(activeCountQuery, [], (activeErr, activeResult) => {
-        if (activeErr) {
-          callback(activeErr);
+      db.all(countQuery, [], (countErr, rows) => {
+        if (countErr) {
+          callback(countErr);
           return;
         }
 
-        callback(null, {
-          archiveAfterDays,
+        const surplus = rows.length - keepRecentFeedbackCount;
+        if (surplus <= 0) {
+          return finalizeArchiveStats(archivedNow, archiveAfterDays, callback);
+        }
+
+        const idsToArchive = rows.slice(0, surplus).map(row => row.id);
+        if (!idsToArchive.length) {
+          return finalizeArchiveStats(archivedNow, archiveAfterDays, callback);
+        }
+
+        const placeholders = idsToArchive.map(() => '?').join(',');
+        const countArchiveQuery = `UPDATE feedback SET archive_status = 'archived' WHERE id IN (${placeholders})`;
+        db.run(countArchiveQuery, idsToArchive, function(countArchiveErr) {
+          if (countArchiveErr) {
+            callback(countArchiveErr);
+            return;
+          }
+
+          finalizeArchiveStats(archivedNow + (this.changes || 0), archiveAfterDays, callback);
+        });
+      });
+      return;
+    }
+
+    finalizeArchiveStats(archivedNow, archiveAfterDays, callback);
+  });
+}
+
+function finalizeArchiveStats(archivedNow, archiveAfterDays, callback) {
+  const archivedCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "archived" AND is_active = 1';
+  const activeCountQuery = 'SELECT COUNT(*) as count FROM feedback WHERE archive_status = "not_archived" AND is_active = 1';
+
+  db.get(archivedCountQuery, [], (archivedErr, archivedResult) => {
+    if (archivedErr) {
+      callback(archivedErr);
+      return;
+    }
+
+    db.get(activeCountQuery, [], (activeErr, activeResult) => {
+      if (activeErr) {
+        callback(activeErr);
+        return;
+      }
+
+      callback(null, {
+        archiveAfterDays,
           archivedNow,
           archived: archivedResult.count,
           active: activeResult.count
         });
-      });
     });
   });
 }
@@ -7880,6 +7935,52 @@ router.post('/server/start', auth.requireAuth, (req, res) => {
     });
 });
 
+// POST /api/admin/server/restart
+// Restart the kiosk application stack from the admin panel
+router.post('/server/restart', auth.requireAuth, (req, res) => {
+    const { spawn } = require('child_process');
+    const rootDir = path.join(__dirname, '..');
+    const logsDir = path.join(rootDir, 'logs');
+    const batchFile = path.join(rootDir, 'restart-app.bat');
+
+    try {
+        if (!fs.existsSync(batchFile)) {
+            throw new Error('Restart script not found');
+        }
+
+        fs.mkdirSync(logsDir, { recursive: true });
+        console.log('🔄 Restart requested from admin panel');
+
+        const child = spawn('cmd.exe', ['/c', batchFile], {
+            cwd: rootDir,
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+            env: process.env
+        });
+
+        child.on('error', (error) => {
+            console.error('❌ Failed to launch restart batch file:', error);
+        });
+
+        child.unref();
+
+        setTimeout(() => {
+            process.exit(0);
+        }, 1000);
+
+        res.json({
+            success: true,
+            message: 'Restart initiated. The application will relaunch shortly.'
+        });
+    } catch (error) {
+        console.error('❌ Failed to restart server:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to restart server'
+        });
+    }
+});
 
 // POST /api/admin/server/stop (Done by Yu Kang)
 // Manually stop the kiosk service

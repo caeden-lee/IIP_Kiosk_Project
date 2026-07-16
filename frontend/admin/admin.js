@@ -13786,6 +13786,7 @@ function populateParameterForm(config) {
     loadAvailableLeafImages(window.currentLeafImagePath);
     setCheckedValue('archive-autoArchiveEnabled', archive.autoArchiveEnabled);
     setInputValue('archive-archiveAfterDays', archive.archiveAfterDays || 90);
+    setInputValue('archive-keepRecentFeedbackCount', archive.keepRecentFeedbackCount || 0);
 }
 
 function collectParameterForm() {
@@ -13904,7 +13905,8 @@ function collectParameterForm() {
         layoutSettings: getLandingLayoutValues(),
         archiveSettings: {
             autoArchiveEnabled: getCheckedValue('archive-autoArchiveEnabled'),
-            archiveAfterDays: Number(getInputValue('archive-archiveAfterDays')) || 90
+            archiveAfterDays: Number(getInputValue('archive-archiveAfterDays')) || 90,
+            keepRecentFeedbackCount: Number(getInputValue('archive-keepRecentFeedbackCount')) || 0
         }
     };
 }
@@ -14715,6 +14717,7 @@ function updateModeUI(isAuto) {
     const modeDesc = document.getElementById('mode-description');
     const modeHint = document.getElementById('mode-hint');
     const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
     const stopBtn = document.getElementById('stop-btn');
     
     if (!modeStatus || !modeDesc) return;
@@ -14729,6 +14732,7 @@ function updateModeUI(isAuto) {
             modeHint.style.color = '#856404';
         }
         if (startBtn) startBtn.disabled = true;
+        if (restartBtn) restartBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = true;
     } else {
         // MANUAL MODE
@@ -14740,6 +14744,7 @@ function updateModeUI(isAuto) {
             modeHint.style.color = '#004085';
         }
         if (startBtn) startBtn.disabled = false;
+        if (restartBtn) restartBtn.disabled = false;
         if (stopBtn) stopBtn.disabled = false;
     }
 }
@@ -14876,6 +14881,37 @@ function startServer() {
     .catch(error => {
         console.error('❌ Error starting server:', error);
         showNotification('Error starting server', 'error');
+    });
+}
+
+function restartServer() {
+    const toggle = document.getElementById('auto-mode-toggle');
+    const isAuto = toggle ? toggle.checked : true;
+
+    if (isAuto) {
+        showNotification('Switch to MANUAL MODE first to restart the server', 'warning');
+        return;
+    }
+
+    if (!confirm('Restart the kiosk application now?')) return;
+
+    console.log('🔄 Restarting server manually...');
+
+    fetch('/api/admin/server/restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Restart initiated. The application will relaunch shortly.', 'success');
+        } else {
+            showNotification(data.error || 'Failed to restart server', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error restarting server:', error);
+        showNotification('Error restarting server', 'error');
     });
 }
 
@@ -15036,6 +15072,7 @@ window.serverScheduleManager = {
     startServer,
     stopServer,
     toggleDailyOperation,
+    restartServer,
     loadServerMode,
     toggleServerMode,
     checkServerStatus

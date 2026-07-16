@@ -201,6 +201,9 @@ let faceLandmarkerLoadPromise = null;
 let faceAccessoryAnimationFrame = null;
 let latestFaceAccessoryLandmarks = null;
 let latestFaceAccessoryVideoTime = -1;
+let hypeCounterRefreshTimer = null; // Live home-screen pledge ticker refresh - changes made by nick
+let hypeCounterCurrentValue = 1248; // Fallback display until live pulse data loads - changes made by nick
+let hypeCounterHasLoadedLiveValue = false; // Avoid animating down from fallback on first live sync - changes made by nick
 const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
@@ -261,9 +264,42 @@ const FLOW_STEPS = [
     { key: 'confirm', label: 'Confirm', pageIds: ['confirmation-page'] }
 ];
 const FLOW_PAGE_IDS = FLOW_STEPS.flatMap(step => step.pageIds).concat(['thankyou-page']);
+const FLOW_SLIDE_TRANSITION_MS = 380; // Smooth multi-step form slide timing - changes made by nick
+let activeFlowPageId = null; // Track current visible form step for slide direction - changes made by nick
+let flowSlideTransitionTimer = null; // Prevent overlapping page transition cleanup - changes made by nick
 
 function getStepForPage(pageId) {
     return FLOW_STEPS.find(step => step.pageIds.includes(pageId));
+}
+
+function getFlowPageOrderIndex(pageId) {
+    const index = FLOW_PAGE_IDS.indexOf(pageId);
+    return index === -1 ? FLOW_PAGE_IDS.length : index;
+}
+
+function getVisibleFlowPageId() {
+    return FLOW_PAGE_IDS.find(id => {
+        const page = document.getElementById(id);
+        return page && page.style.display !== 'none';
+    }) || null;
+}
+
+function clearFlowSlideClasses(page) {
+    if (!page) return;
+    page.classList.remove(
+        'flow-slide-transitioning',
+        'flow-slide-enter-right',
+        'flow-slide-enter-left',
+        'flow-slide-exit-left',
+        'flow-slide-exit-right'
+    );
+}
+
+function shouldSkipFlowSlideTransition(currentPage, nextPage) {
+    return !currentPage ||
+        !nextPage ||
+        currentPage === nextPage ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function updateProgressIndicator(activePageId) {
@@ -287,10 +323,19 @@ function hideLandingPages() {
 }
 
 function showLandingPages() {
+    if (flowSlideTransitionTimer) {
+        clearTimeout(flowSlideTransitionTimer);
+        flowSlideTransitionTimer = null;
+    }
+
     FLOW_PAGE_IDS.forEach(id => {
         const page = document.getElementById(id);
-        if (page) page.style.display = 'none';
+        if (page) {
+            clearFlowSlideClasses(page);
+            page.style.display = 'none';
+        }
     });
+    activeFlowPageId = null; // Reset slide tracking when returning to landing - changes made by nick
     applyFormUIConfig();
 }
 
@@ -304,10 +349,64 @@ function showFlowPage(pageId) {
     }
 
     hideLandingPages();
+    const nextPage = document.getElementById(pageId);
+    const currentPageId = activeFlowPageId || getVisibleFlowPageId();
+    const currentPage = currentPageId ? document.getElementById(currentPageId) : null;
+
+    if (flowSlideTransitionTimer) {
+        clearTimeout(flowSlideTransitionTimer);
+        flowSlideTransitionTimer = null;
+    }
+
+    if (shouldSkipFlowSlideTransition(currentPage, nextPage)) {
+        FLOW_PAGE_IDS.forEach(id => {
+            const page = document.getElementById(id);
+            if (!page) return;
+            clearFlowSlideClasses(page);
+            page.style.display = id === pageId ? 'flex' : 'none';
+        });
+        activeFlowPageId = pageId;
+        updateProgressIndicator(pageId);
+        return;
+    }
+
+    const isForward = getFlowPageOrderIndex(pageId) >= getFlowPageOrderIndex(currentPageId);
+
     FLOW_PAGE_IDS.forEach(id => {
         const page = document.getElementById(id);
-        if (page) page.style.display = id === pageId ? 'flex' : 'none';
+        if (!page) return;
+        clearFlowSlideClasses(page);
+        if (id !== currentPageId && id !== pageId) {
+            page.style.display = 'none';
+        }
     });
+
+    currentPage.style.display = 'flex';
+    nextPage.style.display = 'flex';
+    currentPage.classList.add('flow-slide-transitioning');
+    nextPage.classList.add(
+        'flow-slide-transitioning',
+        isForward ? 'flow-slide-enter-right' : 'flow-slide-enter-left'
+    );
+
+    // Force the browser to apply the off-screen starting position before sliding in.
+    void nextPage.offsetWidth;
+
+    requestAnimationFrame(() => {
+        currentPage.classList.add(isForward ? 'flow-slide-exit-left' : 'flow-slide-exit-right');
+        nextPage.classList.remove(isForward ? 'flow-slide-enter-right' : 'flow-slide-enter-left');
+    });
+
+    flowSlideTransitionTimer = window.setTimeout(() => {
+        clearFlowSlideClasses(currentPage);
+        clearFlowSlideClasses(nextPage);
+        currentPage.style.display = 'none';
+        nextPage.style.display = 'flex';
+        activeFlowPageId = pageId;
+        flowSlideTransitionTimer = null;
+    }, FLOW_SLIDE_TRANSITION_MS);
+
+    activeFlowPageId = pageId;
     updateProgressIndicator(pageId);
 }
 
@@ -897,6 +996,84 @@ function startQrRefreshLoop() {
     }, 25000);
 }
 
+function formatHypeCounterNumber(value) {
+    return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('en-SG');
+}
+
+function setHypeCounterDisplay(value, isTicking = false) {
+    document.querySelectorAll('[data-hype-counter]').forEach(counter => {
+        counter.textContent = formatHypeCounterNumber(value);
+        counter.classList.toggle('is-ticking', isTicking);
+    });
+}
+
+function animateHypeCounter(targetValue) {
+    const safeTarget = Math.max(0, Math.round(Number(targetValue) || 0));
+    const startValue = Math.max(0, Math.round(Number(hypeCounterCurrentValue) || 0));
+    const difference = safeTarget - startValue;
+
+    if (difference === 0) {
+        setHypeCounterDisplay(safeTarget);
+        return;
+    }
+
+    const duration = 900;
+    const startTime = performance.now();
+
+    function step(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
+        const currentValue = startValue + (difference * easedProgress);
+
+        setHypeCounterDisplay(currentValue, true);
+
+        if (progress < 1) {
+            requestAnimationFrame(step);
+            return;
+        }
+
+        hypeCounterCurrentValue = safeTarget;
+        setHypeCounterDisplay(safeTarget);
+    }
+
+    requestAnimationFrame(step);
+}
+
+async function loadHypeCounter() {
+    try {
+        const response = await fetch('/api/pulse/summary', { headers: { 'Cache-Control': 'no-cache' } });
+        const data = await response.json();
+        const weeklyCount = Number(data?.stats?.pledgesThisWeek);
+
+        if (!response.ok || !data.success || !Number.isFinite(weeklyCount)) {
+            throw new Error('Weekly pledge count unavailable');
+        }
+
+        if (!hypeCounterHasLoadedLiveValue && weeklyCount < hypeCounterCurrentValue) {
+            hypeCounterCurrentValue = weeklyCount;
+            hypeCounterHasLoadedLiveValue = true;
+            setHypeCounterDisplay(weeklyCount);
+            return;
+        }
+
+        hypeCounterHasLoadedLiveValue = true;
+        animateHypeCounter(weeklyCount);
+    } catch (error) {
+        console.warn('Using fallback hype counter:', error.message);
+        animateHypeCounter(hypeCounterCurrentValue);
+    }
+}
+
+function startHypeCounterRefreshLoop() {
+    loadHypeCounter();
+
+    if (hypeCounterRefreshTimer) {
+        clearInterval(hypeCounterRefreshTimer);
+    }
+
+    hypeCounterRefreshTimer = setInterval(loadHypeCounter, 15000);
+}
+
 // Detect if user is on mobile or desktop
 function detectDeviceType() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -948,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dynamic QR code
     loadDynamicQRCode();
     startQrRefreshLoop();
+    startHypeCounterRefreshLoop();
     initializeProgressIndicators();
     updateCaptureModeButtons();
     
@@ -3913,6 +4091,10 @@ function stopCelebrationDemoTimers() {
         clearInterval(qrRefreshTimer);
         qrRefreshTimer = null;
     }
+    if (hypeCounterRefreshTimer) {
+        clearInterval(hypeCounterRefreshTimer);
+        hypeCounterRefreshTimer = null;
+    }
     hideIdleWarning();
 }
 
@@ -4097,6 +4279,9 @@ window.addEventListener('beforeunload', () => {
     }
     if (idleWarningInterval) {
         clearInterval(idleWarningInterval);
+    }
+    if (hypeCounterRefreshTimer) {
+        clearInterval(hypeCounterRefreshTimer);
     }
 });
 
