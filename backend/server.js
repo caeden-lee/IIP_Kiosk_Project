@@ -137,7 +137,6 @@ const os = require('os');
 const emailService = require('./emailService');
 const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
-//const { startBluetoothScanner, nearbyDevices, logNearbyDevices } = require('./bluetooth');
 
 function isMobileUserAgent(userAgent) {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent || '');
@@ -163,157 +162,10 @@ const dataRetentionCleanup = require('./dataRetentionCleanup');
 
 // Import QR code generation
 const QRCode = require('qrcode');
-// QR token configuration
-/*const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
-const { Server: SocketIOServer } = require('socket.io');
-
-// Configuration for QR/session tokens
-const QR_LIFETIME_SECONDS = parseInt(process.env.QR_LIFETIME_SECONDS || '30', 10); // 30s default
-const SESSION_TIMEOUT_MINUTES = parseInt(process.env.SESSION_TIMEOUT_MINUTES || '10', 10); // 10 minutes default
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_in_production';
-
-// In-memory mapping of kiosk_id -> socket.id for real-time pairing notifications
-const kioskSockets = new Map();
-
-let qrPairingSchemaReady = null;
-
-function runSchemaQuery(sql) {
-    return new Promise((resolve, reject) => {
-        db.query(sql, [], (err) => {
-            if (err) return reject(err);
-            resolve();
-        });
-    });
-}
-
-function ensureQrPairingTables() {
-    if (qrPairingSchemaReady) return qrPairingSchemaReady;
-
-    qrPairingSchemaReady = (async () => {
-        await runSchemaQuery(`
-            CREATE TABLE IF NOT EXISTS kiosks (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                kiosk_id VARCHAR(255) UNIQUE,
-                status VARCHAR(50),
-                last_seen TIMESTAMP NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
-        await runSchemaQuery(`
-            CREATE TABLE IF NOT EXISTS qr_sessions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                token TEXT,
-                kiosk_id VARCHAR(255),
-                expires_at DATETIME,
-                used_token BOOLEAN DEFAULT FALSE,
-                connected BOOLEAN DEFAULT FALSE,
-                phone_session VARCHAR(255) DEFAULT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
-        await runSchemaQuery(`
-            CREATE TABLE IF NOT EXISTS device_pairings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                kiosk_id VARCHAR(255),
-                phone_session VARCHAR(255),
-                paired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
-        console.log('QR pairing tables ready');
-    })().catch((error) => {
-        qrPairingSchemaReady = null;
-        throw error;
-    });
-
-    return qrPairingSchemaReady;
-}*/
 
 const app = express();
 const PORT = 3000;
 const JSON_BODY_LIMIT = '50mb';
-
-/*
-// Start Bluetooth scanner for proximity-based access control
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
-
-startBluetoothScanner();
-
-// Log detected Bluetooth devices every 30 seconds
-setInterval(() => {
-    logNearbyDevices();
-}, 30000);
-
-// Protected route
-app.get('/secure-data', auth.bluetoothAccessControl, (req, res) => {
-    res.json({
-        success: true,
-        message: 'Access granted because device is nearby'
-    });
-});
-
-// Monitoring route
-app.get('/nearby-devices', (req, res) => {
-    res.json({
-        devices: Array.from(nearbyDevices.entries())
-    });
-});
-
-// Accept device reports from browser clients using Web Bluetooth
-// POST { id?, mac?, name?, rssi? }
-app.post('/api/bluetooth/report', (req, res) => {
-    try {
-        const { reportDevice } = require('./bluetooth');
-        const payload = req.body || {};
-        const ok = reportDevice(payload);
-        if (!ok) {
-            console.warn('⚠️ Invalid bluetooth report (missing id or mac):', payload);
-            return res.status(400).json({ success: false, error: 'Missing id or mac in payload' });
-        }
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error handling bluetooth report:', error);
-        res.status(500).json({ success: false, error: 'Server error' });
-    }
-});
-
-// TEST ENDPOINT: Manually add a test device (for debugging)
-// GET /api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestDevice&rssi=-50
-app.get('/api/bluetooth/test-device', (req, res) => {
-    try {
-        const { reportDevice, getNearbyDevicesList } = require('./bluetooth');
-        const { mac, name, rssi } = req.query;
-        
-        if (!mac) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing mac parameter. Usage: /api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestDevice&rssi=-50',
-                example: 'http://localhost:3000/api/bluetooth/test-device?mac=AA:BB:CC:DD:EE:FF&name=TestPhone&rssi=-65'
-            });
-        }
-        
-        const rssiNum = rssi ? parseInt(rssi) : -65;
-        reportDevice({ 
-            mac: mac.toUpperCase(), 
-            name: name || 'Test Device',
-            rssi: rssiNum,
-            source: 'test'
-        });
-        
-        res.json({ 
-            success: true,
-            message: `Test device added: ${mac}`,
-            nearbyDevices: getNearbyDevicesList()
-        });
-    } catch (error) {
-        console.error('Error in test-device endpoint:', error);
-        res.status(500).json({ success: false, error: 'Server error' });
-    }
-});*/
-
-
 
 
 // Bind host controls what network interfaces the server listens on. (Done By Yu Kang)
@@ -647,158 +499,6 @@ app.get('/api/generate-qr', async (req, res) => {
     }
 });
 
-/*
-// Kiosk-specific QR generation (single-use, short lifetime) (Done By Yu Kang)
-app.get('/api/kiosk/generate-qr', async (req, res) => {
-    try {
-        await ensureQrPairingTables();
-
-        const kiosk_id = req.query.kiosk_id;
-        if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
-
-        const protocol = sslOptions ? 'https' : 'http';
-        const urlBase = `${protocol}://${localIP}:${PORT}`;
-
-        // Create a JWT token with short expiry and unique id
-        const jti = uuidv4();
-        const token = jwt.sign({ kiosk_id, jti }, JWT_SECRET, { expiresIn: `${QR_LIFETIME_SECONDS}s` });
-
-        // Compute expires_at for DB
-        const expiresAt = new Date(Date.now() + QR_LIFETIME_SECONDS * 1000);
-
-        // Insert session record
-        await new Promise((resolve, reject) => {
-            db.query(
-                `INSERT INTO qr_sessions (token, kiosk_id, expires_at, used_token, connected) VALUES (?, ?, ?, 0, 0)`,
-                [token, kiosk_id, expiresAt],
-                (err) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    resolve();
-                }
-            );
-        });
-
-        const feedbackQueryUrl = `${urlBase}/feedback?token=${encodeURIComponent(token)}`;
-        const feedbackPathUrl = `${urlBase}/feedback/${encodeURIComponent(token)}`;
-
-        const qrSvg = await QRCode.toString(feedbackQueryUrl, {
-            type: 'svg',
-            errorCorrectionLevel: 'H',
-            margin: 1,
-            width: 300
-        });
-
-        res.json({ success: true, qrSvg, url: feedbackQueryUrl, urlPath: feedbackPathUrl, expiresAt: expiresAt.toISOString(), token });
-    } catch (error) {
-        console.error('Error generating kiosk QR:', error);
-        if (!res.headersSent) {
-            res.status(500).json({ success: false, error: 'Failed to generate QR' });
-        }
-    }
-});
-
-// Kiosk heartbeat via HTTP (alternative to socket heartbeat)
-app.post('/api/kiosk/heartbeat', (req, res) => {
-    const { kiosk_id } = req.body || {};
-    if (!kiosk_id) return res.status(400).json({ success: false, error: 'Missing kiosk_id' });
-
-    ensureQrPairingTables()
-        .then(() => {
-            db.query(`INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE last_seen=NOW(), status='online'`, [kiosk_id, 'online'], (err) => {
-                if (err) {
-                    console.error('heartbeat error', err.message);
-                    return res.status(500).json({ success: false, error: 'DB error' });
-                }
-                res.json({ success: true });
-            });
-        })
-        .catch((schemaError) => {
-            console.error('heartbeat schema setup error', schemaError.message);
-            res.status(500).json({ success: false, error: 'QR setup failed' });
-        });
-});*/
-
-/*
-// Phone connect token redemption helper
-async function redeemToken(req, res, token) {
-    if (!token) return res.status(400).json({ success: false, error: 'Missing token' });
-
-    try {
-        const payload = jwt.verify(token, JWT_SECRET);
-        const kiosk_id = payload.kiosk_id;
-        await ensureQrPairingTables();
-
-        // Look up session in DB
-        db.query(`SELECT * FROM qr_sessions WHERE token = ? ORDER BY id DESC LIMIT 1`, [token], (err, results) => {
-            if (err) {
-                console.error('DB select qr_sessions error', err.message);
-                return res.status(500).json({ success: false, error: 'DB error' });
-            }
-
-            const session = results && results[0];
-            if (!session) return res.status(400).json({ success: false, error: 'Invalid session' });
-
-            if (session.used_token) return res.status(400).json({ success: false, error: 'Token already used' });
-            const now = new Date();
-            if (session.expires_at && new Date(session.expires_at) < now) return res.status(400).json({ success: false, error: 'Token expired' });
-
-            // Mark as used and connected
-            const phoneSessionId = uuidv4();
-            db.query(`UPDATE qr_sessions SET used_token = 1, connected = 1, phone_session = ? WHERE id = ?`, [phoneSessionId, session.id], (err2) => {
-                if (err2) console.error('Error updating qr_sessions', err2.message);
-
-                // Record pairing
-                db.query(`INSERT INTO device_pairings (kiosk_id, phone_session) VALUES (?, ?)`, [kiosk_id, phoneSessionId], (err3) => {
-                    if (err3) console.error('Error inserting device_pairings', err3.message);
-                });
-
-                // Notify kiosk via Socket.IO if connected
-                const sid = kioskSockets.get(kiosk_id);
-                if (sid && ioServer) {
-                    ioServer.to(sid).emit('paired', { phoneSessionId, kiosk_id });
-                }
-
-                if (req.session) {
-                    req.session.mobileAccessGranted = true;
-                    req.session.mobileAccessToken = token;
-                    req.session.mobileAccessKioskId = kiosk_id;
-                    req.session.mobileAccessExpiresAt = session.expires_at || null;
-
-                    return req.session.save((sessionErr) => {
-                        if (sessionErr) {
-                            console.error('Error saving mobile access session:', sessionErr.message);
-                        }
-
-                        res.json({
-                            success: true,
-                            kiosk_id,
-                            phoneSessionId,
-                            redirectUrl: '/pledgeboard'
-                        });
-                    });
-                }
-
-                // Respond to phone (could redirect to a mobile UI)
-                res.json({ success: true, kiosk_id, phoneSessionId, redirectUrl: '/pledgeboard' });
-            });
-        });
-    } catch (error) {
-        console.error('Token verify error', error.message);
-        const isTokenError = error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError';
-        return res.status(isTokenError ? 400 : 500).json({
-            success: false,
-            error: isTokenError ? 'Invalid or expired token' : 'QR setup failed'
-        });
-    }
-}
-
-app.post('/api/connect/redeem', express.json(), (req, res) => {
-    const token = (req.body && req.body.token) || req.query.token;
-    return redeemToken(req, res, token);
-});*/
-
 // Test route
 app.get('/api/test-db', (req, res) => {
     db.query(
@@ -835,18 +535,6 @@ app.get('/api/status', (req, res) => {
 app.get('/feedback', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/feedback/feedback.html'));
 });
-
-/*app.get('/bluetooth-test', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/bluetooth-test.html'));
-});*/
-
-/*app.get('/connect', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
-});
-
-app.get('/connect/:token', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/connect/connect.html'));
-});*/
 
 app.get('/pledgeboard', requireMobileTokenForPledgeboard, (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/Pledgeboard/Pledgeboard.html'));
@@ -933,9 +621,6 @@ function startServer() {
         server = http.createServer(app);
     }
 
-    // Initialize Socket.IO
-    //initSocketServer(server);
-
     server.listen(PORT, bindHost, () => {
         printServerInfo(!!sslOptions);
     });
@@ -1005,64 +690,6 @@ function printServerInfo(isHttps) {
     // Initialize data retention cleanup system
     dataRetentionCleanup.initializeCleanup();
 }
-
-// Note: DB schema creation moved to `database/schema.sql`.
-
-// Socket.IO server instance (set when starting)
-/*let ioServer = null;
-
-function initSocketServer(httpServer) {
-    ioServer = new SocketIOServer(httpServer, {
-        cors: {
-            origin: '*'
-        }
-    });
-
-    ioServer.on('connection', (socket) => {
-        // Kiosk or admin clients should call 'register-kiosk' with their kiosk_id
-        socket.on('register-kiosk', (data) => {
-            try {
-                const kiosk_id = data && data.kiosk_id;
-                if (!kiosk_id) return;
-                kioskSockets.set(kiosk_id, socket.id);
-                ensureQrPairingTables()
-                    .then(() => {
-                        db.query(
-                            `INSERT INTO kiosks (kiosk_id, status, last_seen) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE status=VALUES(status), last_seen=NOW()`,
-                            [kiosk_id, 'online'],
-                            (err) => { if (err) console.error('kiosk upsert error', err); }
-                        );
-                    })
-                    .catch((schemaError) => {
-                        console.error('kiosk schema setup error', schemaError.message);
-                    });
-            } catch (e) {
-                console.error('register-kiosk error', e);
-            }
-        });
-
-        socket.on('heartbeat', (data) => {
-            const kiosk_id = data && data.kiosk_id;
-            if (!kiosk_id) return;
-            ensureQrPairingTables()
-                .then(() => {
-                    db.query(`UPDATE kiosks SET last_seen = NOW(), status='online' WHERE kiosk_id = ?`, [kiosk_id], (err) => {
-                        if (err) console.error('heartbeat db update error', err.message);
-                    });
-                })
-                .catch((schemaError) => {
-                    console.error('socket heartbeat schema setup error', schemaError.message);
-                });
-        });
-
-        socket.on('disconnect', () => {
-            // remove socket id from kioskSockets if present
-            for (const [kiosk_id, sid] of kioskSockets.entries()) {
-                if (sid === socket.id) kioskSockets.delete(kiosk_id);
-            }
-        });
-    });
-}*/
 
 // Try to enable HTTPS if selfsigned package is available
 try {

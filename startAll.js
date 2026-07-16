@@ -1,3 +1,10 @@
+//=====================================================
+// File: startAll.js (Done by Yu Kang)
+// Description: This script starts both the backend server and the kiosk server concurrently.
+// Usage: Run this script using Node.js to start both servers.
+// Note: Ensure that you have the necessary permissions to run child processes and that the required scripts exist in the specified paths.
+//=====================================================
+
 const { spawn } = require('child_process');
 const path = require('path');
 

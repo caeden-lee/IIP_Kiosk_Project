@@ -61,6 +61,7 @@ ESG_KIOSK_PROJECT
 │  
 ├── backend/ 
 │   ├── cache/
+│   │   ├── feedback-analysis-cache-settings.json
 │   │   └── feedback-analysis-cache.json
 │   │ 
 │   ├── certs/ 
