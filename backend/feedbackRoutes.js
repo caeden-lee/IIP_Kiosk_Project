@@ -74,6 +74,7 @@ const auth = require('./auth');
 const parametersConfigStore = require('./parametersConfigStore');
 const { validateFeedbackSubmission } = require('./validationRules');
 const { analyzePledgeSentiment } = require('./pledgeSentiment');
+const lostFoundStore = require('./lostFoundStore'); // changes made by nick
 
 function normalizeRetentionSelection(retention) {
     const normalized = String(retention || '').toLowerCase();
@@ -447,6 +448,33 @@ router.post('/save-processed-photo', (req, res) => {
 });
 
 // ==================== 4. FEEDBACK SUBMISSION ROUTES ====================
+// Save a Lost & Found report without interrupting feedback progress - changes made by nick
+router.post('/lost-found', (req, res) => {
+    const body = req.body || {};
+    const report = body.report || body;
+
+    lostFoundStore.createLostFoundReport({
+        type: report.type,
+        item: report.item,
+        location: report.location,
+        contact: report.contact,
+        details: report.details,
+        currentPage: report.activePageId || report.currentPage,
+        feedbackProgress: body.feedbackProgress
+    }, (err, result) => {
+        if (err) {
+            console.error('Error saving Lost & Found report:', err);
+            return res.status(400).json({ success: false, error: err.message });
+        }
+
+        res.json({
+            success: true,
+            reportId: result.id,
+            message: 'Lost & Found report saved.'
+        });
+    });
+});
+
 // Submit complete feedback with retention and email
 router.post('/submit-feedback', async (req, res) => {
     const startTime = Date.now();

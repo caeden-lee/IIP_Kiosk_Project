@@ -250,6 +250,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const auth = require('./auth');
+const lostFoundStore = require('./lostFoundStore'); // changes made by nick
 const db = require('./db');
 const multer = require('multer');
 const path = require('path');
@@ -551,6 +552,7 @@ function logAudit(action, adminUsername, targetType = null, targetId = null, req
         'ADD_OVERLAY', 
         'DOWNLOAD_EXCEL', 'DOWNLOAD_PHOTOS',
         'VIEW_ENCRYPTED_EMAIL',
+        'EDIT_LOST_FOUND_REPORT',
         'SAVE_THEME', 'ACTIVATE_THEME', 'UPDATE_THEME', 'DELETE_THEME' 
     ];
     
@@ -571,6 +573,46 @@ function logAudit(action, adminUsername, targetType = null, targetId = null, req
         if (err) console.error('Audit log failed:', err);
     });
 }
+
+// Lost & Found reports for the admin Administration section - changes made by nick
+router.get('/lost-found-reports', auth.requireAdmin, (req, res) => {
+    lostFoundStore.listLostFoundReports((err, reports) => {
+        if (err) {
+            console.error('Error loading Lost & Found reports:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        res.json({
+            success: true,
+            reports: reports || []
+        });
+    });
+});
+
+router.patch('/lost-found-reports/:id/status', auth.requireAdmin, (req, res) => {
+    const status = req.body?.status;
+
+    lostFoundStore.updateLostFoundReportStatus(req.params.id, status, (err, result) => {
+        if (err) {
+            console.error('Error updating Lost & Found report status:', err);
+            return res.status(400).json({ success: false, error: err.message });
+        }
+
+        if (!result.changes) {
+            return res.status(404).json({ success: false, error: 'Lost & Found report not found.' });
+        }
+
+        logAudit(
+            'EDIT_LOST_FOUND_REPORT',
+            req.session?.user?.username || 'unknown',
+            'lost_found_report',
+            req.params.id,
+            req
+        );
+
+        res.json({ success: true });
+    });
+});
 
 // ==================== 3. FILE UPLOAD CONFIGURATION ====================
 

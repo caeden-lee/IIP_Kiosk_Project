@@ -3493,6 +3493,53 @@ body {
     border: 2px solid var(--theme-border-color);
 }
 
+/* Lost and found admin report page - changes made by nick */
+#lost-found-page {
+    min-height: 100%;
+    padding: 30px;
+    margin-top: 0;
+}
+
+.lost-found-admin-section {
+    background: var(--theme-card-bg);
+    border-radius: 16px;
+    padding: 25px;
+    border: 2px solid var(--theme-border-color);
+}
+
+.lost-found-summary {
+    margin: 14px 0;
+    color: #475569;
+    font-weight: 700;
+}
+
+.lost-found-admin-table td {
+    vertical-align: top;
+}
+
+.lost-found-admin-table .lost-found-details-cell {
+    max-width: 260px;
+    white-space: normal;
+    line-height: 1.4;
+}
+
+.lost-found-admin-table .lost-found-actions-cell {
+    min-width: 160px;
+}
+
+.lost-found-admin-table .btn-secondary,
+.lost-found-admin-table .btn-primary {
+    margin: 2px 0;
+    width: 100%;
+}
+
+.lost-found-page-label {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 12px;
+}
+
 /* Empty states and loading */
 .empty-state {
     text-align: center;

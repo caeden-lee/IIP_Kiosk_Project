@@ -264,6 +264,11 @@
                             <span class="nav-icon">📋</span>
                             Audit Logs
                         </a>
+                        <!-- Lost and found admin report page - changes made by nick -->
+                        <a href="#" class="nav-item" onclick="showPage('lost-found')">
+                            <span class="nav-icon">LF</span>
+                            Lost &amp; Found Reports
+                        </a>
                         <a href="#" class="nav-item" onclick="showPage('data-export')">
                             <span class="nav-icon">📦</span>
                             Data Export
@@ -1956,6 +1961,68 @@
                                 <span id="audit-page-info">Page 1</span>
                                 <button onclick="nextAuditPage()" id="next-audit-btn">Next →</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lost and Found Reports Page - changes made by nick -->
+                <div id="lost-found-page" class="page">
+                    <div class="page-header">
+                        <h2>Lost &amp; Found Reports</h2>
+                        <p>Reports submitted from the visitor feedback form</p>
+                    </div>
+
+                    <div class="lost-found-admin-section">
+                        <div class="section-header">
+                            <h3>All Reports</h3>
+                            <div class="header-actions">
+                                <button class="btn-primary" onclick="loadLostFoundReports()">Refresh</button>
+                            </div>
+                        </div>
+
+                        <div class="toolbar">
+                            <input type="text" id="lost-found-search-input" class="search-input"
+                                   placeholder="Search item, location, contact, or details..."
+                                   oninput="filterLostFoundReports()">
+                            <select id="lost-found-type-filter" class="filter-select" onchange="filterLostFoundReports()">
+                                <option value="">All Types</option>
+                                <option value="lost">Lost Items</option>
+                                <option value="found">Found Items</option>
+                            </select>
+                            <select id="lost-found-status-filter" class="filter-select" onchange="filterLostFoundReports()">
+                                <option value="">All Statuses</option>
+                                <option value="new">New</option>
+                                <option value="reviewed">Reviewed</option>
+                                <option value="resolved">Resolved</option>
+                            </select>
+                        </div>
+
+                        <div class="lost-found-summary" id="lost-found-summary">
+                            0 reports
+                        </div>
+
+                        <div class="data-table lost-found-admin-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Item</th>
+                                        <th>Location</th>
+                                        <th>Contact</th>
+                                        <th>Details</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lost-found-reports-body">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                                            Loading Lost &amp; Found reports...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

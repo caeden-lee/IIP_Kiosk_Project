@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS pledge_likes;
 DROP TABLE IF EXISTS saved_themes;
 DROP TABLE IF EXISTS feedback_answers;
 DROP TABLE IF EXISTS feedback;
+-- changes made by nick
+DROP TABLE IF EXISTS lost_found_reports;
 DROP TABLE IF EXISTS feedback_analysis_cache;
 DROP TABLE IF EXISTS question_options;
 DROP TABLE IF EXISTS questions;
@@ -119,6 +121,26 @@ CREATE TABLE feedback_analysis_cache (
     INDEX idx_analysis_mode (analysis_mode),
     INDEX idx_model_name (model_name),
     INDEX idx_last_used_at (last_used_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- LOST AND FOUND REPORTS TABLE - changes made by nick
+-- ============================================================
+CREATE TABLE lost_found_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_type VARCHAR(20) NOT NULL,
+    item_description VARCHAR(255) NOT NULL,
+    location_text VARCHAR(255) NOT NULL,
+    contact_info VARCHAR(255) NOT NULL,
+    details TEXT,
+    current_page VARCHAR(120),
+    feedback_progress TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'new',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_lost_found_status (status),
+    INDEX idx_lost_found_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

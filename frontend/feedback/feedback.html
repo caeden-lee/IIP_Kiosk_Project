@@ -151,6 +151,12 @@
         <button type="button" onclick="setLanguage('ta')" data-lang="ta" title="Alt+4">&#2980;&#2990;&#3007;&#2996;&#3021;</button>
     </div>
 
+    <!-- Lost and found shortcut for every feedback form page - changes made by nick -->
+    <button type="button" class="lost-found-shortcut" id="lost-found-shortcut" onclick="openLostFoundModal()" hidden>
+        <i class="fa-solid fa-magnifying-glass-location" aria-hidden="true"></i>
+        <span>Report Lost Item</span>
+    </button>
+
     <!-- Interactive RP teddy bear companion - changes made by nick -->
     <button type="button" class="rp-bear-companion" id="rp-bear-companion" aria-label="Republic Polytechnic helper bear" hidden>
         <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
@@ -840,6 +846,15 @@
                 <p id="confirmation-note-text" style="color: #92400e;">💡 You can go back to change the theme if needed</p>
             </div>
             
+            <!-- Final lost and found reminder - changes made by nick -->
+            <div class="lost-found-reminder">
+                <div>
+                    <strong>Did you lose or find something during your visit?</strong>
+                    <p>Report it now without losing your feedback progress.</p>
+                </div>
+                <button type="button" onclick="openLostFoundModal()">Report Lost Item</button>
+            </div>
+
             <div style="display: flex; gap: 15px;">
                 <button class="consent-button" onclick="finalSubmit()" style="flex: 1; background: #34d399;">
                     <span id="submit-feedback-text">Submit Feedback</span>
@@ -1027,6 +1042,59 @@
                 <button type="button" class="secondary-button" onclick="returnToLandingPage()">Reset Now</button>
             </div>
         </div>
+    </div>
+
+    <!-- Lost and found pop-up form - changes made by nick -->
+    <div id="lost-found-modal" class="lost-found-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="lost-found-title">
+        <form class="lost-found-card" id="lost-found-form" onsubmit="submitLostFoundReport(event)">
+            <div class="lost-found-header">
+                <div class="lost-found-icon">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+                <div>
+                    <h2 id="lost-found-title">Lost &amp; Found</h2>
+                    <p>Your feedback progress is saved. Submit this short report, then return to the form.</p>
+                </div>
+            </div>
+
+            <div class="lost-found-choice" role="radiogroup" aria-label="Lost and found report type">
+                <label>
+                    <input type="radio" name="lost-found-type" value="lost" checked>
+                    <span>I lost an item</span>
+                </label>
+                <label>
+                    <input type="radio" name="lost-found-type" value="found">
+                    <span>I found an item</span>
+                </label>
+            </div>
+
+            <label class="lost-found-field">
+                <span>Item</span>
+                <input type="text" id="lost-found-item" maxlength="120" placeholder="e.g. water bottle, wallet, umbrella" required>
+            </label>
+
+            <label class="lost-found-field">
+                <span>Last seen / found location</span>
+                <input type="text" id="lost-found-location" maxlength="160" placeholder="e.g. Library entrance, Agora Hall" required>
+            </label>
+
+            <label class="lost-found-field">
+                <span>Contact email or phone</span>
+                <input type="text" id="lost-found-contact" maxlength="120" placeholder="So staff can follow up" required>
+            </label>
+
+            <label class="lost-found-field">
+                <span>Details</span>
+                <textarea id="lost-found-details" rows="3" maxlength="400" placeholder="Colour, brand, time, or any useful details"></textarea>
+            </label>
+
+            <p id="lost-found-status" class="lost-found-status" role="status"></p>
+
+            <div class="lost-found-actions">
+                <button type="submit" class="consent-button">Submit Report</button>
+                <button type="button" class="secondary-button" onclick="closeLostFoundModal()">Return to Feedback</button>
+            </div>
+        </form>
     </div>
 
     <!-- facial detection (Done by Yu Kang) -->

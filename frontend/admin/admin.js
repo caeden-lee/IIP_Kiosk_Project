@@ -840,6 +840,10 @@ let currentSortDirection = 'desc';
 let allAuditLogs = [];
 let filteredAuditLogs = [];
 
+// Lost and found reports - changes made by nick
+let allLostFoundReports = [];
+let filteredLostFoundReports = [];
+
 // Global variables for feedback (not_archived)
 let allFeedbackData = []; // ALL not_archived records
 let filteredFeedbackData = []; // Filtered results
@@ -1254,6 +1258,145 @@ function getAuditBadgeType(action) {
     if (action.includes('LOGIN') || action.includes('DOWNLOAD') || action.includes('EMAIL')) return 'security';
     if (action.includes('ADD') || action.includes('EDIT')) return 'active';
     return 'system';
+}
+
+// ==================== LOST AND FOUND REPORTS ====================
+// Load Lost & Found reports for the Administration page - changes made by nick
+async function loadLostFoundReports() {
+    const tbody = document.getElementById('lost-found-reports-body');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                    Loading Lost & Found reports...
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const response = await fetch('/api/admin/lost-found-reports');
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Unable to load Lost & Found reports.');
+        }
+
+        allLostFoundReports = data.reports || [];
+        filterLostFoundReports();
+    } catch (error) {
+        console.error('Error loading Lost & Found reports:', error);
+        allLostFoundReports = [];
+        filteredLostFoundReports = [];
+        updateLostFoundReportTable();
+        showNotification(error.message || 'Failed to load Lost & Found reports', 'error');
+    }
+}
+
+function filterLostFoundReports() { // changes made by nick
+    const searchTerm = document.getElementById('lost-found-search-input')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('lost-found-type-filter')?.value || '';
+    const statusFilter = document.getElementById('lost-found-status-filter')?.value || '';
+
+    filteredLostFoundReports = allLostFoundReports.filter((report) => {
+        const haystack = [
+            report.report_type,
+            report.item_description,
+            report.location_text,
+            report.contact_info,
+            report.details,
+            report.current_page,
+            report.status
+        ].join(' ').toLowerCase();
+
+        return (!searchTerm || haystack.includes(searchTerm)) &&
+            (!typeFilter || report.report_type === typeFilter) &&
+            (!statusFilter || report.status === statusFilter);
+    });
+
+    updateLostFoundReportTable();
+}
+
+function formatLostFoundStatus(status) { // changes made by nick
+    const normalized = String(status || 'new').toLowerCase();
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function getLostFoundBadgeType(status) { // changes made by nick
+    if (status === 'resolved') return 'active';
+    if (status === 'reviewed') return 'security';
+    return 'warning';
+}
+
+function updateLostFoundReportTable() { // changes made by nick
+    const tbody = document.getElementById('lost-found-reports-body');
+    const summary = document.getElementById('lost-found-summary');
+    if (!tbody) return;
+
+    if (summary) {
+        const total = allLostFoundReports.length;
+        const shown = filteredLostFoundReports.length;
+        summary.textContent = `${shown} of ${total} report${total === 1 ? '' : 's'} shown`;
+    }
+
+    if (!filteredLostFoundReports.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-state">
+                    <div class="empty-state-title">No Lost & Found reports found</div>
+                    <div class="empty-state-text">
+                        ${allLostFoundReports.length === 0
+                            ? 'Reports submitted from the feedback form will appear here.'
+                            : 'Try changing the search or filters.'}
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filteredLostFoundReports.map((report) => {
+        const status = String(report.status || 'new').toLowerCase();
+        const date = report.created_at ? new Date(report.created_at).toLocaleString() : '-';
+        const pageLabel = report.current_page ? `<span class="lost-found-page-label">Page: ${escapeHtml(report.current_page)}</span>` : '';
+
+        return `
+            <tr>
+                <td>${escapeHtml(date)}</td>
+                <td><span class="badge badge-${getLostFoundBadgeType(status)}">${escapeHtml(report.report_type || '-')}</span></td>
+                <td><strong>${escapeHtml(report.item_description || '-')}</strong>${pageLabel}</td>
+                <td>${escapeHtml(report.location_text || '-')}</td>
+                <td>${escapeHtml(report.contact_info || '-')}</td>
+                <td class="lost-found-details-cell">${escapeHtml(report.details || '-')}</td>
+                <td><span class="badge badge-${getLostFoundBadgeType(status)}">${escapeHtml(formatLostFoundStatus(status))}</span></td>
+                <td class="lost-found-actions-cell">
+                    <button class="btn-secondary" onclick="updateLostFoundReportStatus(${Number(report.id)}, 'reviewed')" ${status === 'reviewed' || status === 'resolved' ? 'disabled' : ''}>Mark Reviewed</button>
+                    <button class="btn-primary" onclick="updateLostFoundReportStatus(${Number(report.id)}, 'resolved')" ${status === 'resolved' ? 'disabled' : ''}>Mark Resolved</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function updateLostFoundReportStatus(reportId, status) { // changes made by nick
+    try {
+        const response = await fetch(`/api/admin/lost-found-reports/${encodeURIComponent(reportId)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Unable to update report status.');
+        }
+
+        showNotification('Lost & Found report updated', 'success');
+        await loadLostFoundReports();
+    } catch (error) {
+        console.error('Error updating Lost & Found report:', error);
+        showNotification(error.message || 'Failed to update report', 'error');
+    }
 }
 
 // Update pagination
@@ -8780,7 +8923,7 @@ function showPage(pageName) {
     const userRole = sessionStorage.getItem('userRole');
     
     // Check if user is trying to access admin pages without system_admin role
-    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'data-export', 'badge-email-templates', 'parameter-adjustment', 'asset'];
+    const adminPages = ['overlay', 'users', 'audit', 'questions', 'archive', 'lost-found', 'data-export', 'badge-email-templates', 'parameter-adjustment', 'asset']; // changes made by nick
     if (adminPages.includes(pageName) && userRole !== 'system_admin') {
         alert('Access denied. System Administrator privileges required.');
         return;
@@ -8835,6 +8978,9 @@ function showPage(pageName) {
         loadQuestionManagementData();
     } else if (pageName === 'audit') {
         loadAuditLogs();
+    // changes made by nick
+    } else if (pageName === 'lost-found') {
+        loadLostFoundReports();
     } else if (pageName === 'archive') {
         loadArchiveData();
         initializeDeletionControls();
@@ -10016,6 +10162,7 @@ function expandPattern(pattern) {
         'badge-email-templates-page',
         'archive-page',
         'audit-page',
+        'lost-found-page',
         'data-export-page',
         'theme-settings-page'
     ];

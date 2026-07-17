@@ -201,6 +201,8 @@ let faceLandmarkerLoadPromise = null;
 let faceAccessoryAnimationFrame = null;
 let latestFaceAccessoryLandmarks = null;
 let latestFaceAccessoryVideoTime = -1;
+const LOST_FOUND_PROGRESS_KEY = 'rpLostFoundFeedbackProgress'; // changes made by nick
+const LOST_FOUND_PENDING_KEY = 'rpPendingLostFoundReports'; // changes made by nick
 const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
@@ -442,6 +444,198 @@ function setupRpBearCompanion() { // changes made by nick
     });
 }
 
+function updateLostFoundShortcut(pageId) { // changes made by nick
+    const shortcut = document.getElementById('lost-found-shortcut');
+    if (!shortcut) return;
+    shortcut.hidden = !FLOW_PAGE_IDS.includes(pageId);
+}
+
+function collectLostFoundFeedbackProgress() { // changes made by nick
+    const formValues = {};
+    document.querySelectorAll('input, textarea, select').forEach((field) => {
+        if (!field.id && !field.name) return;
+        if (field.closest('#lost-found-modal')) return;
+
+        const key = field.id || field.name;
+        if (field.type === 'checkbox') {
+            if (!formValues[key]) formValues[key] = [];
+            if (field.checked) formValues[key].push(field.value);
+            return;
+        }
+        if (field.type === 'radio') {
+            if (field.checked) formValues[key] = field.value;
+            return;
+        }
+        formValues[key] = field.value;
+    });
+
+    return {
+        savedAt: new Date().toISOString(),
+        activePageId: activeFlowPageId || getVisibleFlowPageId(),
+        selectedRetention,
+        selectedTheme,
+        captureMode,
+        selectedFaceAccessory,
+        userData: { ...userData },
+        hasPhoto: Boolean(photoData || userData.processedPhoto || userData.photoId || userData.processedPhotoId),
+        formValues
+    };
+}
+
+function saveLostFoundFeedbackProgress() { // changes made by nick
+    try {
+        sessionStorage.setItem(LOST_FOUND_PROGRESS_KEY, JSON.stringify(collectLostFoundFeedbackProgress()));
+    } catch (error) {
+        console.warn('Unable to save feedback progress before Lost & Found:', error);
+    }
+}
+
+function openLostFoundModal() { // changes made by nick
+    saveLostFoundFeedbackProgress();
+    hideIdleWarning();
+
+    const modal = document.getElementById('lost-found-modal');
+    const status = document.getElementById('lost-found-status');
+    const itemInput = document.getElementById('lost-found-item');
+    if (!modal) return;
+
+    if (status) status.textContent = '';
+    modal.style.display = 'flex';
+    document.body.classList.add('lost-found-open');
+    if (itemInput) itemInput.focus();
+    resetInactivityTimer();
+}
+
+function closeLostFoundModal() { // changes made by nick
+    const modal = document.getElementById('lost-found-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    document.body.classList.remove('lost-found-open');
+    resetInactivityTimer();
+}
+
+function getPendingLostFoundReports() { // changes made by nick
+    try {
+        return JSON.parse(localStorage.getItem(LOST_FOUND_PENDING_KEY) || '[]');
+    } catch (error) {
+        console.warn('Unable to read pending Lost & Found reports:', error);
+        return [];
+    }
+}
+
+function savePendingLostFoundReport(report, feedbackProgress) { // changes made by nick
+    const pendingReports = getPendingLostFoundReports();
+    pendingReports.push({
+        report,
+        feedbackProgress,
+        queuedAt: new Date().toISOString()
+    });
+    localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(pendingReports.slice(-50)));
+}
+
+async function postLostFoundReport(report, feedbackProgress) { // changes made by nick
+    const response = await fetch('/api/feedback/lost-found', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report, feedbackProgress })
+    });
+    const responseText = await response.text();
+    let data = {};
+
+    try {
+        data = responseText ? JSON.parse(responseText) : {};
+    } catch (error) {
+        data = { error: responseText.slice(0, 140) };
+    }
+
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || `Server returned ${response.status}`);
+    }
+
+    return data;
+}
+
+async function syncPendingLostFoundReports() { // changes made by nick
+    const pendingReports = getPendingLostFoundReports();
+    if (!pendingReports.length) return;
+
+    const remainingReports = [];
+    for (const pending of pendingReports) {
+        try {
+            await postLostFoundReport(pending.report, pending.feedbackProgress);
+        } catch (error) {
+            remainingReports.push(pending);
+        }
+    }
+
+    localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(remainingReports));
+}
+
+async function submitLostFoundReport(event) { // changes made by nick
+    event.preventDefault();
+
+    const type = document.querySelector('input[name="lost-found-type"]:checked')?.value || 'lost';
+    const item = document.getElementById('lost-found-item')?.value.trim() || '';
+    const location = document.getElementById('lost-found-location')?.value.trim() || '';
+    const contact = document.getElementById('lost-found-contact')?.value.trim() || '';
+    const details = document.getElementById('lost-found-details')?.value.trim() || '';
+    const status = document.getElementById('lost-found-status');
+
+    if (!item || !location || !contact) {
+        if (status) status.textContent = 'Please fill in the item, location, and contact fields.';
+        return;
+    }
+
+    const feedbackProgress = collectLostFoundFeedbackProgress();
+    const report = {
+        type,
+        item,
+        location,
+        contact,
+        details,
+        activePageId: feedbackProgress.activePageId,
+        submittedAt: new Date().toISOString()
+    };
+
+    try {
+        if (status) status.textContent = 'Saving report...';
+        await postLostFoundReport(report, feedbackProgress);
+        await syncPendingLostFoundReports();
+        if (status) status.textContent = 'Report saved. You can return to your feedback form now.';
+        const form = document.getElementById('lost-found-form');
+        if (form) form.reset();
+        const lostOption = document.querySelector('input[name="lost-found-type"][value="lost"]');
+        if (lostOption) lostOption.checked = true;
+    } catch (error) {
+        console.warn('Unable to save Lost & Found report:', error);
+        savePendingLostFoundReport(report, feedbackProgress);
+        if (status) {
+            status.textContent = 'Saved on this kiosk. It will sync to admin when the server is available.';
+        }
+    }
+    resetInactivityTimer();
+}
+
+function setupLostFoundModal() { // changes made by nick
+    const modal = document.getElementById('lost-found-modal');
+    if (!modal) return;
+
+    syncPendingLostFoundReports();
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeLostFoundModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.style.display === 'flex') {
+            closeLostFoundModal();
+        }
+    });
+}
+
 function hideLandingPages() {
     ['land-page-no-qrcode', 'land-page-qrcode'].forEach(id => {
         const page = document.getElementById(id);
@@ -463,7 +657,9 @@ function showLandingPages() {
         }
     });
     activeFlowPageId = null; // Reset slide tracking when returning to landing - changes made by nick
+    closeLostFoundModal();
     updateRpBearCompanion(null);
+    updateLostFoundShortcut(null);
     applyFormUIConfig();
 }
 
@@ -496,6 +692,7 @@ function showFlowPage(pageId) {
         activeFlowPageId = pageId;
         updateProgressIndicator(pageId);
         updateRpBearCompanion(pageId);
+        updateLostFoundShortcut(pageId);
         return;
     }
 
@@ -533,12 +730,14 @@ function showFlowPage(pageId) {
         nextPage.style.display = 'flex';
         activeFlowPageId = pageId;
         updateRpBearCompanion(pageId);
+        updateLostFoundShortcut(pageId);
         flowSlideTransitionTimer = null;
     }, FLOW_SLIDE_TRANSITION_MS);
 
     activeFlowPageId = pageId;
     updateProgressIndicator(pageId);
     updateRpBearCompanion(pageId);
+    updateLostFoundShortcut(pageId);
 }
 
 function clearValidationMessages() {
@@ -1422,6 +1621,7 @@ if (invertBtn) {
     setupBeautyFilterSettings();
     setupFaceAccessorySelector();
     setupRpBearCompanion(); // changes made by nick
+    setupLostFoundModal(); // changes made by nick
 
     // Load overlay options from database
     loadOverlayOptions();
