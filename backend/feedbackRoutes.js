@@ -274,6 +274,24 @@ if (!fs.existsSync(processedDir)) {
     console.log('Created processed directory:', processedDir);
 }
 
+function parsePhotoDataUrl(photo, fallbackMime = 'image/png') { // changes made by nick
+    const match = String(photo || '').match(/^data:(image\/(?:png|gif|jpeg));base64,(.+)$/);
+    if (!match) {
+        return {
+            mimeType: fallbackMime,
+            extension: fallbackMime === 'image/gif' ? 'gif' : fallbackMime === 'image/jpeg' ? 'jpg' : 'png',
+            base64Data: String(photo || '').replace(/^data:image\/png;base64,/, '')
+        };
+    }
+
+    const mimeType = match[1];
+    return {
+        mimeType,
+        extension: mimeType === 'image/gif' ? 'gif' : mimeType === 'image/jpeg' ? 'jpg' : 'png',
+        base64Data: match[2]
+    };
+}
+
 // ==================== 2. QUESTION MANAGEMENT ROUTES ====================
 // Get active questions for feedback form
 router.get('/questions', (req, res) => {
@@ -362,9 +380,9 @@ router.post('/save-photo', (req, res) => {
             return res.status(400).json({ error: 'No photo data provided' });
         }
 
-        // Convert base64 to buffer
-        const base64Data = photo.replace(/^data:image\/png;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
+        // Convert base64 to buffer - changes made by nick
+        const parsedPhoto = parsePhotoDataUrl(photo);
+        const buffer = Buffer.from(parsedPhoto.base64Data, 'base64');
         const maxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
         if (buffer.length > maxBytes) {
             return res.status(400).json({ error: `Photo exceeds ${validationRules.maxPhotoFileSizeMb || 5}MB limit` });
@@ -373,7 +391,7 @@ router.post('/save-photo', (req, res) => {
         // Generate filename with user name, device, and timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const safeUserName = userName ? userName.replace(/[^a-zA-Z0-9]/g, '_') : 'anonymous';
-        const filename = `${safeUserName}_${device}_${timestamp}.png`;
+        const filename = `${safeUserName}_${device}_${timestamp}.${parsedPhoto.extension}`;
         const filepath = path.join(uploadsDir, filename);
 
         // Save the file
@@ -413,18 +431,22 @@ router.post('/save-processed-photo', (req, res) => {
             return res.status(400).json({ error: 'No processed photo data provided' });
         }
 
-        // Convert base64 to buffer
-        const base64Data = photo.replace(/^data:image\/png;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
-        const maxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
+        // Convert base64 to buffer, including boomerang GIF uploads - changes made by nick
+        const parsedPhoto = parsePhotoDataUrl(photo);
+        const buffer = Buffer.from(parsedPhoto.base64Data, 'base64');
+        const configuredMaxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
+        const maxBytes = parsedPhoto.mimeType === 'image/gif'
+            ? Math.max(configuredMaxBytes, 15 * 1024 * 1024)
+            : configuredMaxBytes; // Allow email-friendly animated boomerang GIFs - changes made by nick
         if (buffer.length > maxBytes) {
-            return res.status(400).json({ error: `Processed photo exceeds ${validationRules.maxPhotoFileSizeMb || 5}MB limit` });
+            const limitMb = Math.round(maxBytes / (1024 * 1024));
+            return res.status(400).json({ error: `Processed photo exceeds ${limitMb}MB limit` });
         }
 
         // Generate filename for processed photo
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const safeUserName = userName ? userName.replace(/[^a-zA-Z0-9]/g, '_') : 'anonymous';
-        const filename = `${safeUserName}_${device}_${theme}_processed_${timestamp}.png`;
+        const filename = `${safeUserName}_${device}_${theme}_processed_${timestamp}.${parsedPhoto.extension}`;
         const filepath = path.join(processedDir, filename);
 
         // Save the processed file

@@ -31,6 +31,14 @@ const { getEmailConfig } = require('./emailConfigStore');
 const { getBadgeEmailTemplates } = require('./badgeEmailTemplateStore');
 const parametersConfigStore = require('./parametersConfigStore');
 
+function getPhotoAttachmentContentType(filename) { // changes made by nick
+    const extension = path.extname(String(filename || '')).toLowerCase();
+    if (extension === '.gif') return 'image/gif';
+    if (extension === '.png') return 'image/png';
+    if (extension === '.jpg' || extension === '.jpeg') return 'image/jpeg';
+    return 'application/octet-stream';
+}
+
 // ==================== BADGE SYSTEM IMPLEMENTATION ====================
 // Done by XY - Complete badge awarding system for ESG Kiosk
 //
@@ -1325,7 +1333,7 @@ ${footerNote}
                     filename: photoFilename,
                     path: fullPhotoPath,
                     cid: 'visit_photo',
-                    contentType: 'image/jpeg'
+                    contentType: getPhotoAttachmentContentType(photoFilename) // changes made by nick
                 }
             ] : []
         };

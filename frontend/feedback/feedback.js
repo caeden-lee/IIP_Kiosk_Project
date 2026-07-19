@@ -182,6 +182,7 @@ let boomerangFrames = [];
 let boomerangPreviewInterval = null;
 const BOOMERANG_FRAME_COUNT = 10;
 const DEFAULT_BOOMERANG_FRAME_DELAY_MS = 90; // Admin-controlled boomerang default - changes made by nick
+const BOOMERANG_GIF_MAX_FRAMES = 18; // Email-friendly animated GIF frame cap - changes made by nick
 let currentDevice = 'desktop'; // 'desktop' or 'mobile'
 let inactivityTimer = null;
 let idleWarningTimer = null;
@@ -3151,6 +3152,9 @@ function saveOriginalPhoto() {
     })
     .then(response => response.json())
     .then(data => {
+        if (data.success === false || data.error) {
+            throw new Error(data.error || 'Original photo could not be saved.');
+        }
         console.log('Original photo saved successfully:', data);
         userData.photoId = data.filename;
         userData.device = currentDevice;
@@ -3180,8 +3184,12 @@ function saveProcessedPhoto() {
     })
     .then(response => response.json())
     .then(data => {
+        if (data.success === false || data.error) {
+            throw new Error(data.error || 'Processed photo could not be saved.');
+        }
         console.log('Processed photo saved:', data);
         userData.processedPhotoId = data.filename;
+        userData.processedPhoto = null; // Avoid resending large GIF/PNG data in final submission - changes made by nick
         return data;
     })
     .catch(error => {
@@ -3472,8 +3480,264 @@ function updatePreviewWithCutout() {
     renderPreviewPhotoFrame(photoData, previewPhoto);
 }
 
+function getGifCutoutLayout() { // changes made by nick
+    const isMobile = currentDevice === 'mobile';
+    const canvasWidth = isMobile ? 360 : 480;
+    const canvasHeight = isMobile ? 450 : 270;
+    const scaleX = canvasWidth / (isMobile ? 1080 : 1920);
+    const scaleY = canvasHeight / (isMobile ? 1350 : 1080);
+    const sourceCutout = isMobile
+        ? { cutoutWidth: 864, cutoutHeight: 1080, cutoutX: 108, cutoutY: 51 }
+        : { cutoutWidth: 1536, cutoutHeight: 864, cutoutX: 192, cutoutY: 55 };
+
+    return {
+        canvasWidth,
+        canvasHeight,
+        cutout: {
+            cutoutWidth: sourceCutout.cutoutWidth * scaleX,
+            cutoutHeight: sourceCutout.cutoutHeight * scaleY,
+            cutoutX: sourceCutout.cutoutX * scaleX,
+            cutoutY: sourceCutout.cutoutY * scaleY
+        }
+    };
+}
+
+function getOverlayPathForCurrentTheme() { // changes made by nick
+    if (overlayData[selectedTheme]) {
+        return currentDevice === 'mobile'
+            ? overlayData[selectedTheme].mobile_filename
+            : overlayData[selectedTheme].desktop_filename;
+    }
+
+    return `/assets/overlays/${currentDevice === 'mobile' ? 'MobileOverlay' : 'DesktopOverlay'}/${selectedTheme}Theme${currentDevice === 'mobile' ? 'Mobile' : 'Desktop'}.png`;
+}
+
+function loadImageElement(src) { // changes made by nick
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`Unable to load image: ${src}`));
+        image.src = src;
+    });
+}
+
+function writeGifWord(bytes, value) { // changes made by nick
+    bytes.push(value & 0xff, (value >> 8) & 0xff);
+}
+
+function writeGifString(bytes, value) { // changes made by nick
+    for (let i = 0; i < value.length; i++) {
+        bytes.push(value.charCodeAt(i));
+    }
+}
+
+function getGifPalette() { // changes made by nick
+    const palette = [];
+    for (let red = 0; red < 8; red++) {
+        for (let green = 0; green < 8; green++) {
+            for (let blue = 0; blue < 4; blue++) {
+                palette.push(
+                    Math.round((red / 7) * 255),
+                    Math.round((green / 7) * 255),
+                    Math.round((blue / 3) * 255)
+                );
+            }
+        }
+    }
+    return palette;
+}
+
+function imageDataToGifIndexes(imageData) { // changes made by nick
+    const source = imageData.data;
+    const indexes = new Uint8Array(imageData.width * imageData.height);
+    for (let sourceIndex = 0, targetIndex = 0; sourceIndex < source.length; sourceIndex += 4, targetIndex++) {
+        const red = source[sourceIndex] >> 5;
+        const green = source[sourceIndex + 1] >> 5;
+        const blue = source[sourceIndex + 2] >> 6;
+        indexes[targetIndex] = (red << 5) | (green << 2) | blue;
+    }
+    return indexes;
+}
+
+function lzwEncodeGifIndexes(indexes, minCodeSize = 8) { // changes made by nick
+    const clearCode = 1 << minCodeSize;
+    const endCode = clearCode + 1;
+    let nextCode = endCode + 1;
+    let codeSize = minCodeSize + 1;
+    let bitBuffer = 0;
+    let bitCount = 0;
+    const output = [];
+    let dictionary = new Map();
+
+    function resetDictionary() {
+        dictionary = new Map();
+        nextCode = endCode + 1;
+        codeSize = minCodeSize + 1;
+    }
+
+    function writeCode(code) {
+        bitBuffer |= code << bitCount;
+        bitCount += codeSize;
+        while (bitCount >= 8) {
+            output.push(bitBuffer & 0xff);
+            bitBuffer >>= 8;
+            bitCount -= 8;
+        }
+    }
+
+    function getCode(sequence) {
+        return sequence.indexOf(',') === -1 ? Number(sequence) : dictionary.get(sequence);
+    }
+
+    resetDictionary();
+    writeCode(clearCode);
+
+    let sequence = String(indexes[0] || 0);
+    for (let i = 1; i < indexes.length; i++) {
+        const value = indexes[i];
+        const joined = `${sequence},${value}`;
+        if (dictionary.has(joined)) {
+            sequence = joined;
+            continue;
+        }
+
+        writeCode(getCode(sequence));
+        if (nextCode < 4096) {
+            dictionary.set(joined, nextCode);
+            nextCode += 1;
+            if (nextCode === (1 << codeSize) && codeSize < 12) {
+                codeSize += 1;
+            }
+        } else {
+            writeCode(clearCode);
+            resetDictionary();
+        }
+        sequence = String(value);
+    }
+
+    writeCode(getCode(sequence));
+    writeCode(endCode);
+    if (bitCount > 0) {
+        output.push(bitBuffer & 0xff);
+    }
+
+    return output;
+}
+
+function writeGifSubBlocks(bytes, data) { // changes made by nick
+    for (let index = 0; index < data.length; index += 255) {
+        const block = data.slice(index, index + 255);
+        bytes.push(block.length, ...block);
+    }
+    bytes.push(0);
+}
+
+function buildAnimatedGifDataUrl(frameImageDataList, delayMs) { // changes made by nick
+    const width = frameImageDataList[0].width;
+    const height = frameImageDataList[0].height;
+    const bytes = [];
+    const palette = getGifPalette();
+    const delay = Math.max(2, Math.round(delayMs / 10));
+
+    writeGifString(bytes, 'GIF89a');
+    writeGifWord(bytes, width);
+    writeGifWord(bytes, height);
+    bytes.push(0xf7, 0, 0);
+    bytes.push(...palette);
+    bytes.push(0x21, 0xff, 0x0b);
+    writeGifString(bytes, 'NETSCAPE2.0');
+    bytes.push(0x03, 0x01);
+    writeGifWord(bytes, 0);
+    bytes.push(0);
+
+    frameImageDataList.forEach((frameImageData) => {
+        bytes.push(0x21, 0xf9, 0x04, 0x04);
+        writeGifWord(bytes, delay);
+        bytes.push(0, 0);
+        bytes.push(0x2c);
+        writeGifWord(bytes, 0);
+        writeGifWord(bytes, 0);
+        writeGifWord(bytes, width);
+        writeGifWord(bytes, height);
+        bytes.push(0);
+        bytes.push(8);
+        writeGifSubBlocks(bytes, lzwEncodeGifIndexes(imageDataToGifIndexes(frameImageData), 8));
+    });
+
+    bytes.push(0x3b);
+
+    let binary = '';
+    const chunkSize = 8192;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+    }
+
+    return `data:image/gif;base64,${btoa(binary)}`;
+}
+
+async function createBoomerangProcessedGif() { // changes made by nick
+    const layout = getGifCutoutLayout();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const overlayPath = getOverlayPathForCurrentTheme();
+    const overlayImg = await loadImageElement(overlayPath);
+    const frameStep = Math.max(1, Math.ceil(boomerangFrames.length / BOOMERANG_GIF_MAX_FRAMES));
+    const selectedFrames = boomerangFrames.filter((_, index) => index % frameStep === 0);
+    const frameImageDataList = [];
+
+    canvas.width = layout.canvasWidth;
+    canvas.height = layout.canvasHeight;
+
+    for (const frameDataUrl of selectedFrames) {
+        const frameImg = await loadImageElement(frameDataUrl);
+        const scale = Math.max(
+            layout.cutout.cutoutWidth / frameImg.width,
+            layout.cutout.cutoutHeight / frameImg.height
+        );
+        const scaledWidth = frameImg.width * scale;
+        const scaledHeight = frameImg.height * scale;
+        const x = layout.cutout.cutoutX + (layout.cutout.cutoutWidth - scaledWidth) / 2;
+        const y = layout.cutout.cutoutY + (layout.cutout.cutoutHeight - scaledHeight) / 2;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(frameImg, x, y, scaledWidth, scaledHeight);
+        ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
+        frameImageDataList.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    }
+
+    return buildAnimatedGifDataUrl(frameImageDataList, getBoomerangFrameDelayMs() * frameStep);
+}
+
 // Process final photo with overlay for final submission
 function processFinalPhoto() {
+    return new Promise((resolve) => {
+        if (!photoData) {
+            resolve();
+            return;
+        }
+
+        if (userData.captureMode === 'boomerang' && boomerangFrames.length) {
+            // Save boomerang keepsake as an animated GIF for visitor email - changes made by nick
+            createBoomerangProcessedGif()
+                .then((gifDataUrl) => {
+                    userData.processedPhoto = gifDataUrl;
+                    console.log('Final boomerang processed as animated GIF for email');
+                    resolve();
+                })
+                .catch((error) => {
+                    console.error('Animated GIF processing failed, falling back to PNG frame:', error);
+                    userData.processedPhoto = null;
+                    resolve(processFinalPhotoFromStillFrame());
+                });
+            return;
+        }
+
+        processFinalPhotoFromStillFrame().then(resolve);
+    });
+}
+
+function processFinalPhotoFromStillFrame() { // changes made by nick
     return new Promise((resolve) => {
         if (!photoData) {
             resolve();
@@ -3548,19 +3812,7 @@ function processFinalPhoto() {
                 resolve();
             };
             
-            // Get the correct path from overlayData (from database) 
-            let overlayPath;
-            if (overlayData[selectedTheme]) {
-                // Use the path from database - this works on both Windows and Linux
-                overlayPath = currentDevice === 'mobile' 
-                    ? overlayData[selectedTheme].mobile_filename
-                    : overlayData[selectedTheme].desktop_filename;
-                console.log('Processing final photo with database path for theme:', selectedTheme, '| Path:', overlayPath);
-            } else {
-                // Fallback to constructed path for default themes
-                overlayPath = `/assets/overlays/${currentDevice === 'mobile' ? 'MobileOverlay' : 'DesktopOverlay'}/${selectedTheme}Theme${currentDevice === 'mobile' ? 'Mobile' : 'Desktop'}.png`;
-                console.log('Processing final photo with constructed path (fallback) for theme:', selectedTheme, '| Path:', overlayPath);
-            }
+            const overlayPath = getOverlayPathForCurrentTheme(); // changes made by nick
             console.log('Processing final photo with overlay:', overlayPath);
             overlayImg.src = overlayPath;
             
