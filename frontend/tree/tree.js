@@ -220,6 +220,7 @@ class TreeManager {
         this.leafDisplayScale = 1;
         this.vipLeafDisplayScale = 1;
         this.badgeLeafColors = { ...DEFAULT_BADGE_LEAF_COLORS };
+        this.badgeTintDurationMs = 24 * 60 * 60 * 1000; // 24 hours default for leaf tinting after badge color change
         this.treeStage = 0;
         this.showTitleBox = true;
         this.activeCampaign = null;
@@ -452,6 +453,12 @@ class TreeManager {
                 ...DEFAULT_BADGE_LEAF_COLORS,
                 ...(badgeLeafStyles.colors || {})
             };
+
+            const configuredTintHours = Number(badgeLeafStyles.tintDurationHours);
+            if (Number.isFinite(configuredTintHours) && configuredTintHours > 0) {
+                this.badgeTintDurationMs = configuredTintHours * 60 * 60 * 1000;
+            }
+
             this.leafOverrideImage = assets.leafImage
                 ? (assets.leafImage.startsWith('/') ? assets.leafImage : `/assets/Tree/leaf/${assets.leafImage}`)
                 : null;
@@ -1598,10 +1605,20 @@ class TreeManager {
         leaf.classList.add(badgeProfile.className);
         const badgeLeafColor = this.getBadgeLeafColor(visitor);
         leaf.dataset.badgeColor = badgeLeafColor;
-        if (!isVip) {
+        
+        const visitTime = new Date(visitor.created_at);
+        const now = new Date();
+        const diffInMinutes = (now - visitTime) / 60000;
+
+        const isWithinTintWindow = !Number.isNaN(visitTime.getTime())
+            && (Date.now() - visitTime.getTime()) >= 0
+            && (Date.now() - visitTime.getTime()) <= this.badgeTintDurationMs;
+
+        if (!isVip && isWithinTintWindow) {
             leaf.classList.add('leaf-tinted');
             leaf.style.setProperty('--leaf-badge-color', badgeLeafColor);
         }
+        
         leaf.dataset.badge = visitor.badgeKey || 'feedback-completer';
         leaf.dataset.leafKey = leafKey;
         leaf.title = `${visitor.name || 'Anonymous visitor'} - ${visitor.badgeName || badgeProfile.label}`;
@@ -1612,10 +1629,6 @@ class TreeManager {
         const side = badgeProfile.preferredSide || (seededRandom() > 0.5
             ? 'LeftLeaf.png'
             : 'RightLeaf.png');
-
-        const visitTime = new Date(visitor.created_at);
-        const now = new Date();
-        const diffInMinutes = (now - visitTime) / 60000;
 
         let finalLeafImage;
 

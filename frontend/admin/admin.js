@@ -14313,6 +14313,7 @@ function populateParameterForm(config) {
         if (vipValEl) vipValEl.textContent = String(vipLeafScale);
     }
     setSharedLeafScale(leafScale);
+    setInputValue('param-tintDurationHours', badgeLeafStyles.tintDurationHours != null ? badgeLeafStyles.tintDurationHours : 24);
 
     const badgeLeafColors = getBadgeLeafStyleColors(badgeLeafStyles.colors);
     const defaultBadgeLeafColors = getDefaultBadgeLeafColors();
@@ -14493,6 +14494,7 @@ function collectParameterForm() {
         },
         badgeLeafStyles: {
             leafScale: sharedLeafScale,
+            tintDurationHours: clampNumber(getInputValue('param-tintDurationHours'), 0, 168, 24),
             colors: collectBadgeLeafStyleColors()
         },
         photoSettings: {

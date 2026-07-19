@@ -6210,7 +6210,17 @@ function normalizeBadgeLeafStyles(badgeLeafStyles) {
       }
       return [String(key), color];
     }));
-  }
+}
+  
+if (Object.prototype.hasOwnProperty.call(normalized, 'tintDurationHours')) {
+    const hours = Number(normalized.tintDurationHours);
+    if (!Number.isFinite(hours) || hours < 0 || hours > 168) {
+        const error = new Error('Badge tint duration must be between 0 and 168 hours (7 days)');
+        error.statusCode = 400;
+        throw error;
+    }
+    normalized.tintDurationHours = Number(hours.toFixed(1));
+}
 
   return normalized;
 }

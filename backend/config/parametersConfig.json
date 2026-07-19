@@ -149,8 +149,8 @@
   "visualAssets": {
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
-    "leafImage": "/assets/Tree/leaf/NewLeftLeaf.png",
-    "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "leafImage": "/assets/Tree/leaf/NewRightLeaf.png",
+    "previousLeafImage": "/assets/Tree/leaf/OldLeftLeaf.png",
     "vipLeafImage": "/assets/Tree/vip-leaf/GoldLeftLeaf.png",
     "previousVipLeafImage": "/assets/Tree/vip-leaf/CustomVipLeaf.png",
     "defaultOverlayTheme": ""
