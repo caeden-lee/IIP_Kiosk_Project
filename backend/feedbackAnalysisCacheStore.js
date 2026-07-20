@@ -37,9 +37,14 @@ let storageMode = 'both';
 
 function mysqlDate(date = new Date()) {
     return date
-        .toISOString()
-        .slice(0, 19)
-        .replace('T', ' ');
+        const pad = (n) => String(n).padStart(2, '0');
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        const seconds = pad(date.getSeconds());
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 function ensureCacheDir() {
@@ -242,6 +247,16 @@ async function hydrateFromDatabase() {
         );
 
         (rows || []).forEach(row => {
+            // Convert any Date objects to our string format
+            let analyzedAt = row.analyzed_at;
+            let lastUsedAt = row.last_used_at;
+            if (analyzedAt instanceof Date) {
+                analyzedAt = mysqlDate(analyzedAt);
+            }
+            if (lastUsedAt instanceof Date) {
+                lastUsedAt = mysqlDate(lastUsedAt);
+            }
+
             upsertCacheEntry({
                 cacheKey: row.cache_key,
                 mode: row.analysis_mode,

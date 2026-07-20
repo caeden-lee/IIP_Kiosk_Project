@@ -609,7 +609,7 @@ class TreeManager {
     }
 
     getLeafGlowTimestamp(visitor) {
-        const sourceValue = visitor?.user_created_at || visitor?.created_at;
+        const sourceValue = visitor?.user_created_at;
         const createdAt = new Date(sourceValue);
         return Number.isNaN(createdAt.getTime()) ? null : createdAt;
     }

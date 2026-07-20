@@ -72,7 +72,7 @@
     "allowedPhotoFormats": []
   },
   "treeParameters": {
-    "treeStage": 4,
+    "treeStage": 1,
     "treeDisplayMode": "2d",
     "ovalWidth": 850,
     "ovalHeight": 300,
@@ -84,7 +84,7 @@
     "leafFallDuration": 0,
     "leafDisplayScale": 1,
     "vipLeafDisplayScale": 1,
-    "showTitleBox": true,
+    "showTitleBox": false,
     "leafThresholds": {
       "stage1": 1,
       "stage2": 10,
@@ -92,7 +92,7 @@
       "stage4": 50
     },
     "treeTitleBox": {
-      "showTitleBox": true,
+      "showTitleBox": false,
       "opacity": 0.25,
       "blur": 6,
       "radius": 25,
