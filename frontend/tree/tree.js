@@ -239,7 +239,7 @@ class TreeManager {
         this.demoControlsBound = false;
         this.demoPlaybackActive = false;
         this.liveTreeRefreshInterval = 5000;
-        this.leafGlowDurationMs = 10 * 60 * 1000; //Timing for leaf glow effect (10 minutes)
+        this.leafGlowDurationMs = 1 * 60 * 1000; //Timing for leaf glow effect (1 minute)
         this.leafGlowRefreshInterval = 1000;
         this.leafGlowTimer = null;
         this.activeLeafCycle = null;

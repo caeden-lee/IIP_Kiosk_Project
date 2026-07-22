@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-20 14:13:16",
+  "updatedAt": "2026-07-21T08:23:57.000Z",
   "entries": {
     "02420bdae9a0d7122b76a3532a451c25b10cee6184562a2f98d910c1d5d9110f": {
       "cacheKey": "02420bdae9a0d7122b76a3532a451c25b10cee6184562a2f98d910c1d5d9110f",
@@ -31,9 +31,9 @@
       "normalizedText": "sustainable living",
       "sourceText": "Sustainable Living",
       "sentiment": "positive",
-      "hitCount": 1,
+      "hitCount": 2,
       "analyzedAt": "2026-07-20 14:12:53",
-      "lastUsedAt": "2026-07-20 14:12:53"
+      "lastUsedAt": "2026-07-21T08:23:46.406Z"
     },
     "721b39d15a52f9913ffef2314af126ec871cbb632f15213236a65fbea612f0f9": {
       "cacheKey": "721b39d15a52f9913ffef2314af126ec871cbb632f15213236a65fbea612f0f9",
@@ -42,9 +42,9 @@
       "normalizedText": "bring a reusable bottle for 3 school days this week.",
       "sourceText": "Bring a reusable bottle for 3 school days this week.",
       "sentiment": "positive",
-      "hitCount": 1,
+      "hitCount": 2,
       "analyzedAt": "2026-07-20 14:12:53",
-      "lastUsedAt": "2026-07-20 14:12:53"
+      "lastUsedAt": "2026-07-21T08:23:46.406Z"
     },
     "480f35de1036dc58f89e81fd64cbfb5db0ee21b9d02b354537e171e505951943": {
       "cacheKey": "480f35de1036dc58f89e81fd64cbfb5db0ee21b9d02b354537e171e505951943",
@@ -67,6 +67,17 @@
       "hitCount": 1,
       "analyzedAt": "2026-07-20 14:13:16",
       "lastUsedAt": "2026-07-20 14:13:16"
+    },
+    "6f98c564979f4b916ce97908ad6ae25458f3549220d9725d51f3c43dd680b5eb": {
+      "cacheKey": "6f98c564979f4b916ce97908ad6ae25458f3549220d9725d51f3c43dd680b5eb",
+      "mode": "qwen",
+      "modelName": "qwen2.5:3b",
+      "normalizedText": "all things",
+      "sourceText": "all things",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-21T08:23:56.999Z",
+      "lastUsedAt": "2026-07-21T08:23:56.999Z"
     }
   }
 }
