@@ -46,33 +46,33 @@
     "visitSummaryTreeMessage": "Your virtual leaf has been added to the RP ESG digital tree."
   },
   "featureFlags": {
-    "cameraCaptureEnabled": true,
-    "photoUploadEnabled": true,
-    "beautyFilterEnabled": true,
-    "pledgeEnabled": true,
-    "badgeEmailEnabled": true,
-    "thankYouEmailEnabled": true,
-    "socialSharingEnabled": true,
+    "cameraCaptureEnabled": false,
+    "photoUploadEnabled": false,
+    "beautyFilterEnabled": false,
+    "pledgeEnabled": false,
+    "badgeEmailEnabled": false,
+    "thankYouEmailEnabled": false,
+    "socialSharingEnabled": false,
     "floatingLanguageSelectorEnabled": false
   },
   "validationRules": {
-    "nameRequired": true,
+    "nameRequired": false,
     "nameMinLength": 0,
     "nameMaxLength": 80,
-    "emailRequired": true,
+    "emailRequired": false,
     "emailPattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-    "requiredQuestionsEnabled": true,
-    "pledgeRequired": true,
+    "requiredQuestionsEnabled": false,
+    "pledgeRequired": false,
     "pledgeMinLength": 0,
     "pledgeMaxLength": 500,
-    "pledgeTopicRequired": true,
-    "photoRequired": true,
-    "dailySubmissionLimitPerEmail": 1,
+    "pledgeTopicRequired": false,
+    "photoRequired": false,
+    "dailySubmissionLimitPerEmail": 0,
     "maxPhotoFileSizeMb": 5,
     "allowedPhotoFormats": []
   },
   "treeParameters": {
-    "treeStage": 1,
+    "treeStage": 4,
     "treeDisplayMode": "2d",
     "ovalWidth": 850,
     "ovalHeight": 300,
@@ -112,29 +112,29 @@
   "badgeLeafStyles": {
     "leafScale": 1,
     "colors": {
-      "feedback-completer": "#4a7c59",
+      "feedback-completer": "#528b37",
       "climate-champion": "#0f766e",
-      "renewable-innovator": "#f59e0b",
+      "renewable-innovator": "#0aa7f5",
       "sustainable-living-advocate": "#16a34a",
       "ocean-guardian": "#0284c7",
       "governance-guardian": "#7c3aed",
-      "social-champion": "#d97706"
-    }
+      "social-champion": "#db06c2"
+    },
+    "tintDurationHours": 0
   },
   "photoSettings": {
     "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
     "boomerangFrameDelayMs": 90,
-    "maxPhotoFileSize": 5242880,
+    "maxPhotoFileSize": 1048576,
     "supportedFormats": [
       "jpeg",
-      "png",
-      "webp"
+      "png"
     ]
   },
   "overlaySettings": {
     "enableOverlayUpload": false,
-    "maxOverlayFileSize": 10485760,
+    "maxOverlayFileSize": 1048576,
     "gifOverlaySpeed": 1,
     "supportedFormats": [
       "png",
@@ -143,32 +143,33 @@
     ]
   },
   "archiveSettings": {
-    "autoArchiveEnabled": true,
-    "archiveAfterDays": 90
+    "autoArchiveEnabled": false,
+    "archiveAfterDays": 15,
+    "keepRecentFeedbackCount": 0
   },
   "visualAssets": {
     "feedbackBackground": "",
     "treeBackground": "/assets/Tree/background/mangrove background 4k.png",
-    "leafImage": "/assets/Tree/leaf/OldRightLeaf.png",
+    "leafImage": "/assets/Tree/leaf/NewRightLeaf.png",
     "previousLeafImage": "/assets/Tree/leaf/OldRightLeaf.png",
     "vipLeafImage": "/assets/Tree/vip-leaf/GoldRightLeaf.png",
     "previousVipLeafImage": "/assets/Tree/vip-leaf/GoldLeftLeaf.png",
     "defaultOverlayTheme": ""
   },
   "layoutSettings": {
-    "landingTextScale": 1,
-    "landingPanelWidth": 600,
+    "landingTextScale": 1.1,
+    "landingPanelWidth": 360,
     "landingPanelMinHeight": 0,
-    "landingPanelPadding": 60,
+    "landingPanelPadding": 20,
     "landingPanelOffsetX": 0,
     "landingPanelOffsetY": 0,
     "startButtonOffsetX": 0,
     "startButtonOffsetY": 0,
-    "startButtonWidth": 280,
-    "startButtonHeight": 64,
+    "startButtonWidth": 180,
+    "startButtonHeight": 44,
     "pledgeboardButtonOffsetX": 0,
     "pledgeboardButtonOffsetY": 0,
-    "pledgeboardButtonWidth": 600,
-    "pledgeboardButtonHeight": 64
+    "pledgeboardButtonWidth": 180,
+    "pledgeboardButtonHeight": 44
   }
 }

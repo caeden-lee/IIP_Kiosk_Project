@@ -24,7 +24,7 @@
 //    const firstNames                 - Array of first names for generation (DONE BY PRETI)
 //    const lastNames                  - Array of last names for generation (DONE BY PRETI)
 //    const pledges                    - Array of sample pledge texts (DONE BY PRETI)
-//    const dataRetentions             - Retention period options (DONE BY PRETI)
+//    const dataRetentions             - Retention period options (DONE BY PRETI) [MODIFIED]
 //    const learnings                  - Array of "what did you learn" responses (DONE BY PRETI)
 //    const topics                     - Array of topic interests (DONE BY PRETI)
 //    const overlayThemes              - Array of overlay theme names (DONE BY PRETI)
@@ -62,10 +62,10 @@
 //    Archived Entries:  ~100 (Group 2)
 //
 //   AFTER RUNNING dataRetentionCleanup.js:
-//    Deleted Entries:   ~100 (Group 1 - expired 7-day retention)
-//    Remaining Active:  ~300 (Groups 3, 4)
-//    Archived Entries:  ~100 (Group 2 - unchanged)
-//    Images Deleted:    ~200 files (100 raw + 100 processed from Group 1)
+//    Deleted Entries:   ~0 (no retention-based deletion, all indefinite)
+//    Remaining Active:  ~400 (unchanged)
+//    Archived Entries:  ~100 (unchanged)
+//    Images Deleted:    ~0
 //
 // ADVANCED FILTER TESTING:
 //    Visit Count Filter:
@@ -83,10 +83,6 @@
 //    User Name Filter:
 //       - "preti test":     50 entries (distributed across all groups)
 //       - Random names:     450 entries
-//
-//    Data Retention Filter:
-//       - 7days:            ~250 entries (100% of Group 1, 50% of others)
-//       - indefinite:       ~250 entries (50% of Groups 2, 3, 4)
 //
 // ============================================================
 
@@ -189,8 +185,8 @@ const pledges = [
     'I will reduce my carbon footprint'
 ];
 
-// Retention period options for data retention
-const dataRetentions = ['7days', 'indefinite'];
+// Retention period options for data retention (now only indefinite)
+const dataRetentions = ['indefinite'];
 
 // Array of sample learning responses
 const learnings = [
@@ -286,23 +282,23 @@ async function generateTestData() {
     
     console.log('📊 Data Distribution Plan:');
     console.log('');
-    console.log('   GROUP 1 (~80 entries): 8-14 days old, 7-day retention');
-    console.log('   → Will EXPIRE and be DELETED by cleanup script');
+    console.log('   GROUP 1 (~80 entries): 8-14 days old, indefinite retention');
+    console.log('   → Will NOT be deleted (retention is indefinite)');
     console.log('   → Visit count: 1-3 (testing low visit filter)');
     console.log('');
     console.log('   GROUP 2 (~80 entries): 6-12 months old, indefinite retention');
     console.log('   → Already ARCHIVED (>3 months)');
     console.log('   → Visit count: 4-7 (testing mid visit filter)');
     console.log('');
-    console.log('   GROUP 3 (~80 entries): 1-3 YEARS old, mixed retention');
+    console.log('   GROUP 3 (~80 entries): 1-3 YEARS old, indefinite retention');
     console.log('   → ARCHIVED - OLD DATA FOR DELETION TESTING');
     console.log('   → Visit count: 2-6 (testing date-based bulk deletion)');
     console.log('');
-    console.log('   GROUP 4 (~160 entries): 1-3 months old, mixed retention');
+    console.log('   GROUP 4 (~160 entries): 1-3 months old, indefinite retention');
     console.log('   → ACTIVE but nearing archive threshold');
     console.log('   → Visit count: 1-10 (testing full range filter)');
     console.log('');
-    console.log('   GROUP 5 (~100 entries): <7 days old, mixed retention');
+    console.log('   GROUP 5 (~100 entries): <7 days old, indefinite retention');
     console.log('   → Fresh ACTIVE data, should remain untouched');
     console.log('   → Visit count: 5-10 (testing high visit filter)');
     console.log('');
@@ -339,7 +335,6 @@ async function generateTestData() {
             let imagesCreated = 0;
             let archivedCount = 0;
             let activeCount = 0;
-            let expiredRetentionCount = 0;
             let completionReported = false;
             
             const visitCountDistribution = {
@@ -353,16 +348,15 @@ async function generateTestData() {
             for (let i = 1; i <= totalToCreate; i++) {
                 let name, email, submittedDate, dataRetention, visitCount;
                 
-                // GROUP 1: 8-14 days old, 7-day retention (will be deleted by cleanup)
+                // GROUP 1: 8-14 days old, indefinite retention
                 if (i <= 80) {
                     name = (i % 10 === 0) ? `preti test${i}` : randomName();
                     email = (i % 10 === 0) ? `preti.test${i}@test.com` : randomEmail(name);
                     submittedDate = new Date(Date.now() - (8 + Math.floor(Math.random() * 7)) * 24 * 60 * 60 * 1000)
                         .toISOString().slice(0, 19).replace('T', ' ');
-                    dataRetention = '7days';
+                    dataRetention = 'indefinite';
                     visitCount = 1 + Math.floor(Math.random() * 3);
                     visitCountDistribution['1-3']++;
-                    expiredRetentionCount++;
                     
                 // GROUP 2: 6-12 months old, already archived
                 } else if (i <= 160) {
@@ -383,18 +377,18 @@ async function generateTestData() {
                     const yearsAgo = 1 + Math.floor(Math.random() * 2.5); // 1.0 to 3.5 years
                     submittedDate = new Date(Date.now() - yearsAgo * 365 * 24 * 60 * 60 * 1000)
                         .toISOString().slice(0, 19).replace('T', ' ');
-                    dataRetention = (i % 2 === 0) ? '7days' : 'indefinite';
+                    dataRetention = 'indefinite';
                     visitCount = 2 + Math.floor(Math.random() * 5);
                     visitCountDistribution['1-3']++;
                     
-                // GROUP 4: 1-3 months old, mixed retention
+                // GROUP 4: 1-3 months old, indefinite retention
                 } else if (i <= 400) {
                     name = (i % 10 === 0) ? `preti test${i}` : randomName();
                     email = (i % 10 === 0) ? `preti.test${i}@test.com` : randomEmail(name);
                     const monthsAgo = 1 + Math.floor(Math.random() * 3);
                     submittedDate = new Date(Date.now() - monthsAgo * 30 * 24 * 60 * 60 * 1000)
                         .toISOString().slice(0, 19).replace('T', ' ');
-                    dataRetention = (i % 2 === 0) ? '7days' : 'indefinite';
+                    dataRetention = 'indefinite';
                     visitCount = 1 + Math.floor(Math.random() * 10);
                     if (visitCount <= 7) {
                         visitCountDistribution['4-7']++;
@@ -408,7 +402,7 @@ async function generateTestData() {
                     email = (i % 10 === 0) ? `preti.test${i}@test.com` : randomEmail(name);
                     submittedDate = new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000)
                         .toISOString().slice(0, 19).replace('T', ' ');
-                    dataRetention = (i % 2 === 0) ? '7days' : 'indefinite';
+                    dataRetention = 'indefinite';
                     visitCount = 5 + Math.floor(Math.random() * 6);
                     visitCountDistribution['8-10']++;
                 }
@@ -537,25 +531,22 @@ async function generateTestData() {
                                                     console.log('');
                                                     console.log('📅 Date Range Distribution (For Date Filter Testing):');
                                                     console.log('   Last 7 days:          ~100 entries (GROUP 4 - Fresh)');
-                                                    console.log('   8-14 days ago:        ~100 entries (GROUP 1 - Should be deleted)');
+                                                    console.log('   8-14 days ago:        ~100 entries (GROUP 1 - older but indefinite)');
                                                     console.log('   1-3 months ago:       ~200 entries (GROUP 3 - Active)');
                                                     console.log('   6-12 months ago:      ~100 entries (GROUP 2 - Archived)');
                                                     console.log('');
                                                     console.log('✂️  Cleanup Testing Data:');
-                                                    console.log(`   Expired 7-day (>7d):  ${expiredRetentionCount} entries (GROUP 1)`);
-                                                    console.log('   → Should be DELETED by dataRetentionCleanup.js');
-                                                    console.log('   → Expected deletion: ~100 entries + 200 images');
+                                                    console.log('   All entries have indefinite retention.');
+                                                    console.log('   → No entries will be deleted by dataRetentionCleanup.js for retention reasons.');
+                                                    console.log('   → Archival status is based on age (>3 months).');
                                                     console.log(`   Archived (>3 months): ${archivedCount} entries (GROUP 2)`);
-                                                    console.log('   → Already marked as archived');
-                                                    console.log('   → Check Archive tab in admin panel');
-                                                    console.log(`   Fresh (<7 days):      ~100 entries (GROUP 4)`);
-                                                    console.log('   → Should remain UNTOUCHED');
-                                                    console.log('   → Verify these stay in Active tab');
+                                                    console.log('   → Check Archive tab in admin panel.');
+                                                    console.log(`   Fresh (<7 days):      ~100 entries (GROUP 5)`);
+                                                    console.log('   → Should remain UNTOUCHED.');
                                                     console.log('');
                                                     console.log('✅ Expected Results After Cleanup:');
                                                     console.log(`   Before: ${activeCount} Active + ${archivedCount} Archived = ${feedbackCreated} Total`);
-                                                    console.log(`   After:  ~${activeCount - expiredRetentionCount} Active + ${archivedCount} Archived = ~${feedbackCreated - expiredRetentionCount} Total`);
-                                                    console.log(`   Deleted: ~${expiredRetentionCount} entries + ${expiredRetentionCount * 2} images`);
+                                                    console.log(`   After:  ${activeCount} Active + ${archivedCount} Archived = ${feedbackCreated} Total (no deletion)`);
                                                     console.log('');
                                                     console.log('📋 Question Answers:');
                                                     console.log('   Question 1 (Rating):  3-5 stars');
@@ -583,12 +574,12 @@ async function generateTestData() {
                                                     console.log('      • Filter by visit count (1-3, 4-7, 8-10)');
                                                     console.log('      • Filter by date range (last 7 days, 8-14 days, etc.)');
                                                     console.log('      • Search for "preti test" (should find 50 users)');
-                                                    console.log('      • Filter by data retention (7days vs indefinite)');
+                                                    console.log('      • Filter by data retention (only indefinite now)');
                                                     console.log('');
                                                     console.log('   3. TEST CLEANUP SCRIPT:');
                                                     console.log('      • Run: node dataRetentionCleanup.js');
-                                                    console.log(`      • Should delete: ~${expiredRetentionCount} entries + ${expiredRetentionCount * 2} images`);
-                                                    console.log(`      • Active tab after: ~${activeCount - expiredRetentionCount} entries`);
+                                                    console.log('      • Should delete NO entries (all indefinite)');
+                                                    console.log(`      • Active tab after: ~${activeCount} entries (unchanged)`);
                                                     console.log(`      • Archive tab after: ~${archivedCount} entries (unchanged)`);
                                                     console.log('');
                                                     console.log('   4. TEST VIEW/EMAIL BUTTONS:');
