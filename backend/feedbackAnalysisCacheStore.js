@@ -35,6 +35,26 @@ const cacheMap = new Map();
 let readyPromise = null;
 let storageMode = 'both';
 
+function toCustomDateString(value) {
+    if (value === undefined || value === null) {
+        return mysqlDate();
+    }
+    let date;
+    if (value instanceof Date) {
+        date = value;
+    } else if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value);
+        if (!isNaN(parsed)) {
+            date = parsed;
+        } else {
+            date = new Date();
+        }
+    } else {
+        date = new Date();
+    }
+    return mysqlDate(date);
+}
+
 function mysqlDate(date = new Date()) {
     return date
         const pad = (n) => String(n).padStart(2, '0');
@@ -183,7 +203,7 @@ function buildCacheKey(mode, modelName, text) {
         .digest('hex');
 }
 
-function createCacheEntry({ mode, modelName, text, sentiment, hitCount = 1, analyzedAt = mysqlDate(), lastUsedAt = mysqlDate() }) {
+function createCacheEntry({ mode, modelName, text, sentiment, hitCount = 1, analyzedAt, lastUsedAt}) {
     const normalizedText = normalizeAnalysisText(text);
     const cacheKey = buildCacheKey(mode, modelName, normalizedText);
 
@@ -195,8 +215,8 @@ function createCacheEntry({ mode, modelName, text, sentiment, hitCount = 1, anal
         sourceText: String(text || '').trim(),
         sentiment,
         hitCount,
-        analyzedAt,
-        lastUsedAt
+        analyzedAt: toCustomDateString(analyzedAt),
+        lastUsedAt: toCustomDateString(lastUsedAt)
     };
 }
 
@@ -210,8 +230,8 @@ function upsertCacheEntry(entry) {
         ...existing,
         ...entry,
         hitCount: Number(entry.hitCount ?? existing?.hitCount ?? 1) || 1,
-        analyzedAt: entry.analyzedAt || existing?.analyzedAt || mysqlDate(),
-        lastUsedAt: entry.lastUsedAt || existing?.lastUsedAt || mysqlDate()
+        analyzedAt: toCustomDateString(entry.analyzedAt ?? existing?.analyzedAt),
+        lastUsedAt: toCustomDateString(entry.lastUsedAt ?? existing?.lastUsedAt)
     };
 
     cacheMap.set(entry.cacheKey, merged);
@@ -231,7 +251,12 @@ function hydrateFromFile() {
             ? parsed.entries
             : Object.values(parsed.entries || {});
 
-        entries.forEach(entry => upsertCacheEntry(entry));
+        entries.forEach(entry => {
+            // Normalise dates if they exist in the file
+            if (entry.analyzedAt) entry.analyzedAt = toCustomDateString(entry.analyzedAt);
+            if (entry.lastUsedAt) entry.lastUsedAt = toCustomDateString(entry.lastUsedAt);
+            upsertCacheEntry(entry)
+        });
         console.log(`✅ Loaded ${cacheMap.size} feedback analysis cache entr${cacheMap.size === 1 ? 'y' : 'ies'} from file`);
     } catch (error) {
         console.error('❌ Failed to read feedback analysis cache file:', error.message);

@@ -1744,7 +1744,9 @@ class TreeManager {
         const nameElement = document.createElement('div');
         nameElement.className = 'leaf-name';
         nameElement.textContent = visitor.name || 'Anonymous';
-        nameElement.style.setProperty('--leaf-name-font-size', `${this.getLeafNameFontSize(visitor.name || 'Anonymous', leafSize)}px`);
+        const nameFontSize = this.getLeafNameFontSize(visitor.name || 'Anonymous', leafSize);
+        nameElement.style.setProperty('--leaf-name-font-size', `${nameFontSize}px`);
+        nameElement.style.fontSize = `${nameFontSize}px`;
         leaf.appendChild(nameElement);
 
         leaf.addEventListener('click', (event) => {

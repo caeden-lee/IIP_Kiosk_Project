@@ -692,7 +692,7 @@ body {
     transform: translate(-50%, -50%);
     color: #ffffff;
     font-weight: bold;
-     font-size: clamp(10px, calc(var(--leaf-size, 80px) * 0.12), 1.6px);
+    font-size: var(--leaf-name-font-size, clamp(10px, calc(var(--leaf-size, 80px) * 0.12), 16px));
     text-align: center;
     pointer-events: none;
     width: calc(var(--leaf-size, 80px) * 0.72);
