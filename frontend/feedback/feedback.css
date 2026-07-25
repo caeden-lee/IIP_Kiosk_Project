@@ -3808,8 +3808,24 @@ textarea::placeholder {
     line-height: 1.45;
 }
 
-.form-alert:not(:empty) {
+.form-alert:not(:empty),
+.form-alert.is-visible {
     display: block;
+}
+
+.form-alert.is-visible {
+    animation: inlineNoticeIn 0.22s ease-out;
+}
+
+@keyframes inlineNoticeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .has-error input,
@@ -4206,18 +4222,15 @@ textarea::placeholder {
     animation: rpBearWave 0.72s ease-in-out 2;
 }
 
-.rp-bear-speech {
+.rp-bear-guide {
     position: relative;
+    display: grid;
+    gap: 7px;
     max-width: 178px;
     padding: 11px 13px;
     border: 1px solid rgba(24, 105, 71, 0.2);
     border-radius: 14px 14px 6px 14px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 251, 244, 0.98));
-    color: #18392b;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.32;
-    text-align: left;
     box-shadow: 0 14px 34px rgba(16, 85, 57, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     opacity: 0;
     transform: translateY(8px) scale(0.96);
@@ -4225,7 +4238,7 @@ textarea::placeholder {
     pointer-events: none;
 }
 
-.rp-bear-speech::after {
+.rp-bear-guide::after {
     content: '';
     position: absolute;
     right: 24px;
@@ -4238,10 +4251,78 @@ textarea::placeholder {
     transform: rotate(45deg);
 }
 
-.rp-bear-companion:hover .rp-bear-speech,
-.rp-bear-companion.is-speaking .rp-bear-speech {
+.rp-bear-companion:hover .rp-bear-guide,
+.rp-bear-companion.is-speaking .rp-bear-guide {
     opacity: 1;
     transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.rp-bear-progress {
+    justify-self: start;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(10, 144, 100, 0.12);
+    color: #08704f;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.rp-bear-speech {
+    color: #18392b;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.32;
+    text-align: left;
+}
+
+.rp-bear-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rp-bear-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border: 1px solid rgba(8, 112, 79, 0.18);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0b6f4f;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.rp-bear-companion.mood-success .rp-bear-guide {
+    border-color: rgba(16, 185, 129, 0.36);
+    background: linear-gradient(180deg, #ffffff, #e8fff3);
+}
+
+.rp-bear-companion.mood-alert .rp-bear-guide {
+    border-color: rgba(217, 119, 6, 0.34);
+    background: linear-gradient(180deg, #ffffff, #fff7ed);
+}
+
+.rp-bear-companion.mood-thinking .rp-bear-guide {
+    border-color: rgba(59, 130, 246, 0.28);
+    background: linear-gradient(180deg, #ffffff, #eff6ff);
+}
+
+.rp-bear-companion.mood-success .rp-bear {
+    animation: rpBearHappy 0.78s ease;
+}
+
+.rp-bear-companion.mood-thinking .rp-bear-head {
+    animation: rpBearNod 1.2s ease-in-out infinite;
+}
+
+.rp-bear-companion.mood-alert .rp-bear {
+    animation: rpBearAttention 0.72s ease;
 }
 
 .rp-bear {
@@ -4551,6 +4632,39 @@ textarea::placeholder {
     }
 }
 
+@keyframes rpBearHappy {
+    0%, 100% {
+        transform: scale(1.1) rotate(0deg);
+    }
+    35% {
+        transform: scale(1.15) rotate(-3deg);
+    }
+    70% {
+        transform: scale(1.11) rotate(2deg);
+    }
+}
+
+@keyframes rpBearNod {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(2px);
+    }
+}
+
+@keyframes rpBearAttention {
+    0%, 100% {
+        transform: scale(1.1) translateX(0);
+    }
+    25% {
+        transform: scale(1.1) translateX(-3px);
+    }
+    75% {
+        transform: scale(1.1) translateX(3px);
+    }
+}
+
 @media (max-width: 768px) {
     .lost-found-shortcut {
         top: auto;
@@ -4595,10 +4709,18 @@ textarea::placeholder {
         transform-origin: right bottom;
     }
 
-    .rp-bear-speech {
+    .rp-bear-guide {
         max-width: 138px;
-        font-size: 11px;
         padding: 8px 9px;
+    }
+
+    .rp-bear-speech {
+        font-size: 11px;
+    }
+
+    .rp-bear-progress,
+    .rp-bear-action {
+        font-size: 9px;
     }
 
     .consent-card,

@@ -292,6 +292,43 @@ function parsePhotoDataUrl(photo, fallbackMime = 'image/png') { // changes made 
     };
 }
 
+function parseBoomerangFrameDataUrl(frame) { // Backend GIF frame parser - changes made by nick
+    const parsedFrame = parsePhotoDataUrl(frame);
+    if (!['image/png', 'image/jpeg'].includes(parsedFrame.mimeType)) {
+        throw new Error('Boomerang frames must be PNG or JPEG images.');
+    }
+
+    return Buffer.from(parsedFrame.base64Data, 'base64');
+}
+
+async function buildBoomerangGifBuffer(frameDataUrls, delayMs) { // Backend animated GIF generation - changes made by nick
+    if (!Array.isArray(frameDataUrls) || frameDataUrls.length < 2) {
+        throw new Error('At least two boomerang frames are required.');
+    }
+
+    const safeDelayMs = Math.max(40, Math.min(300, Number(delayMs) || 90));
+    const selectedFrames = frameDataUrls.slice(0, 24).map(parseBoomerangFrameDataUrl);
+    const normalizedFrames = await Promise.all(selectedFrames.map(async (frameBuffer) => {
+        return sharp(frameBuffer)
+            .rotate()
+            .png()
+            .toBuffer();
+    }));
+
+    return sharp(normalizedFrames, { join: { animated: true } })
+        .gif({
+            delay: normalizedFrames.map(() => safeDelayMs),
+            loop: 0,
+            colours: 256,
+            dither: 1,
+            effort: 7,
+            reuse: false,
+            interFrameMaxError: 0,
+            keepDuplicateFrames: true
+        })
+        .toBuffer();
+}
+
 // ==================== 2. QUESTION MANAGEMENT ROUTES ====================
 // Get active questions for feedback form
 router.get('/questions', (req, res) => {
@@ -414,9 +451,9 @@ router.post('/save-photo', (req, res) => {
 });
 
 // Save processed photo with overlay
-router.post('/save-processed-photo', (req, res) => {
+router.post('/save-processed-photo', async (req, res) => {
     try {
-        const { photo, userName, device, theme } = req.body;
+        const { photo, boomerangFrames, boomerangFrameDelayMs, userName, device, theme, captureMode, expectedFormat } = req.body;
         // Enforce capture feature flags and photo size validation before saving processed photos (DONE BY CAEDEN)
         const { featureFlags, validationRules } = parametersConfigStore.readParametersConfig();
         const captureEnabled = device === 'mobile'
@@ -427,15 +464,42 @@ router.post('/save-processed-photo', (req, res) => {
             return res.status(403).json({ error: 'Photo processing is disabled by feature flag' });
         }
         
-        if (!photo) {
+        const requiresGif = captureMode === 'boomerang' || expectedFormat === 'gif'; // changes made by nick
+        if (!photo && !requiresGif) {
             return res.status(400).json({ error: 'No processed photo data provided' });
         }
 
-        // Convert base64 to buffer, including boomerang GIF uploads - changes made by nick
-        const parsedPhoto = parsePhotoDataUrl(photo);
-        const buffer = Buffer.from(parsedPhoto.base64Data, 'base64');
         const configuredMaxBytes = (Number(validationRules.maxPhotoFileSizeMb) || 5) * 1024 * 1024;
-        const maxBytes = parsedPhoto.mimeType === 'image/gif'
+        let buffer;
+        let extension;
+        let mimeType;
+
+        if (requiresGif) {
+            if (Array.isArray(boomerangFrames) && boomerangFrames.length >= 2) {
+                buffer = await buildBoomerangGifBuffer(boomerangFrames, boomerangFrameDelayMs);
+                extension = 'gif';
+                mimeType = 'image/gif';
+            } else {
+                const parsedPhoto = parsePhotoDataUrl(photo, 'image/gif');
+                if (parsedPhoto.mimeType !== 'image/gif') {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Boomerang keepsakes must be saved from animation frames or uploaded as animated GIF files.'
+                    });
+                }
+                buffer = Buffer.from(parsedPhoto.base64Data, 'base64');
+                extension = 'gif';
+                mimeType = parsedPhoto.mimeType;
+            }
+        } else {
+            // Convert base64 to buffer for normal processed PNG/JPEG photos - changes made by nick
+            const parsedPhoto = parsePhotoDataUrl(photo);
+            buffer = Buffer.from(parsedPhoto.base64Data, 'base64');
+            extension = parsedPhoto.extension;
+            mimeType = parsedPhoto.mimeType;
+        }
+
+        const maxBytes = mimeType === 'image/gif'
             ? Math.max(configuredMaxBytes, 15 * 1024 * 1024)
             : configuredMaxBytes; // Allow email-friendly animated boomerang GIFs - changes made by nick
         if (buffer.length > maxBytes) {
@@ -446,7 +510,7 @@ router.post('/save-processed-photo', (req, res) => {
         // Generate filename for processed photo
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const safeUserName = userName ? userName.replace(/[^a-zA-Z0-9]/g, '_') : 'anonymous';
-        const filename = `${safeUserName}_${device}_${theme}_processed_${timestamp}.${parsedPhoto.extension}`;
+        const filename = `${safeUserName}_${device}_${theme}_processed_${timestamp}.${extension}`;
         const filepath = path.join(processedDir, filename);
 
         // Save the processed file

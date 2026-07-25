@@ -1333,7 +1333,8 @@ ${footerNote}
                     filename: photoFilename,
                     path: fullPhotoPath,
                     cid: 'visit_photo',
-                    contentType: getPhotoAttachmentContentType(photoFilename) // changes made by nick
+                    contentType: getPhotoAttachmentContentType(photoFilename), // changes made by nick
+                    contentDisposition: 'inline' // Ensure boomerang GIF renders inside visitor email - changes made by nick
                 }
             ] : []
         };

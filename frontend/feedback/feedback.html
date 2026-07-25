@@ -159,7 +159,11 @@
 
     <!-- Interactive RP teddy bear companion - changes made by nick -->
     <button type="button" class="rp-bear-companion" id="rp-bear-companion" aria-label="Republic Polytechnic helper bear" hidden>
-        <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
+        <span class="rp-bear-guide" aria-live="polite">
+            <span class="rp-bear-progress" id="rp-bear-progress">Step 1 of 5</span>
+            <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
+            <span class="rp-bear-actions" id="rp-bear-actions"></span>
+        </span>
         <span class="rp-bear" aria-hidden="true">
             <!-- Teddy bear polish details - changes made by nick -->
             <span class="rp-bear-shadow"></span>
@@ -813,6 +817,7 @@
             
             <h2 class="consent-title" id="confirmation-title" style="color: #059669;">Confirm Submission</h2>
             <p class="consent-description" id="confirmation-description">Please review your information before submitting:</p>
+            <p id="confirmation-form-alert" class="form-alert" role="alert"></p>
             
             <div class="submission-details">
                 <div class="detail-row">
@@ -830,6 +835,11 @@
                 <div class="detail-row">
                     <span class="detail-label" id="confirm-theme-label">Theme:</span>
                     <span class="detail-value" id="confirm-theme"></span>
+                </div>
+                <!-- Confirmation retention row required by updateConfirmationDetails - changes made by nick -->
+                <div class="detail-row">
+                    <span class="detail-label" id="confirm-retention-label">Data Retention:</span>
+                    <span class="detail-value" id="confirm-retention"></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label" id="confirm-pledge-label">Pledge:</span>

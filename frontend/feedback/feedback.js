@@ -183,6 +183,9 @@ let boomerangPreviewInterval = null;
 const BOOMERANG_FRAME_COUNT = 10;
 const DEFAULT_BOOMERANG_FRAME_DELAY_MS = 90; // Admin-controlled boomerang default - changes made by nick
 const BOOMERANG_GIF_MAX_FRAMES = 18; // Email-friendly animated GIF frame cap - changes made by nick
+const GIF_RED_LEVELS = 6; // Balanced GIF colour palette to reduce boomerang discoloration - changes made by nick
+const GIF_GREEN_LEVELS = 7; // Extra green level keeps skin and nature overlays less posterized - changes made by nick
+const GIF_BLUE_LEVELS = 6; // More blue levels fixes purple/green cast in emailed GIFs - changes made by nick
 let currentDevice = 'desktop'; // 'desktop' or 'mobile'
 let inactivityTimer = null;
 let idleWarningTimer = null;
@@ -321,23 +324,72 @@ let flowSlideTransitionTimer = null; // Prevent overlapping page transition clea
 // Interactive RP teddy bear companion messages - changes made by nick
 let rpBearSpeechTimer = null;
 let rpBearInteractionCount = 0;
+let rpBearLastPageId = null; // Guided companion page memory - changes made by nick
 const RP_BEAR_PAGE_MESSAGES = {
-    'details-page': 'Hi, I am your RP helper. Start with your name and email.',
-    'feedback-page': 'Share what you think. Short and honest is perfect.',
-    'pledge-page': 'Pick a focus and write one action you can try.',
-    'photo-choice-page': 'You can take a keepsake photo or skip this step.',
-    'photo-page': 'Try the filters, then smile when you are ready.',
-    'file-upload-page': 'Upload a clear photo and I will keep watch here.',
-    'style-page': 'Choose a frame you like for your keepsake.',
-    'confirmation-page': 'Almost done. Check everything once before submitting.',
-    'thankyou-page': 'Nice work. Thanks for helping the RP community.'
+    'details-page': 'Hi, I am Beary from RP. Add your name and email, then I will guide you onward.',
+    'feedback-page': 'Time for feedback. Answer the cards honestly; quick answers are okay.',
+    'pledge-page': 'Choose a focus and make one small pledge. I can suggest one if you tap a tip.',
+    'photo-choice-page': 'Pick your keepsake moment. Photo, boomerang, upload, or skip all work.',
+    'photo-page': 'Try a filter, look at the camera, then capture when you are ready.',
+    'file-upload-page': 'Upload a clear photo and I will help you move to styling.',
+    'style-page': 'Choose a frame you like. This is the memory we will email to you.',
+    'confirmation-page': 'Final check. If everything looks good, submit and I will celebrate with you.',
+    'thankyou-page': 'You did it. Thanks for adding your voice to the RP community.'
 };
-const RP_BEAR_INTERACTION_MESSAGES = [
-    'You found me. I will cheer you through this.',
-    'Need a nudge? Just finish the current card.',
-    'Looking good. One step at a time.',
-    'RP spirit activated.',
-    'Tap the main button when you are ready.'
+const RP_BEAR_TIPS = { // Step-by-step visitor guide tips - changes made by nick
+    'details-page': [
+        'Use the email you can check later so your keepsake reaches you.',
+        'Your name helps personalize the visit summary.'
+    ],
+    'feedback-page': [
+        'If a question has a star, answer it before continuing.',
+        'For ratings, tap the option that feels closest. No overthinking needed.'
+    ],
+    'pledge-page': [
+        'A strong pledge has an action, a number, and a timeframe.',
+        'Example: Bring a reusable bottle for 3 school days this week.'
+    ],
+    'photo-choice-page': [
+        'Boomerang creates a moving keepsake for your email.',
+        'Skipping photo is okay; your feedback still counts.'
+    ],
+    'photo-page': [
+        'Keep your face in the frame until the capture finishes.',
+        'Swipe the filter tray to try different animated cosmetics.'
+    ],
+    'file-upload-page': [
+        'Use a bright, clear image for the best frame result.',
+        'After upload, choose a style for the final keepsake.'
+    ],
+    'style-page': [
+        'The selected frame is applied before your email is sent.',
+        'Boomerangs are saved as animated GIFs for email.'
+    ],
+    'confirmation-page': [
+        'Check your email address before submitting.',
+        'You can go back if anything needs changing.'
+    ],
+    'thankyou-page': [
+        'Your email should arrive shortly if email sending is enabled.',
+        'Tap home when you are ready for the next visitor.'
+    ]
+};
+const RP_BEAR_PAGE_ACTIONS = { // Interactive teddy guide quick actions - changes made by nick
+    'details-page': [{ label: 'What next?', message: 'Fill in your details, then tap Continue to Feedback.' }],
+    'feedback-page': [{ label: 'Help', message: 'Answer each visible question. I will point out anything missing.' }],
+    'pledge-page': [{ label: 'Pledge tip', message: 'Try: I will do one clear action at least 3 times this week.' }],
+    'photo-choice-page': [{ label: 'Boomerang?', message: 'Boomerang records a short moving keepsake and sends it as a GIF.' }],
+    'photo-page': [{ label: 'Photo tip', message: 'Face the camera, stay still for a moment, then tap Capture.' }],
+    'file-upload-page': [{ label: 'Upload tip', message: 'Choose a clear photo, then continue to style selection.' }],
+    'style-page': [{ label: 'Style tip', message: 'Pick the frame you like best. I will remember it for the email.' }],
+    'confirmation-page': [{ label: 'Check', message: 'Name, email, pledge, answers, and photo are ready for final submit.' }],
+    'thankyou-page': [{ label: 'Yay', message: 'Thank you for finishing the visit. That was a smooth run.' }]
+};
+const RP_BEAR_CELEBRATIONS = [
+    'Nice, that step is done.',
+    'Good progress. I am right here with you.',
+    'That was smooth. Next stop coming up.',
+    'Great, you are moving through the form nicely.'
 ];
 
 function getStepForPage(pageId) {
@@ -411,27 +463,91 @@ function setRpBearSpeech(message, shouldPop = false) { // changes made by nick
     }, shouldPop ? 3600 : 2600);
 }
 
+function getRpBearStepText(pageId) { // changes made by nick
+    const step = getStepForPage(pageId);
+    if (!step) {
+        return pageId === 'thankyou-page' ? 'Complete' : 'Guide';
+    }
+
+    const stepIndex = FLOW_STEPS.findIndex(item => item.key === step.key);
+    return `Step ${stepIndex + 1} of ${FLOW_STEPS.length}: ${step.label}`;
+}
+
+function getRpBearTip(pageId) { // changes made by nick
+    const tips = RP_BEAR_TIPS[pageId] || ['Tap me any time for a small hint.'];
+    const tipIndex = rpBearInteractionCount % tips.length;
+    return tips[tipIndex];
+}
+
+function renderRpBearActions(pageId) { // changes made by nick
+    const actions = document.getElementById('rp-bear-actions');
+    if (!actions) return;
+
+    const pageActions = RP_BEAR_PAGE_ACTIONS[pageId] || [{ label: 'Tip', message: getRpBearTip(pageId) }];
+    actions.innerHTML = pageActions.map((action, index) => `
+        <span
+            class="rp-bear-action"
+            data-bear-action-index="${index}"
+        >${action.label}</span>
+    `).join('');
+}
+
+function setRpBearMood(mood) { // changes made by nick
+    const companion = document.getElementById('rp-bear-companion');
+    if (!companion) return;
+    companion.classList.remove('mood-thinking', 'mood-success', 'mood-alert');
+    if (mood) companion.classList.add(`mood-${mood}`);
+}
+
+function cheerRpBear(message) { // changes made by nick
+    setRpBearMood('success');
+    setRpBearSpeech(message, true);
+    setTimeout(() => setRpBearMood(null), 2400);
+}
+
+function nudgeRpBear(message) { // changes made by nick
+    setRpBearMood('alert');
+    setRpBearSpeech(message, true);
+    setTimeout(() => setRpBearMood(null), 3000);
+}
+
 function updateRpBearCompanion(pageId) { // changes made by nick
     const companion = document.getElementById('rp-bear-companion');
+    const progress = document.getElementById('rp-bear-progress');
     if (!companion) return;
 
     const shouldShow = FLOW_PAGE_IDS.includes(pageId);
     companion.hidden = !shouldShow;
 
     if (!shouldShow) {
-        companion.classList.remove('is-speaking', 'is-excited', 'is-waving');
+        companion.classList.remove('is-speaking', 'is-excited', 'is-waving', 'mood-thinking', 'mood-success', 'mood-alert');
+        rpBearLastPageId = null;
         return;
     }
 
-    setRpBearSpeech(RP_BEAR_PAGE_MESSAGES[pageId] || 'I am here if you need a nudge.');
+    if (progress) progress.textContent = getRpBearStepText(pageId);
+    renderRpBearActions(pageId);
+    setRpBearMood(pageId === 'confirmation-page' ? 'thinking' : null);
+    setRpBearSpeech(RP_BEAR_PAGE_MESSAGES[pageId] || 'I am here if you need a nudge.', pageId !== rpBearLastPageId);
+    rpBearLastPageId = pageId;
 }
 
 function setupRpBearCompanion() { // changes made by nick
     const companion = document.getElementById('rp-bear-companion');
     if (!companion) return;
 
-    companion.addEventListener('click', () => {
-        const message = RP_BEAR_INTERACTION_MESSAGES[rpBearInteractionCount % RP_BEAR_INTERACTION_MESSAGES.length];
+    companion.addEventListener('click', (event) => {
+        const actionTarget = event.target.closest('.rp-bear-action');
+        const pageId = activeFlowPageId || getVisibleFlowPageId();
+        if (actionTarget) {
+            const pageActions = RP_BEAR_PAGE_ACTIONS[pageId] || [];
+            const action = pageActions[Number(actionTarget.dataset.bearActionIndex)] || { message: getRpBearTip(pageId) };
+            setRpBearSpeech(action.message, true);
+            resetInactivityTimer();
+            return;
+        }
+
+        const message = getRpBearTip(pageId);
         rpBearInteractionCount += 1;
         setRpBearSpeech(message, true);
         resetInactivityTimer();
@@ -745,6 +861,7 @@ function clearValidationMessages() {
     document.querySelectorAll('.field-error, .form-alert').forEach(el => {
         el.textContent = '';
         el.style.display = 'none';
+        el.classList.remove('is-visible'); // Reset inline notice animation state - changes made by nick
     });
     document.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
 }
@@ -776,6 +893,15 @@ function showFormAlert(formId, message) {
     if (!alert) return;
     alert.textContent = message;
     alert.style.display = 'block';
+    alert.classList.add('is-visible'); // Styled inline notice instead of browser alert - changes made by nick
+    alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function showVisitorNotice(formId, message, bearMessage = '') { // Replace disruptive browser alerts with inline notices - changes made by nick
+    showFormAlert(formId, message);
+    if (bearMessage) {
+        nudgeRpBear(bearMessage);
+    }
 }
 
 function initializeProgressIndicators() {
@@ -1471,7 +1597,7 @@ async function capturePhotoIfFaceDetected() {
         const faceDetection = await detectFaceInCurrentFrame(); // reuse face box for slimming filter done by nick
         if (!faceDetection) {
             updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
-            alert('No face detected. Please position your face clearly in the camera frame and capture again.');
+            showVisitorNotice('photo-form-alert', 'No face detected. Please position your face clearly in the camera frame and capture again.', 'I could not see a face clearly. Move into the frame and try again.');
             return false;
         }
 
@@ -1482,7 +1608,7 @@ async function capturePhotoIfFaceDetected() {
     } catch (error) {
         console.error('Face detection check failed:', error);
         updateFaceDetectionStatus('Face detection failed. Please try again.', 'error');
-        alert(`Face detection failed: ${error.message}`);
+        showVisitorNotice('photo-form-alert', `Face detection failed: ${error.message}`, 'The face check had trouble. Try again with brighter lighting.');
         return false;
     }
 }
@@ -2248,6 +2374,7 @@ function applyPledgeCoachSuggestion() {
     textarea.value = pledgeCoachSuggestion.slice(0, Number(textarea.maxLength) || 500);
     if (charCount) charCount.textContent = textarea.value.length;
     updatePledgeCoach();
+    cheerRpBear('Nice pledge upgrade. That one is much easier to act on.');
     resetInactivityTimer();
 }
 
@@ -2297,14 +2424,17 @@ function submitFeedback(event) {
     // Validate required questions
     if (!validateRequiredQuestions()) {
         showFormAlert('feedback-form-alert', getDynamicLanguageText().requiredQuestion);
+        nudgeRpBear('One question still needs an answer. I moved you to it.');
         return;
     }
 
     if (getFeatureFlags().pledgeEnabled === false) {
+        cheerRpBear('Feedback captured. Pledge is skipped by settings, so we can move ahead.');
         skipPledge();
         return;
     }
 
+    cheerRpBear('Feedback done. Let us turn that into a small action.');
     showFlowPage('pledge-page');
     resetInactivityTimer();
 }
@@ -2321,35 +2451,42 @@ function submitDetails(event) {
     
     if (rules.nameRequired !== false && !userData.name) {
         showFieldError('user-name', 'Please enter your name so we can add it to your submission.');
+        nudgeRpBear('Start with your name here. Then we can keep moving.');
         return;
     }
 
     if (userData.name && userData.name.length < Number(rules.nameMinLength || 0)) {
         showFieldError('user-name', `Please enter at least ${rules.nameMinLength} characters.`);
+        nudgeRpBear('Your name needs a little more detail before we continue.');
         return;
     }
 
     if (userData.name && userData.name.length > Number(rules.nameMaxLength || 9999)) {
         showFieldError('user-name', `Please keep your name within ${rules.nameMaxLength} characters.`);
+        nudgeRpBear('That name is a bit too long for the form. Try shortening it.');
         return;
     }
 
     if (rules.emailRequired !== false && !userData.email) {
         showFieldError('user-email', 'Please enter your email so we can send your RP memory photo.');
+        nudgeRpBear('Add your email so your keepsake can find you later.');
         return;
     }
 
     if (userData.email && !matchesConfiguredPattern(userData.email, rules.emailPattern)) {
         showFieldError('user-email', 'Please enter a valid email address, for example name@example.com.');
+        nudgeRpBear('That email looks incomplete. Try something like name@example.com.');
         return;
     }
 
+    cheerRpBear('Details saved. You are ready for the feedback questions.');
     showFlowPage('feedback-page');
     resetInactivityTimer();
 }
 
 // Show the photo choice step after pledge instead of forcing photo capture - changes made by nick
 function continueAfterPledgeChoice() {
+    cheerRpBear(userData.pledgeSkipped ? 'No worries, pledge skipped. Your feedback still matters.' : 'Pledge saved. Now choose your keepsake moment.');
     showFlowPage('photo-choice-page');
     resetInactivityTimer();
 }
@@ -2360,6 +2497,8 @@ function clearPhotoCaptureData() {
     userData.photoId = null;
     userData.processedPhotoId = null;
     userData.processedPhoto = null;
+    userData.processedBoomerangFrames = null; // Clear backend GIF frame payload - changes made by nick
+    userData.boomerangFrameDelayMs = null; // Clear backend GIF timing payload - changes made by nick
     boomerangFrames = [];
     stopBoomerangPreview();
     stopFaceAccessoryPreview();
@@ -2373,8 +2512,7 @@ function startPhotoFlow() {
 
     if (flags.cameraCaptureEnabled === false && flags.photoUploadEnabled === false) {
         if (rules.photoRequired !== false) {
-            showFormAlert('photo-choice-form-alert', 'Photo capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable capture.');
-            alert('Photo capture is currently disabled, but photo is still required.');
+            showVisitorNotice('photo-choice-form-alert', 'Photo capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable capture.', 'Photo is required, but capture is disabled. A staff member can help.');
             return;
         }
         showFlowPage('confirmation-page');
@@ -2387,8 +2525,7 @@ function startPhotoFlow() {
     if (currentDevice === 'mobile') {
         if (flags.photoUploadEnabled === false) {
             if (rules.photoRequired !== false) {
-                showFormAlert('photo-choice-form-alert', 'Mobile photo upload is currently disabled. Please ask an administrator to disable the photo requirement or re-enable uploads.');
-                alert('Mobile photo upload is currently disabled, but photo is still required.');
+                showVisitorNotice('photo-choice-form-alert', 'Mobile photo upload is currently disabled. Please ask an administrator to disable the photo requirement or re-enable uploads.', 'Upload is disabled right now. Please ask a staff member for help.');
                 return;
             }
             showFlowPage('confirmation-page');
@@ -2400,13 +2537,13 @@ function startPhotoFlow() {
         // DESKTOP: Use camera as before
         if (flags.cameraCaptureEnabled === false) {
             if (rules.photoRequired !== false) {
-                showFormAlert('photo-choice-form-alert', 'Desktop camera capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable camera capture.');
-                alert('Desktop camera capture is currently disabled, but photo is still required.');
+                showVisitorNotice('photo-choice-form-alert', 'Desktop camera capture is currently disabled. Please ask an administrator to disable the photo requirement or re-enable camera capture.', 'Camera capture is disabled right now. Please ask a staff member for help.');
                 return;
             }
             showFlowPage('confirmation-page');
             updateConfirmationDetails();
         } else {
+            setRpBearSpeech('Camera time. Try a filter, then I will cheer when your photo is captured.', true);
             showFlowPage('photo-page');
             initializeCamera();
         }
@@ -2422,6 +2559,7 @@ function skipPhoto() {
     userData.captureMode = 'none';
     showFlowPage('confirmation-page');
     updateConfirmationDetails();
+    setRpBearSpeech('Photo skipped. I brought you to the final check.', true);
     resetInactivityTimer();
 }
 
@@ -2438,21 +2576,25 @@ function submitPledge(event) {
 
     if (rules.pledgeRequired !== false && !userData.pledge) {
         showFieldError('pledge-text', 'Write one short action you will try. You can also skip the pledge below.');
+        nudgeRpBear('Write one short action, or use Skip Pledge if you prefer.');
         return;
     }
 
     if (userData.pledge && userData.pledge.length < Number(rules.pledgeMinLength || 0)) {
         showFieldError('pledge-text', `Please write at least ${rules.pledgeMinLength} characters.`);
+        nudgeRpBear('Your pledge is nearly there. Add a few more words.');
         return;
     }
 
     if (userData.pledge && userData.pledge.length > Number(rules.pledgeMaxLength || 9999)) {
         showFieldError('pledge-text', `Please keep your pledge within ${rules.pledgeMaxLength} characters.`);
+        nudgeRpBear('That pledge is too long. Keep it short and actionable.');
         return;
     }
 
     if (rules.pledgeTopicRequired !== false && userData.pledgeTopics.length === 0) {
         showFieldError('pledge-topic-options', 'Choose at least one sustainability focus before continuing.');
+        nudgeRpBear('Choose one focus area so I know what your pledge supports.');
         return;
     }
 
@@ -2496,12 +2638,12 @@ async function handlePhotoUpload(event) {
     // Validate it's an image file
     const fileExtension = (file.name.split('.').pop() || '').toLowerCase();
     if (!file.type.match('image.*') || !allowedFormats.includes(fileExtension)) {
-        alert(`Please upload an allowed image file (${allowedFormats.join(', ')}).`);
+        showVisitorNotice('upload-form-alert', `Please upload an allowed image file (${allowedFormats.join(', ')}).`, 'That file type is not accepted. Choose a photo file instead.');
         return;
     }
 
     if (file.size > maxPhotoFileSizeMb * 1024 * 1024) {
-        alert(`File is too large. Please upload an image smaller than ${maxPhotoFileSizeMb}MB.`);
+        showVisitorNotice('upload-form-alert', `File is too large. Please upload an image smaller than ${maxPhotoFileSizeMb}MB.`, 'That photo is too large. Try a smaller image.');
         return;
     }
 
@@ -2521,7 +2663,7 @@ async function handlePhotoUpload(event) {
         reader.onerror = () => reject(new Error('Error reading the file. Please try again.'));
         reader.readAsDataURL(file);
     }).catch((error) => {
-        alert(error.message);
+        showVisitorNotice('upload-form-alert', error.message, 'I could not read that file. Try another photo.');
         updateFaceDetectionStatus('Could not read image. Please try again.', 'error', uploadFaceDetectionStatus);
         return null;
     });
@@ -2535,7 +2677,7 @@ async function handlePhotoUpload(event) {
         if (!faceDetection) {
             event.target.value = '';
             updateFaceDetectionStatus('No face detected. Please retake and upload a clearer face photo.', 'error', uploadFaceDetectionStatus);
-            alert('No face detected. Please retake the photo and make sure your face is clearly visible.');
+            showVisitorNotice('upload-form-alert', 'No face detected. Please retake the photo and make sure your face is clearly visible.', 'I could not spot a face in that upload. Try a brighter, clearer photo.');
             return;
         }
 
@@ -2546,12 +2688,15 @@ async function handlePhotoUpload(event) {
         userData.photoSkipped = false;
         userData.captureMode = 'photo';
         boomerangFrames = [];
+        userData.processedBoomerangFrames = null; // Clear backend GIF frames for uploaded still photos - changes made by nick
+        userData.boomerangFrameDelayMs = null; // Clear backend GIF timing for uploaded still photos - changes made by nick
 
         const previewImg = document.getElementById('uploaded-photo-preview');
         previewImg.src = photoData;
         previewContainer.style.display = 'block';
         continueBtn.disabled = false;
         updateFaceDetectionStatus('Face detected. Photo accepted.', 'success', uploadFaceDetectionStatus);
+        cheerRpBear('Photo accepted. Nice, now choose a style for it.');
 
         // Auto-scroll to show preview
         previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2565,7 +2710,7 @@ async function handlePhotoUpload(event) {
         previewContainer.style.display = 'none';
         continueBtn.disabled = true;
         updateFaceDetectionStatus('Face detection failed. Please try again.', 'error', uploadFaceDetectionStatus);
-        alert(`Face detection failed: ${error.message}`);
+        showVisitorNotice('upload-form-alert', `Face detection failed: ${error.message}`, 'The upload check had trouble. Try another clear photo.');
     }
 }
 
@@ -2573,9 +2718,11 @@ async function handlePhotoUpload(event) {
 function continueToStyleFromUpload() {
     if (!photoData) {
         showFormAlert('upload-form-alert', 'Please add a clear photo before choosing a style.');
+        nudgeRpBear('Add a clear photo first, then I can help you style it.');
         return;
     }
 
+    cheerRpBear('Great upload. Let us make it look good with a frame.');
     showFlowPage('style-page');
     resetInactivityTimer();
 
@@ -2593,6 +2740,8 @@ function retakePhotoFromUpload() {
     photoData = null;
     // Clear boomerang preview frames when retaking an uploaded photo - changes made by nick
     boomerangFrames = [];
+    userData.processedBoomerangFrames = null; // Clear backend GIF frames on upload retake - changes made by nick
+    userData.boomerangFrameDelayMs = null; // Clear backend GIF timing on upload retake - changes made by nick
 
     // Trigger click on file input again
     document.getElementById('photo-input').click();
@@ -2798,6 +2947,12 @@ function selectCaptureMode(mode) {
     captureMode = mode;
     userData.captureMode = mode;
     updateCaptureModeButtons();
+    setRpBearSpeech(
+        mode === 'boomerang'
+            ? 'Boomerang selected. I will save it as a moving GIF for your email.'
+            : 'Photo selected. We will capture one polished keepsake.',
+        true
+    );
     resetInactivityTimer();
 }
 
@@ -2853,7 +3008,7 @@ async function captureBoomerangIfFaceDetected() {
         const faceDetection = await detectFaceInCurrentFrame();
         if (!faceDetection) {
             updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
-            alert('No face detected. Please position your face clearly in the camera frame and capture again.');
+            showVisitorNotice('photo-form-alert', 'No face detected. Please position your face clearly in the camera frame and capture again.', 'I could not see a face clearly. Move into the frame and try again.');
             return false;
         }
 
@@ -2875,6 +3030,8 @@ async function captureBoomerangIfFaceDetected() {
         boomerangFrames = frames.concat(frames.slice(1, -1).reverse());
         userData.photoSkipped = false;
         userData.captureMode = 'boomerang';
+        userData.processedBoomerangFrames = null; // Rebuild backend GIF frames from this new recording - changes made by nick
+        userData.boomerangFrameDelayMs = null; // Rebuild backend GIF timing from this new recording - changes made by nick
         photoData = frames[Math.floor(frames.length / 2)] || frames[0];
 
         if (cameraContainer) {
@@ -2882,6 +3039,7 @@ async function captureBoomerangIfFaceDetected() {
         }
 
         updateFaceDetectionStatus('Boomerang captured.', 'success');
+        cheerRpBear('Boomerang captured. This will move in your email.');
 
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -2897,7 +3055,7 @@ async function captureBoomerangIfFaceDetected() {
             cameraContainer.classList.remove('boomerang-capturing');
         }
         updateFaceDetectionStatus('Boomerang capture failed. Please try again.', 'error');
-        alert(`Boomerang capture failed: ${error.message}`);
+        showVisitorNotice('photo-form-alert', `Boomerang capture failed: ${error.message}`, 'Boomerang capture stumbled. Let us try one more time.');
         return false;
     }
 }
@@ -2992,11 +3150,13 @@ async function initializeCamera() {
         
         // Add event listener to video for user interaction
         video.addEventListener('click', resetInactivityTimer);
+        setRpBearSpeech('Camera is ready. Try a filter, then tap Capture when you like the look.', true);
         
     } catch (error) {
         console.error('Camera error:', error);
+        nudgeRpBear('I could not open the camera. Check permission or ask a staff member.');
         if (error.name === 'NotAllowedError') {
-            alert('Camera access was denied. Please allow camera permissions to take a photo.');
+            showVisitorNotice('photo-form-alert', 'Camera access was denied. Please allow camera permissions to take a photo.', 'Camera permission is blocked. Please allow access or ask a staff member.');
         }
     }
 }
@@ -3007,6 +3167,7 @@ async function capturePhoto() {
 
     if (flags.cameraCaptureEnabled === false && currentDevice !== 'mobile') {
         showFormAlert('photo-form-alert', 'Camera capture is currently disabled.');
+        nudgeRpBear('Camera capture is disabled right now.');
         return;
     }
 
@@ -3014,6 +3175,7 @@ async function capturePhoto() {
     if (currentDevice === 'mobile') {
         if (flags.photoUploadEnabled === false) {
             showFormAlert('photo-form-alert', 'Photo upload is currently disabled.');
+            nudgeRpBear('Photo upload is disabled right now.');
             return;
         }
         showFlowPage('file-upload-page');
@@ -3027,7 +3189,7 @@ async function capturePhoto() {
         const countdownText = document.getElementById('countdown-text');
         
         if (!stream) {
-            alert('Camera not ready. Please wait for camera to initialize.');
+            showVisitorNotice('photo-form-alert', 'Camera not ready. Please wait for camera to initialize.', 'Camera is still warming up. Give it a moment, then try again.');
             return;
         }
 
@@ -3040,6 +3202,7 @@ async function capturePhoto() {
 
         // Disable capture button during countdown
         captureBtn.disabled = true;
+        setRpBearSpeech(captureMode === 'boomerang' ? 'Hold still. I am recording your boomerang.' : 'Smile. I am getting your photo ready.', true);
         
         // Load countdown from backend if not yet loaded
         if (countdownSeconds === null) {
@@ -3084,7 +3247,7 @@ async function capturePhoto() {
         }, 1000);
     } catch (error) {
         console.error('Error in capturePhoto:', error);
-        alert('Error capturing photo: ' + error.message);
+        showVisitorNotice('photo-form-alert', 'Error capturing photo: ' + error.message, 'Photo capture had trouble. Please try again.');
     }
 }
 
@@ -3095,6 +3258,8 @@ async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { 
     userData.photoSkipped = false;
     userData.captureMode = 'photo';
     boomerangFrames = [];
+    userData.processedBoomerangFrames = null; // Clear backend GIF frames for normal photo mode - changes made by nick
+    userData.boomerangFrameDelayMs = null; // Clear backend GIF timing for normal photo mode - changes made by nick
     stopFaceAccessoryPreview();
     
     // Stop camera stream after taking photo
@@ -3104,6 +3269,7 @@ async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { 
     }
     
     // Immediately go to style page (don't save photo yet)
+    cheerRpBear('Photo captured. Let us pick a frame.');
     continueToStyle();
 }
 // mirror function done by nick
@@ -3132,6 +3298,7 @@ function continueToStyle() {
         resetInactivityTimer();
     } else {
         showFormAlert('photo-form-alert', 'Please capture a clear photo before choosing a style.');
+        nudgeRpBear('Capture a clear photo first, then I will help with the frame.');
     }
 }
 
@@ -3177,9 +3344,13 @@ function saveProcessedPhoto() {
         },
         body: JSON.stringify({
             photo: userData.processedPhoto,
+            boomerangFrames: userData.captureMode === 'boomerang' ? userData.processedBoomerangFrames : null, // Backend creates final GIF from frames - changes made by nick
+            boomerangFrameDelayMs: userData.captureMode === 'boomerang' ? userData.boomerangFrameDelayMs : null, // Preserve boomerang playback speed - changes made by nick
             userName: userData.name || 'anonymous',
             device: currentDevice,
-            theme: selectedTheme
+            theme: selectedTheme,
+            captureMode: userData.captureMode || captureMode,
+            expectedFormat: userData.captureMode === 'boomerang' ? 'gif' : 'png' // Force boomerang email keepsake to save as GIF - changes made by nick
         })
     })
     .then(response => response.json())
@@ -3188,8 +3359,12 @@ function saveProcessedPhoto() {
             throw new Error(data.error || 'Processed photo could not be saved.');
         }
         console.log('Processed photo saved:', data);
+        if (userData.captureMode === 'boomerang' && !String(data.filename || '').toLowerCase().endsWith('.gif')) {
+            throw new Error('Boomerang was not saved as a GIF. Please try capturing it again.');
+        }
         userData.processedPhotoId = data.filename;
         userData.processedPhoto = null; // Avoid resending large GIF/PNG data in final submission - changes made by nick
+        userData.processedBoomerangFrames = null; // Avoid resending large boomerang frames in final submission - changes made by nick
         return data;
     })
     .catch(error => {
@@ -3533,16 +3708,21 @@ function writeGifString(bytes, value) { // changes made by nick
 
 function getGifPalette() { // changes made by nick
     const palette = [];
-    for (let red = 0; red < 8; red++) {
-        for (let green = 0; green < 8; green++) {
-            for (let blue = 0; blue < 4; blue++) {
+    for (let red = 0; red < GIF_RED_LEVELS; red++) {
+        for (let green = 0; green < GIF_GREEN_LEVELS; green++) {
+            for (let blue = 0; blue < GIF_BLUE_LEVELS; blue++) {
                 palette.push(
-                    Math.round((red / 7) * 255),
-                    Math.round((green / 7) * 255),
-                    Math.round((blue / 3) * 255)
+                    Math.round((red / (GIF_RED_LEVELS - 1)) * 255),
+                    Math.round((green / (GIF_GREEN_LEVELS - 1)) * 255),
+                    Math.round((blue / (GIF_BLUE_LEVELS - 1)) * 255)
                 );
             }
         }
+    }
+
+    // GIF global colour tables must contain 256 entries; pad the unused slots. changes made by nick
+    while (palette.length < 256 * 3) {
+        palette.push(0, 0, 0);
     }
     return palette;
 }
@@ -3551,10 +3731,10 @@ function imageDataToGifIndexes(imageData) { // changes made by nick
     const source = imageData.data;
     const indexes = new Uint8Array(imageData.width * imageData.height);
     for (let sourceIndex = 0, targetIndex = 0; sourceIndex < source.length; sourceIndex += 4, targetIndex++) {
-        const red = source[sourceIndex] >> 5;
-        const green = source[sourceIndex + 1] >> 5;
-        const blue = source[sourceIndex + 2] >> 6;
-        indexes[targetIndex] = (red << 5) | (green << 2) | blue;
+        const red = Math.round((source[sourceIndex] / 255) * (GIF_RED_LEVELS - 1));
+        const green = Math.round((source[sourceIndex + 1] / 255) * (GIF_GREEN_LEVELS - 1));
+        const blue = Math.round((source[sourceIndex + 2] / 255) * (GIF_BLUE_LEVELS - 1));
+        indexes[targetIndex] = (red * GIF_GREEN_LEVELS * GIF_BLUE_LEVELS) + (green * GIF_BLUE_LEVELS) + blue;
     }
     return indexes;
 }
@@ -3562,18 +3742,10 @@ function imageDataToGifIndexes(imageData) { // changes made by nick
 function lzwEncodeGifIndexes(indexes, minCodeSize = 8) { // changes made by nick
     const clearCode = 1 << minCodeSize;
     const endCode = clearCode + 1;
-    let nextCode = endCode + 1;
     let codeSize = minCodeSize + 1;
     let bitBuffer = 0;
     let bitCount = 0;
     const output = [];
-    let dictionary = new Map();
-
-    function resetDictionary() {
-        dictionary = new Map();
-        nextCode = endCode + 1;
-        codeSize = minCodeSize + 1;
-    }
 
     function writeCode(code) {
         bitBuffer |= code << bitCount;
@@ -3585,37 +3757,20 @@ function lzwEncodeGifIndexes(indexes, minCodeSize = 8) { // changes made by nick
         }
     }
 
-    function getCode(sequence) {
-        return sequence.indexOf(',') === -1 ? Number(sequence) : dictionary.get(sequence);
-    }
-
-    resetDictionary();
+    // Use frequent clear codes instead of a growing dictionary so boomerang GIFs
+    // stay valid across strict email clients such as Gmail mobile. changes made by nick
     writeCode(clearCode);
-
-    let sequence = String(indexes[0] || 0);
-    for (let i = 1; i < indexes.length; i++) {
-        const value = indexes[i];
-        const joined = `${sequence},${value}`;
-        if (dictionary.has(joined)) {
-            sequence = joined;
-            continue;
-        }
-
-        writeCode(getCode(sequence));
-        if (nextCode < 4096) {
-            dictionary.set(joined, nextCode);
-            nextCode += 1;
-            if (nextCode === (1 << codeSize) && codeSize < 12) {
-                codeSize += 1;
-            }
-        } else {
+    let codesSinceClear = 0;
+    for (let i = 0; i < indexes.length; i++) {
+        writeCode(indexes[i]);
+        codesSinceClear += 1;
+        if (codesSinceClear >= 120 && i < indexes.length - 1) {
             writeCode(clearCode);
-            resetDictionary();
+            codesSinceClear = 0;
+            codeSize = minCodeSize + 1;
         }
-        sequence = String(value);
     }
 
-    writeCode(getCode(sequence));
     writeCode(endCode);
     if (bitCount > 0) {
         output.push(bitBuffer & 0xff);
@@ -3675,7 +3830,7 @@ function buildAnimatedGifDataUrl(frameImageDataList, delayMs) { // changes made 
     return `data:image/gif;base64,${btoa(binary)}`;
 }
 
-async function createBoomerangProcessedGif() { // changes made by nick
+async function createBoomerangProcessedFrames() { // Backend-ready boomerang frames - changes made by nick
     const layout = getGifCutoutLayout();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -3703,32 +3858,41 @@ async function createBoomerangProcessedGif() { // changes made by nick
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(frameImg, x, y, scaledWidth, scaledHeight);
         ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
-        frameImageDataList.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        frameImageDataList.push(canvas.toDataURL('image/png'));
     }
 
-    return buildAnimatedGifDataUrl(frameImageDataList, getBoomerangFrameDelayMs() * frameStep);
+    return {
+        frames: frameImageDataList,
+        delayMs: getBoomerangFrameDelayMs() * frameStep
+    };
 }
 
 // Process final photo with overlay for final submission
 function processFinalPhoto() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         if (!photoData) {
             resolve();
             return;
         }
 
         if (userData.captureMode === 'boomerang' && boomerangFrames.length) {
-            // Save boomerang keepsake as an animated GIF for visitor email - changes made by nick
-            createBoomerangProcessedGif()
-                .then((gifDataUrl) => {
-                    userData.processedPhoto = gifDataUrl;
-                    console.log('Final boomerang processed as animated GIF for email');
+            // Send composited frames to the backend so sharp creates the final GIF - changes made by nick
+            createBoomerangProcessedFrames()
+                .then((boomerangPayload) => {
+                    if (!boomerangPayload.frames.length) {
+                        throw new Error('Boomerang frames could not be prepared.');
+                    }
+                    userData.processedBoomerangFrames = boomerangPayload.frames;
+                    userData.boomerangFrameDelayMs = boomerangPayload.delayMs;
+                    userData.processedPhoto = boomerangPayload.frames[0]; // Still preview fallback while backend creates GIF - changes made by nick
+                    console.log('Final boomerang frames prepared for backend GIF generation');
                     resolve();
                 })
                 .catch((error) => {
-                    console.error('Animated GIF processing failed, falling back to PNG frame:', error);
+                    console.error('Boomerang frame processing failed:', error);
+                    userData.processedBoomerangFrames = null;
                     userData.processedPhoto = null;
-                    resolve(processFinalPhotoFromStillFrame());
+                    reject(error);
                 });
             return;
         }
@@ -3881,13 +4045,33 @@ function retakePhotoFromStyle() {
 // Confirm style and proceed to confirmation page
 function confirmStyle() {
     // Process the final photo with overlay but doesnt save yet
+    setRpBearMood('thinking');
+    setRpBearSpeech(userData.captureMode === 'boomerang'
+        ? 'Making your animated GIF keepsake now.'
+        : 'Applying your selected frame now.', true);
     processFinalPhoto().then(() => {
         showFlowPage('confirmation-page');
         resetInactivityTimer();
         
         // Update confirmation page details
         updateConfirmationDetails();
+        setRpBearMood(null);
+        cheerRpBear('Style saved. One final check and you are done.');
+    }).catch((error) => {
+        console.error('Could not prepare final keepsake:', error);
+        setRpBearMood(null);
+        nudgeRpBear(userData.captureMode === 'boomerang'
+            ? 'I could not make the GIF. Please retake the boomerang so it can email correctly.'
+            : 'I could not apply the frame. Please try again.');
+        showFormAlert('photo-form-alert', error.message || 'Could not prepare the final keepsake. Please try again.');
     });
+}
+
+function setConfirmationValue(id, value) { // changes made by nick
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    }
 }
 
 // Update confirmation page with user data
@@ -3897,11 +4081,11 @@ function updateConfirmationDetails() {
     const pledgeSummary = userData.pledgeSkipped
         ? 'Skipped - Feedback Contributor badge'
         : `${userData.pledge || 'Not provided'}${focusList ? ` | Focus: ${focusList}` : ''}`;
-    document.getElementById('confirm-name').textContent = userData.name || 'Not provided';
-    document.getElementById('confirm-email').textContent = userData.email || 'Not provided';
-    document.getElementById('confirm-pledge').textContent = pledgeSummary;
-    document.getElementById('confirm-theme').textContent = userData.photoSkipped ? 'Not selected' : selectedTheme;
-    document.getElementById('confirm-retention').textContent = selectedRetention === 'longterm' ? 'Long-Term' : getTemporaryRetentionLabel();
+    setConfirmationValue('confirm-name', userData.name || 'Not provided');
+    setConfirmationValue('confirm-email', userData.email || 'Not provided');
+    setConfirmationValue('confirm-pledge', pledgeSummary);
+    setConfirmationValue('confirm-theme', userData.photoSkipped ? 'Not selected' : selectedTheme);
+    setConfirmationValue('confirm-retention', selectedRetention === 'longterm' ? 'Long-Term' : getTemporaryRetentionLabel());
     const photoReady = document.getElementById('confirm-photo-ready');
     const emailPhotoReady = document.getElementById('confirm-email-photo-ready');
     if (userData.photoSkipped) {
@@ -3919,7 +4103,7 @@ function updateConfirmationDetails() {
     
     // Show how many questions were answered
     const answeredCount = Object.keys(userData.answers || {}).length;
-    document.getElementById('confirm-questions').textContent = getDynamicLanguageText().questionsAnswered(answeredCount);
+    setConfirmationValue('confirm-questions', getDynamicLanguageText().questionsAnswered(answeredCount));
 }
 
 // Go back from confirmation to style page
@@ -3929,6 +4113,7 @@ function goBackToStyle() {
     } else {
         showFlowPage('style-page');
     }
+    setRpBearSpeech('No problem. Let us adjust that before submitting.', true);
     resetInactivityTimer();
 }
 
@@ -3946,6 +4131,8 @@ function finalSubmit() {
         Submitting...
     `;
     submitBtn.disabled = true;
+    setRpBearMood('thinking');
+    setRpBearSpeech('Submitting now. I am saving your visit and preparing the email.', true);
     
     // Clear inactivity timer since submission is in progress
     if (inactivityTimer) {
@@ -3985,6 +4172,7 @@ function finalSubmit() {
         
         // Show thank you page
         showFlowPage('thankyou-page');
+        cheerRpBear('All done. Your visit has been saved.');
         
         // Show the visitor which badge/leaf reward they unlocked.
         setupBadgeReward(submissionData);
@@ -4000,15 +4188,17 @@ function finalSubmit() {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
         document.body.classList.remove('submitting-feedback');
+        setRpBearMood(null);
     })
     .catch(error => {
         console.error('Error submitting feedback:', error);
-        alert(error.message || 'Error submitting feedback. Please try again.');
+        showVisitorNotice('confirmation-form-alert', error.message || 'Error submitting feedback. Please try again.', 'Submission did not go through. Check the message, then try again.');
         
         // Reset button on error
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
         document.body.classList.remove('submitting-feedback');
+        setRpBearMood(null);
         
         // Restart timer since submission failed
         startInactivityTimer();
@@ -4771,12 +4961,12 @@ function sharePledge(platform) {
                 url: window.location.href
             }).catch(() => {
                 copyShareText();
-                alert('Instagram share is available by copying text and pasting it into your Instagram story or post.');
+                showShareStatus('Instagram share is available by copying text and pasting it into your Instagram story or post.');
             });
             return;
         }
         copyShareText();
-        alert('Instagram cannot open directly. The share text has been copied so you can paste it into Instagram.');
+        showShareStatus('Instagram cannot open directly. The share text has been copied so you can paste it into Instagram.');
         return;
     } else {
         return;
@@ -4785,16 +4975,23 @@ function sharePledge(platform) {
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
 }
 
+function showShareStatus(message) { // Inline social share notice instead of browser alert - changes made by nick
+    const shareStatus = document.getElementById('thankyou-share-status');
+    if (!shareStatus) return;
+    shareStatus.textContent = message;
+    shareStatus.style.display = 'block';
+}
+
 function copyShareText() {
     const text = getShareText();
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
-            alert('Share text copied to clipboard. Paste it into any social app!');
+            showShareStatus('Share text copied to clipboard. Paste it into any social app!');
         }).catch(() => {
-            alert('Unable to copy automatically. Please use manual share.');
+            showShareStatus('Unable to copy automatically. Please use manual share.');
         });
     } else {
-        alert('Clipboard not available. Please copy the text manually.');
+        showShareStatus('Clipboard not available. Please copy the text manually.');
     }
 }
 
@@ -5978,6 +6175,7 @@ function applyTranslations() {
     setText('confirm-email-label', t.confirmEmail);
     setText('confirm-questions-label', t.confirmQuestions);
     setText('confirm-theme-label', t.confirmTheme);
+    setText('confirm-retention-label', t.confirmRetention); // changes made by nick
     setText('confirm-pledge-label', t.confirmPledge);
     setText('confirm-photo-label', t.confirmPhoto);
     setText('confirm-photo-ready', t.confirmPhotoReady);
