@@ -3513,6 +3513,35 @@ body {
     font-weight: 700;
 }
 
+/* Nick feature analytics cards on Lost & Found admin page (DONE BY NICK) */
+.lost-found-analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+}
+
+.lost-found-analytics-card {
+    padding: 14px;
+    border: 1px solid var(--theme-border-color);
+    border-radius: 8px;
+    background: var(--theme-card-bg);
+}
+
+.lost-found-analytics-card span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lost-found-analytics-card strong {
+    display: block;
+    margin-top: 6px;
+    color: var(--theme-text-color);
+    font-size: 24px;
+}
+
 .lost-found-admin-table td {
     vertical-align: top;
 }
@@ -3525,6 +3554,27 @@ body {
 
 .lost-found-admin-table .lost-found-actions-cell {
     min-width: 160px;
+}
+
+.lost-found-photo-link {
+    display: inline-grid;
+    gap: 4px;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.lost-found-photo-link img {
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--theme-border-color);
+}
+
+.lost-found-photo-link.is-missing {
+    color: #b45309;
 }
 
 .lost-found-admin-table .btn-secondary,

@@ -1976,7 +1976,28 @@
                         <div class="section-header">
                             <h3>All Reports</h3>
                             <div class="header-actions">
+                                <button class="btn-secondary" onclick="downloadLostFoundCsv()">Export CSV</button>
                                 <button class="btn-primary" onclick="loadLostFoundReports()">Refresh</button>
+                            </div>
+                        </div>
+
+                        <!-- Nick feature usage analytics cards (DONE BY NICK) -->
+                        <div class="lost-found-analytics-grid" id="nick-usage-analytics">
+                            <div class="lost-found-analytics-card">
+                                <span>Captures</span>
+                                <strong id="nick-analytics-captures">--</strong>
+                            </div>
+                            <div class="lost-found-analytics-card">
+                                <span>Boomerangs</span>
+                                <strong id="nick-analytics-boomerangs">--</strong>
+                            </div>
+                            <div class="lost-found-analytics-card">
+                                <span>Filters Used</span>
+                                <strong id="nick-analytics-filters">--</strong>
+                            </div>
+                            <div class="lost-found-analytics-card">
+                                <span>Lost &amp; Found Photos</span>
+                                <strong id="nick-analytics-lost-found-photos">--</strong>
                             </div>
                         </div>
 
@@ -2006,8 +2027,10 @@
                                 <thead>
                                     <tr>
                                         <th>Date</th>
+                                        <th>Tracking</th>
                                         <th>Type</th>
                                         <th>Item</th>
+                                        <th>Photo</th>
                                         <th>Location</th>
                                         <th>Contact</th>
                                         <th>Details</th>
@@ -2017,7 +2040,7 @@
                                 </thead>
                                 <tbody id="lost-found-reports-body">
                                     <tr>
-                                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
                                             Loading Lost &amp; Found reports...
                                         </td>
                                     </tr>
@@ -3014,6 +3037,17 @@
                             <label for="param-boomerangFrameDelayMs">Boomerang Animation Speed (ms per frame)</label>
                             <input type="number" id="param-boomerangFrameDelayMs" min="40" max="300" step="10" placeholder="90">
                             <small class="text-muted">Lower values make the Boomerang animation faster. Default is 90ms.</small>
+                        </div>
+
+                        <!-- Boomerang GIF quality preset (DONE BY NICK) -->
+                        <div class="form-group">
+                            <label for="param-boomerangQuality">Boomerang GIF Quality</label>
+                            <select id="param-boomerangQuality">
+                                <option value="compact">Compact</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                            <small class="text-muted">Controls how many frames are kept when building the final animated GIF.</small>
                         </div>
 
                         <div class="divider"></div>

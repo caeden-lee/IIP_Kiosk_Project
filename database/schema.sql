@@ -128,11 +128,14 @@ CREATE TABLE feedback_analysis_cache (
 -- ============================================================
 CREATE TABLE lost_found_reports (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    tracking_code VARCHAR(32), -- Lost & Found visitor tracking code (DONE BY NICK)
     report_type VARCHAR(20) NOT NULL,
     item_description VARCHAR(255) NOT NULL,
     location_text VARCHAR(255) NOT NULL,
     contact_info VARCHAR(255) NOT NULL,
     details TEXT,
+    item_photo_path VARCHAR(500), -- Optional item photo uploaded with report (DONE BY NICK)
+    item_photo_original_name VARCHAR(255), -- Original Lost & Found photo filename (DONE BY NICK)
     current_page VARCHAR(120),
     feedback_progress TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'new',

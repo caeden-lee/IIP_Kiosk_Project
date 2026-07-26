@@ -843,6 +843,7 @@ let filteredAuditLogs = [];
 // Lost and found reports - changes made by nick
 let allLostFoundReports = [];
 let filteredLostFoundReports = [];
+let nickUsageAnalytics = null; // Nick feature usage analytics cache (DONE BY NICK)
 
 // Global variables for feedback (not_archived)
 let allFeedbackData = []; // ALL not_archived records
@@ -1261,18 +1262,63 @@ function getAuditBadgeType(action) {
 }
 
 // ==================== LOST AND FOUND REPORTS ====================
+async function loadNickUsageAnalytics() { // Load Nick feature usage analytics (DONE BY NICK)
+    try {
+        const response = await fetch('/api/admin/nick-usage-analytics');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Unable to load Nick usage analytics.');
+        }
+        nickUsageAnalytics = data.analytics || null;
+        updateNickUsageAnalytics();
+    } catch (error) {
+        console.error('Error loading Nick usage analytics:', error);
+        nickUsageAnalytics = null;
+        updateNickUsageAnalytics();
+    }
+}
+
+function countObjectValues(values = {}) { // Utility for Nick analytics totals (DONE BY NICK)
+    return Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
+function updateNickUsageAnalytics() { // Render Nick usage analytics cards (DONE BY NICK)
+    const analytics = nickUsageAnalytics || {};
+    const captures = analytics.captures || {};
+    const lostFound = analytics.lostFound || {};
+
+    const captureTotal = Number(captures.photo || 0) + Number(captures.boomerang || 0);
+    const filterTotal = countObjectValues(analytics.filterUses || {});
+
+    const setMetric = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = String(value);
+    };
+
+    setMetric('nick-analytics-captures', captureTotal);
+    setMetric('nick-analytics-boomerangs', captures.boomerang || 0);
+    setMetric('nick-analytics-filters', filterTotal);
+    setMetric('nick-analytics-lost-found-photos', `${lostFound.withPhotos || 0}/${lostFound.total || 0}`);
+}
+
+function downloadLostFoundCsv() { // Download Lost & Found CSV export (DONE BY NICK)
+    window.location.href = '/api/admin/lost-found-reports/export.csv';
+}
+
 // Load Lost & Found reports for the Administration page - changes made by nick
 async function loadLostFoundReports() {
     const tbody = document.getElementById('lost-found-reports-body');
     if (tbody) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                <td colspan="10" style="text-align: center; padding: 40px; color: #64748b;">
                     Loading Lost & Found reports...
                 </td>
             </tr>
         `;
     }
+
+    loadNickUsageAnalytics();
 
     try {
         const response = await fetch('/api/admin/lost-found-reports');
@@ -1300,6 +1346,7 @@ function filterLostFoundReports() { // changes made by nick
 
     filteredLostFoundReports = allLostFoundReports.filter((report) => {
         const haystack = [
+            report.tracking_code,
             report.report_type,
             report.item_description,
             report.location_text,
@@ -1328,6 +1375,40 @@ function getLostFoundBadgeType(status) { // changes made by nick
     return 'warning';
 }
 
+function getLostFoundPhotoPath(report) { // Robust admin photo path support for Lost & Found reports (DONE BY NICK)
+    const rawPath = report?.item_photo_path
+        || report?.itemPhotoPath
+        || report?.item_photo_url
+        || report?.photo_path
+        || report?.photoPath
+        || '';
+    const photoPath = String(rawPath || '').trim();
+
+    if (!photoPath) return '';
+    if (/^(https?:)?\/\//i.test(photoPath) || photoPath.startsWith('data:image/')) return photoPath;
+
+    const normalizedPath = photoPath.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (normalizedPath.startsWith('uploads/')) return `/${normalizedPath}`;
+    if (normalizedPath.startsWith('lost-found/')) return `/uploads/${normalizedPath}`;
+    return `/uploads/lost-found/${normalizedPath}`;
+}
+
+function renderLostFoundPhotoCell(report) { // Admin preview link for uploaded Lost & Found item photos (DONE BY NICK)
+    const photoPath = getLostFoundPhotoPath(report);
+    if (!photoPath) return '<span class="text-muted">No photo</span>';
+
+    const photoName = report?.item_photo_original_name
+        || report?.itemPhotoOriginalName
+        || 'Uploaded item photo';
+    const escapedPath = escapeHtml(photoPath);
+    const escapedName = escapeHtml(photoName);
+
+    return `<a class="lost-found-photo-link" href="${escapedPath}" target="_blank" rel="noopener" title="${escapedName}">
+                <img src="${escapedPath}" alt="${escapedName}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.textContent='Photo unavailable'; this.parentElement.classList.add('is-missing');">
+                <span>View photo</span>
+           </a>`;
+}
+
 function updateLostFoundReportTable() { // changes made by nick
     const tbody = document.getElementById('lost-found-reports-body');
     const summary = document.getElementById('lost-found-summary');
@@ -1342,7 +1423,7 @@ function updateLostFoundReportTable() { // changes made by nick
     if (!filteredLostFoundReports.length) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty-state">
+                <td colspan="10" class="empty-state">
                     <div class="empty-state-title">No Lost & Found reports found</div>
                     <div class="empty-state-text">
                         ${allLostFoundReports.length === 0
@@ -1359,12 +1440,16 @@ function updateLostFoundReportTable() { // changes made by nick
         const status = String(report.status || 'new').toLowerCase();
         const date = report.created_at ? new Date(report.created_at).toLocaleString() : '-';
         const pageLabel = report.current_page ? `<span class="lost-found-page-label">Page: ${escapeHtml(report.current_page)}</span>` : '';
+        const trackingCode = report.tracking_code || `LF-${String(report.id || 0).padStart(5, '0')}`;
+        const photoCell = renderLostFoundPhotoCell(report);
 
         return `
             <tr>
                 <td>${escapeHtml(date)}</td>
+                <td><strong>${escapeHtml(trackingCode)}</strong></td>
                 <td><span class="badge badge-${getLostFoundBadgeType(status)}">${escapeHtml(report.report_type || '-')}</span></td>
                 <td><strong>${escapeHtml(report.item_description || '-')}</strong>${pageLabel}</td>
+                <td>${photoCell}</td>
                 <td>${escapeHtml(report.location_text || '-')}</td>
                 <td>${escapeHtml(report.contact_info || '-')}</td>
                 <td class="lost-found-details-cell">${escapeHtml(report.details || '-')}</td>
@@ -14326,6 +14411,7 @@ function populateParameterForm(config) {
     setRadioValue('beauty-filter', photo.beautyFilterEnabled);
     setInputValue('param-beautyFilterStrength', photo.beautyFilterStrength || 'medium');
     setInputValue('param-boomerangFrameDelayMs', photo.boomerangFrameDelayMs || 90); // changes made by nick
+    setInputValue('param-boomerangQuality', photo.boomerangQuality || 'medium'); // Boomerang quality preset (DONE BY NICK)
     setInputValue('param-maxPhotoFileSize', bytesToMegabytes(photo.maxPhotoFileSize, 5));
     setCheckboxValues('photo-format', photo.supportedFormats || ['jpeg', 'png']);
     setRadioValue('overlay-upload', overlay.enableOverlayUpload);
@@ -14501,6 +14587,7 @@ function collectParameterForm() {
             beautyFilterEnabled: getRadioBoolean('beauty-filter'),
             beautyFilterStrength: getInputValue('param-beautyFilterStrength') || 'medium',
             boomerangFrameDelayMs: Math.max(40, Math.min(300, Number(getInputValue('param-boomerangFrameDelayMs')) || 90)), // changes made by nick
+            boomerangQuality: ['compact', 'medium', 'high'].includes(getInputValue('param-boomerangQuality')) ? getInputValue('param-boomerangQuality') : 'medium', // Boomerang quality preset (DONE BY NICK)
             maxPhotoFileSize: megabytesToBytes(getInputValue('param-maxPhotoFileSize'), 5),
             supportedFormats: getCheckboxValues('photo-format')
         },

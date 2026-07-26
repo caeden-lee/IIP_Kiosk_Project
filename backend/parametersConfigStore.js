@@ -165,6 +165,7 @@ const DEFAULT_CONFIG = {
     beautyFilterEnabled: true,
     beautyFilterStrength: "medium",
     boomerangFrameDelayMs: 90, // changes made by nick
+    boomerangQuality: "medium", // Boomerang GIF quality preset (DONE BY NICK)
     maxPhotoFileSize: 5242880,
     supportedFormats: ["jpeg", "png", "webp"]
   },

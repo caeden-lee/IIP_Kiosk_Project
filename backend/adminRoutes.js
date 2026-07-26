@@ -589,6 +589,111 @@ router.get('/lost-found-reports', auth.requireAdmin, (req, res) => {
     });
 });
 
+router.get('/lost-found-reports/export.csv', auth.requireAdmin, (req, res) => { // Lost & Found CSV export (DONE BY NICK)
+    lostFoundStore.listLostFoundReports((err, reports) => {
+        if (err) {
+            console.error('Error exporting Lost & Found reports:', err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        const csvData = convertToCSV((reports || []).map(report => ({
+            TrackingCode: report.tracking_code || '',
+            Type: report.report_type || '',
+            Item: report.item_description || '',
+            Location: report.location_text || '',
+            Contact: report.contact_info || '',
+            Details: report.details || '',
+            Photo: report.item_photo_path || '',
+            CurrentPage: report.current_page || '',
+            Status: report.status || '',
+            CreatedAt: report.created_at || '',
+            UpdatedAt: report.updated_at || ''
+        })));
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=lost_found_reports_${Date.now()}.csv`);
+        res.send(csvData || 'TrackingCode,Type,Item,Location,Contact,Details,Photo,CurrentPage,Status,CreatedAt,UpdatedAt\n');
+    });
+});
+
+router.get('/nick-usage-analytics', auth.requireAdmin, (req, res) => { // Nick feature usage analytics for admin dashboard (DONE BY NICK)
+    db.all(`
+        SELECT metadata, photo_path, processed_photo_path
+        FROM feedback
+        WHERE is_active = 1 AND archive_status = 'not_archived'
+        ORDER BY created_at DESC
+        LIMIT 1000
+    `, [], (feedbackErr, feedbackRows) => {
+        if (feedbackErr) {
+            console.error('Error loading Nick usage analytics:', feedbackErr);
+            return res.status(500).json({ success: false, error: feedbackErr.message });
+        }
+
+        lostFoundStore.listLostFoundReports((lostFoundErr, reports) => {
+            if (lostFoundErr) {
+                console.error('Error loading Lost & Found analytics:', lostFoundErr);
+                return res.status(500).json({ success: false, error: lostFoundErr.message });
+            }
+
+            const analytics = {
+                submissionsAnalyzed: feedbackRows.length,
+                captures: { photo: 0, boomerang: 0, skipped: 0 },
+                keepsakesSaved: 0,
+                filterUses: {},
+                beautyFilterStrengths: {},
+                lostFound: {
+                    total: reports.length,
+                    withPhotos: 0,
+                    byStatus: { new: 0, reviewed: 0, resolved: 0 },
+                    byType: { lost: 0, found: 0 }
+                }
+            };
+
+            feedbackRows.forEach(row => {
+                const metadata = parsePassportMetadata(row.metadata);
+                const captureMode = String(metadata.captureMode || '').toLowerCase();
+                if (metadata.photoSkipped === true || captureMode === 'none') {
+                    analytics.captures.skipped += 1;
+                } else if (captureMode === 'boomerang') {
+                    analytics.captures.boomerang += 1;
+                } else if (captureMode === 'photo' || row.photo_path || row.processed_photo_path) {
+                    analytics.captures.photo += 1;
+                }
+
+                if (row.processed_photo_path || metadata.processedPhotoId) {
+                    analytics.keepsakesSaved += 1;
+                }
+
+                const accessory = String(metadata.selectedFaceAccessory || '').trim();
+                if (accessory && accessory !== 'none') {
+                    analytics.filterUses[accessory] = (analytics.filterUses[accessory] || 0) + 1;
+                }
+
+                const beautyStrength = String(metadata.beautyFilterStrength || '').trim();
+                if (beautyStrength) {
+                    analytics.beautyFilterStrengths[beautyStrength] = (analytics.beautyFilterStrengths[beautyStrength] || 0) + 1;
+                }
+            });
+
+            reports.forEach(report => {
+                const status = String(report.status || 'new').toLowerCase();
+                const type = String(report.report_type || '').toLowerCase();
+                if (analytics.lostFound.byStatus[status] !== undefined) {
+                    analytics.lostFound.byStatus[status] += 1;
+                }
+                if (analytics.lostFound.byType[type] !== undefined) {
+                    analytics.lostFound.byType[type] += 1;
+                }
+                if (report.item_photo_path) {
+                    analytics.lostFound.withPhotos += 1;
+                }
+            });
+
+            res.json({ success: true, analytics });
+        });
+    });
+});
+
 router.patch('/lost-found-reports/:id/status', auth.requireAdmin, (req, res) => {
     const status = req.body?.status;
 

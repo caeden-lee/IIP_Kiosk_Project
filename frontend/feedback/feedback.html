@@ -159,11 +159,16 @@
 
     <!-- Interactive RP teddy bear companion - changes made by nick -->
     <button type="button" class="rp-bear-companion" id="rp-bear-companion" aria-label="Republic Polytechnic helper bear" hidden>
-        <span class="rp-bear-guide" aria-live="polite">
-            <span class="rp-bear-progress" id="rp-bear-progress">Step 1 of 5</span>
-            <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
-            <span class="rp-bear-actions" id="rp-bear-actions"></span>
-        </span>
+            <span class="rp-bear-guide" aria-live="polite">
+                <span class="rp-bear-progress" id="rp-bear-progress">Step 1 of 5</span>
+                <span class="rp-bear-speech" id="rp-bear-speech">I can help if you tap me.</span>
+                <!-- RP guide voice toggle (DONE BY NICK) -->
+                <span class="rp-bear-voice-toggle" id="rp-bear-voice-toggle" role="button" tabindex="0" aria-pressed="false" title="Toggle guide voice">
+                    <i class="fa-solid fa-volume-xmark" aria-hidden="true"></i>
+                    <span>Voice</span>
+                </span>
+                <span class="rp-bear-actions" id="rp-bear-actions"></span>
+            </span>
         <span class="rp-bear" aria-hidden="true">
             <!-- Teddy bear polish details - changes made by nick -->
             <span class="rp-bear-shadow"></span>
@@ -219,6 +224,22 @@
                     
                     <p class="subtitle" id="form-landing-subtitle">Share your thoughts and help us improve our services. Your feedback matters.</p>
 
+                    <!-- Live visitor count restored on start screen (DONE BY NICK) -->
+                    <div class="landing-visitor-count" aria-live="polite">
+                        <span class="landing-visitor-icon" aria-hidden="true">
+                            <i class="fa-solid fa-users"></i>
+                        </span>
+                        <span class="landing-visitor-copy">
+                            <span class="landing-visitor-count-label">Live visitors</span>
+                            <small>Growing with every contribution</small>
+                        </span>
+                        <span class="landing-visitor-number">
+                            <strong data-visitor-count-value>--</strong>
+                            <span>visitors</span>
+                        </span>
+                        <span class="landing-next-visitor">Next #<span data-next-visitor-value>--</span></span>
+                    </div>
+
                     <button class="cta-button" id="start-feedback-btn" onclick="showConsentPage()">
                         Start Feedback Form
                         <span class="arrow">→</span>
@@ -254,6 +275,22 @@
                     <h1 id="form-landing-title-qrcode" data-text-target="form-landing-title">Let's turn your ideas into reality</h1>
             
                     <p class="subtitle" id="form-landing-subtitle-qrcode" data-text-target="form-landing-subtitle">Share your thoughts and help us improve our services. Your feedback matters.</p>
+
+                    <!-- Live visitor count restored on QR start screen (DONE BY NICK) -->
+                    <div class="landing-visitor-count" aria-live="polite">
+                        <span class="landing-visitor-icon" aria-hidden="true">
+                            <i class="fa-solid fa-users"></i>
+                        </span>
+                        <span class="landing-visitor-copy">
+                            <span class="landing-visitor-count-label">Live visitors</span>
+                            <small>Growing with every contribution</small>
+                        </span>
+                        <span class="landing-visitor-number">
+                            <strong data-visitor-count-value>--</strong>
+                            <span>visitors</span>
+                        </span>
+                        <span class="landing-next-visitor">Next #<span data-next-visitor-value>--</span></span>
+                    </div>
 
                     <button class="cta-button" id="start-feedback-btn-qrcode" data-text-target="start-feedback-btn" onclick="showConsentPage()">
                         Start Feedback Form
@@ -496,6 +533,14 @@
                         </svg>
                         <span id="back-from-pledge-text">Back</span>
                     </button>
+
+                    <!-- Home button for pledge form (DONE BY NICK) -->
+                    <button type="button" class="secondary-button" onclick="goHomeFromFeedbackForm()">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 9.5L10 4L17 9.5V16C17 16.55 16.55 17 16 17H12.5V12H7.5V17H4C3.45 17 3 16.55 3 16V9.5Z" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span id="home-from-pledge-text">Home</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -608,6 +653,19 @@
                     <button type="button" class="face-filter-card" data-accessory="party" role="option" aria-selected="false">
                         <span class="face-filter-preview party"></span>
                         <span>Party</span>
+                    </button>
+                    <!-- Extra face filter pack (DONE BY NICK) -->
+                    <button type="button" class="face-filter-card" data-accessory="rp-shades" role="option" aria-selected="false">
+                        <span class="face-filter-preview rp-shades"></span>
+                        <span>Shades</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="leaf-crown" role="option" aria-selected="false">
+                        <span class="face-filter-preview leaf-crown"></span>
+                        <span>Leaf</span>
+                    </button>
+                    <button type="button" class="face-filter-card" data-accessory="graduation" role="option" aria-selected="false">
+                        <span class="face-filter-preview graduation"></span>
+                        <span>Grad</span>
                     </button>
                 </div>
             </div>
@@ -775,6 +833,26 @@
                         <img id="selected-overlay" class="overlay-image" src="" alt="Overlay" style="width: 100%; height: 100%; object-fit: contain;"/>
                     </div>
                 </div>
+            </div>
+
+            <!-- Boomerang preview controls (DONE BY NICK) -->
+            <div class="boomerang-preview-controls" id="boomerang-preview-controls" hidden>
+                <button type="button" class="boomerang-control-btn" id="boomerang-toggle-preview-btn" onclick="toggleBoomerangPreviewPlayback()">
+                    <i class="fa-solid fa-pause" aria-hidden="true"></i>
+                    <span>Pause GIF Preview</span>
+                </button>
+                <button type="button" class="boomerang-control-btn" id="boomerang-retake-btn" onclick="retakePhotoFromStyle()">
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                    <span>Retake Boomerang</span>
+                </button>
+                <button type="button" class="boomerang-control-btn" id="boomerang-use-still-btn" onclick="switchBoomerangToStillPhoto()">
+                    <i class="fa-solid fa-image" aria-hidden="true"></i>
+                    <span>Use Still Photo</span>
+                </button>
+                <button type="button" class="boomerang-control-btn" id="boomerang-use-video-btn" onclick="switchStillPhotoToBoomerang()" hidden>
+                    <i class="fa-solid fa-film" aria-hidden="true"></i>
+                    <span>Use Boomerang</span>
+                </button>
             </div>
             
             <div class="themes-section">
@@ -1002,6 +1080,12 @@
                     <p id="email-sent-description" style="margin: 5px 0 0 0; color: #10b981;">Please check your inbox within the next minute</p>
                 </div>
             </div>
+
+            <!-- Downloadable visitor keepsake fallback (DONE BY NICK) -->
+            <button type="button" class="keepsake-download-button" id="keepsake-download-btn" onclick="downloadVisitorKeepsake()" hidden>
+                <i class="fa-solid fa-download" aria-hidden="true"></i>
+                <span>Download Keepsake</span>
+            </button>
             
             <p id="thankyou-footer-text" style="font-size: 14px; color: #64748b; margin: 30px 0;">
                 Thank you for contributing to our sustainability journey at Republic Polytechnic!
@@ -1103,6 +1187,22 @@
                 <span>Details</span>
                 <textarea id="lost-found-details" rows="3" maxlength="400" placeholder="Colour, brand, time, or any useful details"></textarea>
             </label>
+
+            <!-- Optional item photo upload with preview (DONE BY NICK) -->
+            <label class="lost-found-field lost-found-photo-field">
+                <span>Item photo (optional)</span>
+                <input type="file" id="lost-found-photo" accept="image/png,image/jpeg,image/webp,image/gif">
+            </label>
+            <div class="lost-found-photo-preview" id="lost-found-photo-preview" hidden>
+                <img id="lost-found-photo-preview-img" alt="Lost and found item preview">
+                <button type="button" class="secondary-button" onclick="clearLostFoundPhoto()">Remove Photo</button>
+            </div>
+
+            <!-- Offline sync status for Lost & Found reports (DONE BY NICK) -->
+            <div class="lost-found-sync-panel" id="lost-found-sync-panel" hidden>
+                <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                <span id="lost-found-sync-status">No queued reports.</span>
+            </div>
 
             <p id="lost-found-status" class="lost-found-status" role="status"></p>
 

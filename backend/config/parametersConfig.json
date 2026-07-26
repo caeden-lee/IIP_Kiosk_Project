@@ -126,6 +126,7 @@
     "beautyFilterEnabled": false,
     "beautyFilterStrength": "medium",
     "boomerangFrameDelayMs": 90,
+    "boomerangQuality": "medium",
     "maxPhotoFileSize": 5242880,
     "supportedFormats": [
       "jpeg",

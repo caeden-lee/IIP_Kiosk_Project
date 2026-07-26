@@ -8,16 +8,59 @@ function trimTo(value, maxLength) {
     return String(value || '').trim().slice(0, maxLength);
 }
 
+function getTrackingCodeForId(id) { // Lost & Found tracking code helper (DONE BY NICK)
+    const numericId = Number(id) || 0;
+    return `LF-${String(numericId).padStart(5, '0')}`;
+}
+
+function ignoreDuplicateColumn(err) { // Lost & Found schema migration helper (DONE BY NICK)
+    if (!err) return true;
+    const message = String(err.message || '').toLowerCase();
+    return message.includes('duplicate column') ||
+        message.includes('duplicate column name') ||
+        message.includes('er_dup_fieldname');
+}
+
+function ensureLostFoundColumns(callback) { // Extended Lost & Found fields for tracking/photo support (DONE BY NICK)
+    const migrations = [
+        `ALTER TABLE lost_found_reports ADD COLUMN tracking_code VARCHAR(32)`,
+        `ALTER TABLE lost_found_reports ADD COLUMN item_photo_path VARCHAR(500)`,
+        `ALTER TABLE lost_found_reports ADD COLUMN item_photo_original_name VARCHAR(255)`
+    ];
+
+    let index = 0;
+    function runNext() {
+        if (index >= migrations.length) {
+            callback(null);
+            return;
+        }
+
+        db.run(migrations[index], [], (err) => {
+            if (err && !ignoreDuplicateColumn(err)) {
+                callback(err);
+                return;
+            }
+            index += 1;
+            runNext();
+        });
+    }
+
+    runNext();
+}
+
 // changes made by nick
 function ensureLostFoundTable(callback) {
     const query = `
         CREATE TABLE IF NOT EXISTS lost_found_reports (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            tracking_code VARCHAR(32),
             report_type VARCHAR(20) NOT NULL,
             item_description VARCHAR(255) NOT NULL,
             location_text VARCHAR(255) NOT NULL,
             contact_info VARCHAR(255) NOT NULL,
             details TEXT,
+            item_photo_path VARCHAR(500),
+            item_photo_original_name VARCHAR(255),
             current_page VARCHAR(120),
             feedback_progress TEXT,
             status VARCHAR(20) NOT NULL DEFAULT 'new',
@@ -28,7 +71,10 @@ function ensureLostFoundTable(callback) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `;
 
-    db.run(query, [], callback);
+    db.run(query, [], (err) => {
+        if (err) return callback(err);
+        ensureLostFoundColumns(callback);
+    });
 }
 
 // changes made by nick
@@ -38,6 +84,8 @@ function createLostFoundReport(payload, callback) {
     const location = trimTo(payload.location, 255);
     const contact = trimTo(payload.contact, 255);
     const details = trimTo(payload.details, 1000);
+    const itemPhotoPath = trimTo(payload.itemPhotoPath, 500);
+    const itemPhotoOriginalName = trimTo(payload.itemPhotoOriginalName, 255);
     const currentPage = trimTo(payload.currentPage || payload.activePageId, 120);
     const progress = payload.feedbackProgress
         ? JSON.stringify(payload.feedbackProgress).slice(0, 12000)
@@ -56,13 +104,38 @@ function createLostFoundReport(payload, callback) {
 
         const query = `
             INSERT INTO lost_found_reports
-                (report_type, item_description, location_text, contact_info, details, current_page, feedback_progress)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (report_type, item_description, location_text, contact_info, details, item_photo_path, item_photo_original_name, current_page, feedback_progress)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-        db.run(query, [type, item, location, contact, details, currentPage, progress], function(insertErr) {
+        db.run(query, [type, item, location, contact, details, itemPhotoPath || null, itemPhotoOriginalName || null, currentPage, progress], function(insertErr) {
             if (insertErr) return callback(insertErr);
-            callback(null, { id: this.lastID });
+            const id = this.lastID;
+            const trackingCode = getTrackingCodeForId(id);
+            db.run(
+                'UPDATE lost_found_reports SET tracking_code = ? WHERE id = ?',
+                [trackingCode, id],
+                (trackingErr) => {
+                    if (trackingErr) return callback(trackingErr);
+                    callback(null, {
+                        id,
+                        trackingCode,
+                        report: {
+                            id,
+                            tracking_code: trackingCode,
+                            report_type: type,
+                            item_description: item,
+                            location_text: location,
+                            contact_info: contact,
+                            details,
+                            item_photo_path: itemPhotoPath || null,
+                            item_photo_original_name: itemPhotoOriginalName || null,
+                            current_page: currentPage,
+                            status: 'new'
+                        }
+                    });
+                }
+            );
         });
     });
 }
@@ -75,11 +148,14 @@ function listLostFoundReports(callback) {
         db.all(`
             SELECT
                 id,
+                COALESCE(tracking_code, CONCAT('LF-', LPAD(id, 5, '0'))) AS tracking_code,
                 report_type,
                 item_description,
                 location_text,
                 contact_info,
                 details,
+                item_photo_path,
+                item_photo_original_name,
                 current_page,
                 feedback_progress,
                 status,
@@ -122,5 +198,6 @@ function updateLostFoundReportStatus(id, status, callback) {
 module.exports = {
     createLostFoundReport,
     listLostFoundReports,
-    updateLostFoundReportStatus
+    updateLostFoundReportStatus,
+    getTrackingCodeForId
 };

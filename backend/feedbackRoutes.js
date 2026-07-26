@@ -265,6 +265,7 @@ const sharp = require('sharp');
 // Ensure upload directories exist
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'photos');
 const processedDir = path.join(__dirname, '..', 'uploads', 'processed');
+const lostFoundUploadsDir = path.join(__dirname, '..', 'uploads', 'lost-found'); // Lost & Found item photos (DONE BY NICK)
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
     console.log('Created uploads directory:', uploadsDir);
@@ -273,13 +274,17 @@ if (!fs.existsSync(processedDir)) {
     fs.mkdirSync(processedDir, { recursive: true });
     console.log('Created processed directory:', processedDir);
 }
+if (!fs.existsSync(lostFoundUploadsDir)) { // Lost & Found item photo upload directory (DONE BY NICK)
+    fs.mkdirSync(lostFoundUploadsDir, { recursive: true });
+    console.log('Created Lost & Found uploads directory:', lostFoundUploadsDir);
+}
 
 function parsePhotoDataUrl(photo, fallbackMime = 'image/png') { // changes made by nick
-    const match = String(photo || '').match(/^data:(image\/(?:png|gif|jpeg));base64,(.+)$/);
+    const match = String(photo || '').match(/^data:(image\/(?:png|gif|jpeg|webp));base64,(.+)$/);
     if (!match) {
         return {
             mimeType: fallbackMime,
-            extension: fallbackMime === 'image/gif' ? 'gif' : fallbackMime === 'image/jpeg' ? 'jpg' : 'png',
+            extension: fallbackMime === 'image/gif' ? 'gif' : fallbackMime === 'image/jpeg' ? 'jpg' : fallbackMime === 'image/webp' ? 'webp' : 'png',
             base64Data: String(photo || '').replace(/^data:image\/png;base64,/, '')
         };
     }
@@ -287,8 +292,46 @@ function parsePhotoDataUrl(photo, fallbackMime = 'image/png') { // changes made 
     const mimeType = match[1];
     return {
         mimeType,
-        extension: mimeType === 'image/gif' ? 'gif' : mimeType === 'image/jpeg' ? 'jpg' : 'png',
+        extension: mimeType === 'image/gif' ? 'gif' : mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png',
         base64Data: match[2]
+    };
+}
+
+function sanitizeLostFoundPhotoName(name) { // Lost & Found photo filename cleanup (DONE BY NICK)
+    return String(name || 'item-photo')
+        .replace(/\.[^.]+$/, '')
+        .replace(/[^a-z0-9_-]+/gi, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 48) || 'item-photo';
+}
+
+async function saveLostFoundItemPhoto(report) { // Optional Lost & Found item photo upload (DONE BY NICK)
+    const photoDataUrl = report.itemPhotoDataUrl || report.photoDataUrl || report.photo;
+    if (!photoDataUrl) return {};
+
+    const parsedPhoto = parsePhotoDataUrl(photoDataUrl);
+    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+    if (!allowedMimeTypes.has(parsedPhoto.mimeType)) {
+        throw new Error('Lost & Found item photo must be PNG, JPEG, GIF, or WebP.');
+    }
+
+    const photoBuffer = Buffer.from(parsedPhoto.base64Data, 'base64');
+    const maxBytes = 4 * 1024 * 1024;
+    if (!photoBuffer.length) {
+        throw new Error('Lost & Found item photo could not be read.');
+    }
+    if (photoBuffer.length > maxBytes) {
+        throw new Error('Lost & Found item photo must be 4MB or smaller.');
+    }
+
+    const safeBaseName = sanitizeLostFoundPhotoName(report.itemPhotoName || report.photoName);
+    const filename = `${safeBaseName}_${Date.now()}.${parsedPhoto.extension}`;
+    const filepath = path.join(lostFoundUploadsDir, filename);
+    await fs.promises.writeFile(filepath, photoBuffer);
+
+    return {
+        itemPhotoPath: `/uploads/lost-found/${filename}`,
+        itemPhotoOriginalName: String(report.itemPhotoName || report.photoName || filename).slice(0, 255)
     };
 }
 
@@ -535,9 +578,17 @@ router.post('/save-processed-photo', async (req, res) => {
 
 // ==================== 4. FEEDBACK SUBMISSION ROUTES ====================
 // Save a Lost & Found report without interrupting feedback progress - changes made by nick
-router.post('/lost-found', (req, res) => {
+router.post('/lost-found', async (req, res) => {
     const body = req.body || {};
     const report = body.report || body;
+
+    let itemPhoto = {};
+    try {
+        itemPhoto = await saveLostFoundItemPhoto(report); // Store optional item photo before creating report (DONE BY NICK)
+    } catch (photoError) {
+        console.error('Error saving Lost & Found item photo:', photoError);
+        return res.status(400).json({ success: false, error: photoError.message });
+    }
 
     lostFoundStore.createLostFoundReport({
         type: report.type,
@@ -545,6 +596,8 @@ router.post('/lost-found', (req, res) => {
         location: report.location,
         contact: report.contact,
         details: report.details,
+        itemPhotoPath: itemPhoto.itemPhotoPath,
+        itemPhotoOriginalName: itemPhoto.itemPhotoOriginalName,
         currentPage: report.activePageId || report.currentPage,
         feedbackProgress: body.feedbackProgress
     }, (err, result) => {
@@ -553,10 +606,20 @@ router.post('/lost-found', (req, res) => {
             return res.status(400).json({ success: false, error: err.message });
         }
 
+        if (typeof emailService.sendLostFoundAlertEmail === 'function') { // Staff notification for new Lost & Found report (DONE BY NICK)
+            setImmediate(() => {
+                emailService.sendLostFoundAlertEmail(result.report).catch((emailError) => {
+                    console.warn('Lost & Found alert email was not sent:', emailError.message);
+                });
+            });
+        }
+
         res.json({
             success: true,
             reportId: result.id,
-            message: 'Lost & Found report saved.'
+            trackingCode: result.trackingCode,
+            itemPhotoPath: itemPhoto.itemPhotoPath || null,
+            message: `Lost & Found report saved. Tracking code: ${result.trackingCode}.`
         });
     });
 });
@@ -1253,6 +1316,11 @@ function saveFeedbackToDatabase(userData, device, theme, retention, callback) {
             retention: retention,
             photoId: userData.photoId,
             processedPhotoId: userData.processedPhotoId,
+            captureMode: userData.captureMode || null, // Nick photo/boomerang analytics metadata (DONE BY NICK)
+            photoSkipped: userData.photoSkipped === true, // Optional photo flow analytics metadata (DONE BY NICK)
+            selectedFaceAccessory: userData.selectedFaceAccessory || null, // Face filter analytics metadata (DONE BY NICK)
+            beautyFilterStrength: userData.beautyFilterStrength || null, // Beauty filter analytics metadata (DONE BY NICK)
+            boomerangQuality: userData.boomerangQuality || null, // Boomerang quality analytics metadata (DONE BY NICK)
             classGroup: userData.classGroup || null,
             likedFeedback: userData.q2,
             improvementFeedback: userData.q3,
@@ -1450,6 +1518,26 @@ router.get('/test-db', (req, res) => {
     });
 });
 
+// Live visitor count for the feedback start screen (DONE BY NICK)
+router.get('/visitor-count', async (req, res) => {
+    try {
+        const nextVisitorNumber = await getActiveFeedbackCountForVisitorNumber();
+        const totalVisitors = Number.isFinite(Number(nextVisitorNumber))
+            ? Math.max(0, Number(nextVisitorNumber) - 1)
+            : null;
+
+        res.json({
+            success: true,
+            totalVisitors,
+            nextVisitorNumber,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error loading live visitor count:', error);
+        res.status(500).json({ success: false, error: 'Unable to load visitor count' });
+    }
+});
+
 // Root endpoint for feedback routes
 router.get('/', (req, res) => {
     res.json({ 
@@ -1464,6 +1552,7 @@ router.get('/', (req, res) => {
             getArchive: 'GET /api/feedback/archive',
             updateArchiveStatus: 'POST /api/feedback/archive/update-status',
             archiveStats: 'GET /api/feedback/archive/stats',
+            visitorCount: 'GET /api/feedback/visitor-count',
             emailStatus: 'GET /api/feedback/email-status'
         }
     });

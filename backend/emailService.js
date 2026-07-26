@@ -1515,6 +1515,62 @@ async function checkEmailService() {
     }
 }
 
+async function sendLostFoundAlertEmail(report = {}) { // Staff Lost & Found alert email (DONE BY NICK)
+    try {
+        if (!emailTransporter) {
+            await reloadEmailService();
+        }
+
+        if (!emailTransporter || !SENDER_EMAIL) {
+            return { success: false, error: 'Email service not initialized' };
+        }
+
+        const trackingCode = report.tracking_code || report.trackingCode || `LF-${String(report.id || 0).padStart(5, '0')}`;
+        const type = String(report.report_type || report.type || 'lost').toUpperCase();
+        const item = report.item_description || report.item || 'Not provided';
+        const location = report.location_text || report.location || 'Not provided';
+        const contact = report.contact_info || report.contact || 'Not provided';
+        const details = report.details || 'No extra details provided.';
+        const page = report.current_page || report.currentPage || 'Unknown page';
+        const photoPath = report.item_photo_path || report.itemPhotoPath || '';
+        const photoLink = photoPath
+            ? `<p style="margin:12px 0 0 0;"><a href="${escapeHtml(photoPath)}" style="color:#0f766e; font-weight:700;">View attached item photo</a></p>`
+            : '';
+
+        const html = `
+            <div style="font-family:Arial,sans-serif; max-width:640px; margin:0 auto; color:#0f172a;">
+                <h2 style="margin:0 0 12px 0; color:#0f766e;">New Lost &amp; Found Report</h2>
+                <p style="margin:0 0 18px 0; color:#475569;">A visitor submitted a Lost &amp; Found report from the feedback kiosk.</p>
+                <table style="width:100%; border-collapse:collapse; border:1px solid #d1fae5;">
+                    <tbody>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Tracking Code</td><td style="padding:10px;">${escapeHtml(trackingCode)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Type</td><td style="padding:10px;">${escapeHtml(type)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Item</td><td style="padding:10px;">${escapeHtml(item)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Location</td><td style="padding:10px;">${escapeHtml(location)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Contact</td><td style="padding:10px;">${escapeHtml(contact)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Kiosk Page</td><td style="padding:10px;">${escapeHtml(page)}</td></tr>
+                        <tr><td style="padding:10px; background:#ecfdf5; font-weight:700;">Details</td><td style="padding:10px;">${escapeHtml(details)}</td></tr>
+                    </tbody>
+                </table>
+                ${photoLink}
+            </div>
+        `;
+
+        const info = await emailTransporter.sendMail({
+            from: `"RP ESG Centre" <${SENDER_EMAIL}>`,
+            to: SENDER_EMAIL,
+            subject: `Lost & Found report ${trackingCode}: ${type} item`,
+            text: `New Lost & Found report ${trackingCode}\nType: ${type}\nItem: ${item}\nLocation: ${location}\nContact: ${contact}\nPage: ${page}\nDetails: ${details}`,
+            html
+        });
+
+        return { success: true, messageId: info.messageId, trackingCode };
+    } catch (error) {
+        console.error('Error sending Lost & Found alert email:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 // ==================== BADGE EMAIL SENDING FUNCTION ====================
 // Done by XY - Sends customized badge congratulation emails
 // Features:
@@ -1587,6 +1643,7 @@ module.exports = {
     reloadEmailService,
     sendThankYouEmail,
     sendEmailAndUpdateFlag,
+    sendLostFoundAlertEmail,
     sendBadgeEmail,
     determineBadge,
     determineBadgeKeys,

@@ -179,10 +179,14 @@ let photoData = null;
 // Boomerang capture state - changes made by nick
 let captureMode = 'photo';
 let boomerangFrames = [];
+let restorableBoomerangFrames = []; // Keeps captured GIF frames when visitor previews a still photo (DONE BY NICK)
 let boomerangPreviewInterval = null;
+let boomerangPreviewPaused = false; // Boomerang preview pause/resume state (DONE BY NICK)
+let boomerangPreviewPhotoElement = null; // Remember current GIF preview target (DONE BY NICK)
 const BOOMERANG_FRAME_COUNT = 10;
 const DEFAULT_BOOMERANG_FRAME_DELAY_MS = 90; // Admin-controlled boomerang default - changes made by nick
 const BOOMERANG_GIF_MAX_FRAMES = 18; // Email-friendly animated GIF frame cap - changes made by nick
+const BOOMERANG_QUALITY_PRESETS = { compact: 10, medium: 18, high: 24 }; // Admin quality presets (DONE BY NICK)
 const GIF_RED_LEVELS = 6; // Balanced GIF colour palette to reduce boomerang discoloration - changes made by nick
 const GIF_GREEN_LEVELS = 7; // Extra green level keeps skin and nature overlays less posterized - changes made by nick
 const GIF_BLUE_LEVELS = 6; // More blue levels fixes purple/green cast in emailed GIFs - changes made by nick
@@ -207,6 +211,11 @@ let latestFaceAccessoryLandmarks = null;
 let latestFaceAccessoryVideoTime = -1;
 const LOST_FOUND_PROGRESS_KEY = 'rpLostFoundFeedbackProgress'; // changes made by nick
 const LOST_FOUND_PENDING_KEY = 'rpPendingLostFoundReports'; // changes made by nick
+let lostFoundPhotoDataUrl = null; // Optional Lost & Found item photo payload (DONE BY NICK)
+let lostFoundPhotoName = ''; // Original Lost & Found item photo filename (DONE BY NICK)
+let lostFoundPhotoReadPromise = Promise.resolve(true); // Wait for Lost & Found photo reads before saving (DONE BY NICK)
+const RP_BEAR_VOICE_KEY = 'rpBearVoiceEnabled'; // RP guide voice preference (DONE BY NICK)
+let rpBearVoiceEnabled = localStorage.getItem(RP_BEAR_VOICE_KEY) === 'true'; // RP guide audio toggle (DONE BY NICK)
 const MEDIAPIPE_TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
@@ -220,11 +229,15 @@ const FACE_ACCESSORY_OPTIONS = [
     { id: 'flower-crown', label: 'Flower crown' },
     { id: 'halo', label: 'Halo glow' },
     { id: 'blush', label: 'Blush' },
-    { id: 'party', label: 'Party pop' }
+    { id: 'party', label: 'Party pop' },
+    { id: 'rp-shades', label: 'RP shades' },
+    { id: 'leaf-crown', label: 'Leaf crown' },
+    { id: 'graduation', label: 'Graduation cap' }
 ];
 const FACE_ACCESSORY_IDS = FACE_ACCESSORY_OPTIONS.map(option => option.id);
 let faceFilterScrollTimer = null;
 let qrRefreshTimer = null;
+let landingVisitorCountTimer = null; // Live visitor count refresh loop (DONE BY NICK)
 const BEAUTY_FILTER_PRESETS = {
     light: {
         liveFilter: 'brightness(1.08) contrast(0.92) saturate(1.12)',
@@ -374,6 +387,64 @@ const RP_BEAR_TIPS = { // Step-by-step visitor guide tips - changes made by nick
         'Tap home when you are ready for the next visitor.'
     ]
 };
+const RP_BEAR_LOCALIZED_MESSAGES = { // Multilingual RP guide messages (DONE BY NICK)
+    zh: {
+        'details-page': '你好，我是RP小熊。填好姓名和电邮，我会带你继续。',
+        'feedback-page': '现在回答反馈问题。按真实想法选择就好。',
+        'pledge-page': '选择一个环保重点，再写一个小承诺。',
+        'photo-choice-page': '选择照片、动图、上传，或跳过照片。',
+        'photo-page': '看向镜头，试试滤镜，准备好就拍照。',
+        'file-upload-page': '上传清晰照片，然后继续选择样式。',
+        'style-page': '选择你喜欢的相框，这会成为你的纪念照。',
+        'confirmation-page': '最后检查一次。没问题就提交。',
+        'thankyou-page': '完成了。谢谢你为RP社区发声。'
+    },
+    ms: {
+        'details-page': 'Hai, saya Beary dari RP. Isi nama dan e-mel, kemudian saya bantu langkah seterusnya.',
+        'feedback-page': 'Masa untuk maklum balas. Jawab dengan jujur dan ringkas.',
+        'pledge-page': 'Pilih fokus dan tulis satu ikrar kecil yang boleh dibuat.',
+        'photo-choice-page': 'Pilih foto, boomerang, muat naik, atau langkau foto.',
+        'photo-page': 'Pandang kamera, cuba penapis, kemudian ambil foto.',
+        'file-upload-page': 'Muat naik foto yang jelas, kemudian pilih gaya.',
+        'style-page': 'Pilih bingkai kegemaran anda untuk kenangan ini.',
+        'confirmation-page': 'Semak kali terakhir. Jika semuanya betul, hantar.',
+        'thankyou-page': 'Selesai. Terima kasih kerana menyumbang kepada komuniti RP.'
+    },
+    ta: {
+        'details-page': 'வணக்கம், நான் RP Beary. பெயரும் மின்னஞ்சலும் நிரப்புங்கள்; அடுத்த படிக்கு உதவுவேன்.',
+        'feedback-page': 'இப்போது கருத்தை பகிருங்கள். உண்மையாகவும் சுருக்கமாகவும் பதிலளிக்கலாம்.',
+        'pledge-page': 'ஒரு ESG கவனத்தைத் தேர்ந்து, சிறிய உறுதியை எழுதுங்கள்.',
+        'photo-choice-page': 'புகைப்படம், பூமராங், பதிவேற்றம் அல்லது தவிர்க்கலாம்.',
+        'photo-page': 'கேமராவை நோக்கி, வடிகட்டியை முயற்சி செய்து படம் எடுக்கவும்.',
+        'file-upload-page': 'தெளிவான புகைப்படத்தை பதிவேற்றி, பாணியைத் தேர்ந்தெடுக்கவும்.',
+        'style-page': 'உங்களுக்கு பிடித்த சட்டகத்தைத் தேர்ந்தெடுக்கவும்.',
+        'confirmation-page': 'கடைசியாக சரிபார்க்கவும். சரி என்றால் சமர்ப்பிக்கவும்.',
+        'thankyou-page': 'முடிந்தது. RP சமூகத்திற்காக உங்கள் குரலை பகிர்ந்ததற்கு நன்றி.'
+    }
+};
+const RP_BEAR_LOCALIZED_TIPS = { // Multilingual RP guide tips (DONE BY NICK)
+    zh: {
+        'details-page': ['使用你能查看的电邮，这样纪念照会发送给你。'],
+        'feedback-page': ['如果题目有星号，请先回答再继续。'],
+        'pledge-page': ['好的承诺包含行动、数量和时间。'],
+        'photo-page': ['拍摄结束前，请把脸保持在画面中。'],
+        'style-page': ['选中的相框会用于最后的电邮纪念照。']
+    },
+    ms: {
+        'details-page': ['Gunakan e-mel yang boleh anda semak supaya kenangan sampai kepada anda.'],
+        'feedback-page': ['Jika soalan bertanda bintang, jawab dahulu sebelum teruskan.'],
+        'pledge-page': ['Ikrar yang kuat ada tindakan, nombor dan tempoh masa.'],
+        'photo-page': ['Pastikan muka anda dalam bingkai sehingga tangkapan selesai.'],
+        'style-page': ['Bingkai yang dipilih akan digunakan dalam kenangan e-mel anda.']
+    },
+    ta: {
+        'details-page': ['நினைவுப் படம் சேர வேண்டிய மின்னஞ்சலை பயன்படுத்துங்கள்.'],
+        'feedback-page': ['நட்சத்திரம் உள்ள கேள்விக்கு தொடர்வதற்கு முன் பதிலளிக்கவும்.'],
+        'pledge-page': ['வலுவான உறுதியில் செயல், எண், காலக்கெடு இருக்கும்.'],
+        'photo-page': ['படம் எடுக்கும் வரை முகத்தை சட்டகத்துக்குள் வைத்திருக்கவும்.'],
+        'style-page': ['தேர்ந்த சட்டகம் மின்னஞ்சல் நினைவில் பயன்படுத்தப்படும்.']
+    }
+};
 const RP_BEAR_PAGE_ACTIONS = { // Interactive teddy guide quick actions - changes made by nick
     'details-page': [{ label: 'What next?', message: 'Fill in your details, then tap Continue to Feedback.' }],
     'feedback-page': [{ label: 'Help', message: 'Answer each visible question. I will point out anything missing.' }],
@@ -439,12 +510,58 @@ function updateProgressIndicator(activePageId) {
     });
 }
 
+function getRpBearLanguageCode() { // Speech language mapping for RP guide (DONE BY NICK)
+    const language = typeof currentLanguage === 'string' ? currentLanguage : 'en';
+    return {
+        en: 'en-SG',
+        zh: 'zh-CN',
+        ms: 'ms-MY',
+        ta: 'ta-IN'
+    }[language] || 'en-SG';
+}
+
+function getRpBearPageMessage(pageId) { // Multilingual RP guide message resolver (DONE BY NICK)
+    const language = typeof currentLanguage === 'string' ? currentLanguage : 'en';
+    return RP_BEAR_LOCALIZED_MESSAGES[language]?.[pageId] ||
+        RP_BEAR_PAGE_MESSAGES[pageId] ||
+        'I am here if you need a nudge.';
+}
+
+function speakRpBearMessage(message) { // Optional RP guide voice prompt (DONE BY NICK)
+    if (!rpBearVoiceEnabled || !('speechSynthesis' in window) || !message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = getRpBearLanguageCode();
+    utterance.rate = 0.96;
+    utterance.pitch = 1.04;
+    window.speechSynthesis.speak(utterance);
+}
+
+function updateRpBearVoiceToggle() { // RP guide voice toggle UI (DONE BY NICK)
+    const toggle = document.getElementById('rp-bear-voice-toggle');
+    if (!toggle) return;
+    toggle.setAttribute('aria-pressed', rpBearVoiceEnabled ? 'true' : 'false');
+    toggle.classList.toggle('active', rpBearVoiceEnabled);
+    toggle.innerHTML = `
+        <i class="fa-solid ${rpBearVoiceEnabled ? 'fa-volume-high' : 'fa-volume-xmark'}" aria-hidden="true"></i>
+        <span>Voice</span>
+    `;
+}
+
+function toggleRpBearVoice() { // Visitor-controlled RP guide audio toggle (DONE BY NICK)
+    rpBearVoiceEnabled = !rpBearVoiceEnabled;
+    localStorage.setItem(RP_BEAR_VOICE_KEY, String(rpBearVoiceEnabled));
+    updateRpBearVoiceToggle();
+    setRpBearSpeech(rpBearVoiceEnabled ? 'Voice guide is on.' : 'Voice guide is off.', true);
+}
+
 function setRpBearSpeech(message, shouldPop = false) { // changes made by nick
     const companion = document.getElementById('rp-bear-companion');
     const speech = document.getElementById('rp-bear-speech');
     if (!companion || !speech) return;
 
     speech.textContent = message;
+    speakRpBearMessage(message);
     companion.classList.add('is-speaking');
 
     if (shouldPop) {
@@ -474,7 +591,8 @@ function getRpBearStepText(pageId) { // changes made by nick
 }
 
 function getRpBearTip(pageId) { // changes made by nick
-    const tips = RP_BEAR_TIPS[pageId] || ['Tap me any time for a small hint.'];
+    const language = typeof currentLanguage === 'string' ? currentLanguage : 'en';
+    const tips = RP_BEAR_LOCALIZED_TIPS[language]?.[pageId] || RP_BEAR_TIPS[pageId] || ['Tap me any time for a small hint.'];
     const tipIndex = rpBearInteractionCount % tips.length;
     return tips[tipIndex];
 }
@@ -528,7 +646,7 @@ function updateRpBearCompanion(pageId) { // changes made by nick
     if (progress) progress.textContent = getRpBearStepText(pageId);
     renderRpBearActions(pageId);
     setRpBearMood(pageId === 'confirmation-page' ? 'thinking' : null);
-    setRpBearSpeech(RP_BEAR_PAGE_MESSAGES[pageId] || 'I am here if you need a nudge.', pageId !== rpBearLastPageId);
+    setRpBearSpeech(getRpBearPageMessage(pageId), pageId !== rpBearLastPageId);
     rpBearLastPageId = pageId;
 }
 
@@ -537,6 +655,14 @@ function setupRpBearCompanion() { // changes made by nick
     if (!companion) return;
 
     companion.addEventListener('click', (event) => {
+        const voiceToggle = event.target.closest('#rp-bear-voice-toggle');
+        if (voiceToggle) {
+            event.preventDefault();
+            toggleRpBearVoice();
+            resetInactivityTimer();
+            return;
+        }
+
         const actionTarget = event.target.closest('.rp-bear-action');
         const pageId = activeFlowPageId || getVisibleFlowPageId();
         if (actionTarget) {
@@ -559,6 +685,8 @@ function setupRpBearCompanion() { // changes made by nick
             companion.click();
         }
     });
+
+    updateRpBearVoiceToggle();
 }
 
 function updateLostFoundShortcut(pageId) { // changes made by nick
@@ -617,6 +745,7 @@ function openLostFoundModal() { // changes made by nick
     if (!modal) return;
 
     if (status) status.textContent = '';
+    updateLostFoundSyncStatus();
     modal.style.display = 'flex';
     document.body.classList.add('lost-found-open');
     if (itemInput) itemInput.focus();
@@ -632,6 +761,76 @@ function closeLostFoundModal() { // changes made by nick
     resetInactivityTimer();
 }
 
+function updateLostFoundSyncStatus() { // Offline Lost & Found queue status (DONE BY NICK)
+    const panel = document.getElementById('lost-found-sync-panel');
+    const label = document.getElementById('lost-found-sync-status');
+    if (!panel || !label) return;
+
+    const pendingCount = getPendingLostFoundReports().length;
+    panel.hidden = pendingCount === 0;
+    label.textContent = pendingCount === 0
+        ? 'No queued reports.'
+        : `${pendingCount} report${pendingCount === 1 ? '' : 's'} waiting to sync.`;
+}
+
+function clearLostFoundPhoto(clearInput = true) { // Clear optional item photo preview (DONE BY NICK)
+    lostFoundPhotoDataUrl = null;
+    lostFoundPhotoName = '';
+    lostFoundPhotoReadPromise = Promise.resolve(true);
+    const input = document.getElementById('lost-found-photo');
+    const preview = document.getElementById('lost-found-photo-preview');
+    const previewImg = document.getElementById('lost-found-photo-preview-img');
+    if (clearInput && input) input.value = '';
+    if (previewImg) previewImg.removeAttribute('src');
+    if (preview) preview.hidden = true;
+}
+
+function setupLostFoundPhotoPreview() { // Optional item photo reader (DONE BY NICK)
+    const input = document.getElementById('lost-found-photo');
+    const preview = document.getElementById('lost-found-photo-preview');
+    const previewImg = document.getElementById('lost-found-photo-preview-img');
+    const status = document.getElementById('lost-found-status');
+    if (!input || !preview || !previewImg) return;
+
+    input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        clearLostFoundPhoto(false); // Keep the selected file available while FileReader loads it (DONE BY NICK)
+        if (!file) return;
+
+        const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+        const maxBytes = 2 * 1024 * 1024;
+        if (!allowedTypes.has(file.type)) {
+            clearLostFoundPhoto();
+            if (status) status.textContent = 'Please upload a PNG, JPEG, GIF, or WebP item photo.';
+            return;
+        }
+        if (file.size > maxBytes) {
+            clearLostFoundPhoto();
+            if (status) status.textContent = 'Item photo must be 2MB or smaller.';
+            return;
+        }
+
+        const reader = new FileReader();
+        if (status) status.textContent = 'Preparing item photo...';
+        lostFoundPhotoReadPromise = new Promise((resolve) => {
+            reader.onload = () => {
+                lostFoundPhotoDataUrl = String(reader.result || '');
+                lostFoundPhotoName = file.name;
+                previewImg.src = lostFoundPhotoDataUrl;
+                preview.hidden = false;
+                if (status) status.textContent = 'Item photo attached.';
+                resolve(true);
+            };
+            reader.onerror = () => {
+                clearLostFoundPhoto();
+                if (status) status.textContent = 'Could not read that item photo. Try another image.';
+                resolve(false);
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+}
+
 function getPendingLostFoundReports() { // changes made by nick
     try {
         return JSON.parse(localStorage.getItem(LOST_FOUND_PENDING_KEY) || '[]');
@@ -642,13 +841,31 @@ function getPendingLostFoundReports() { // changes made by nick
 }
 
 function savePendingLostFoundReport(report, feedbackProgress) { // changes made by nick
-    const pendingReports = getPendingLostFoundReports();
-    pendingReports.push({
-        report,
-        feedbackProgress,
-        queuedAt: new Date().toISOString()
-    });
-    localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(pendingReports.slice(-50)));
+    try {
+        const pendingReports = getPendingLostFoundReports();
+        pendingReports.push({
+            report,
+            feedbackProgress,
+            queuedAt: new Date().toISOString()
+        });
+        localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(pendingReports.slice(-50)));
+        updateLostFoundSyncStatus();
+    } catch (error) {
+        console.warn('Unable to queue Lost & Found report locally:', error);
+        const photoFreeReport = { ...report, itemPhotoDataUrl: null, itemPhotoName: '' };
+        try {
+            const pendingReports = getPendingLostFoundReports();
+            pendingReports.push({
+                report: photoFreeReport,
+                feedbackProgress,
+                queuedAt: new Date().toISOString()
+            });
+            localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(pendingReports.slice(-50)));
+            updateLostFoundSyncStatus();
+        } catch (fallbackError) {
+            console.warn('Unable to queue photo-free Lost & Found report locally:', fallbackError);
+        }
+    }
 }
 
 async function postLostFoundReport(report, feedbackProgress) { // changes made by nick
@@ -673,6 +890,10 @@ async function postLostFoundReport(report, feedbackProgress) { // changes made b
     return data;
 }
 
+function lostFoundReportNeedsPhotoWarning(report, result) { // Detect old backend responses that ignored the uploaded item photo (DONE BY NICK)
+    return Boolean(report?.itemPhotoDataUrl) && !Boolean(result?.itemPhotoPath);
+}
+
 async function syncPendingLostFoundReports() { // changes made by nick
     const pendingReports = getPendingLostFoundReports();
     if (!pendingReports.length) return;
@@ -687,6 +908,7 @@ async function syncPendingLostFoundReports() { // changes made by nick
     }
 
     localStorage.setItem(LOST_FOUND_PENDING_KEY, JSON.stringify(remainingReports));
+    updateLostFoundSyncStatus();
 }
 
 async function submitLostFoundReport(event) { // changes made by nick
@@ -704,33 +926,47 @@ async function submitLostFoundReport(event) { // changes made by nick
         return;
     }
 
-    const feedbackProgress = collectLostFoundFeedbackProgress();
-    const report = {
-        type,
-        item,
-        location,
-        contact,
-        details,
-        activePageId: feedbackProgress.activePageId,
-        submittedAt: new Date().toISOString()
-    };
+    let feedbackProgress = null;
+    let report = null;
 
     try {
-        if (status) status.textContent = 'Saving report...';
-        await postLostFoundReport(report, feedbackProgress);
+        const hasSelectedPhoto = Boolean(document.getElementById('lost-found-photo')?.files?.[0]);
+        if (status) status.textContent = hasSelectedPhoto ? 'Saving report and photo...' : 'Saving report...';
+        await lostFoundPhotoReadPromise;
+
+        feedbackProgress = collectLostFoundFeedbackProgress();
+        report = {
+            type,
+            item,
+            location,
+            contact,
+            details,
+            itemPhotoDataUrl: lostFoundPhotoDataUrl,
+            itemPhotoName: lostFoundPhotoName,
+            activePageId: feedbackProgress.activePageId,
+            submittedAt: new Date().toISOString()
+        };
+
+        const result = await postLostFoundReport(report, feedbackProgress);
         await syncPendingLostFoundReports();
-        if (status) status.textContent = 'Report saved. You can return to your feedback form now.';
+        if (status) {
+            status.textContent = lostFoundReportNeedsPhotoWarning(report, result)
+                ? `Report saved, but the server did not save the photo. Please restart the kiosk/backend server, then submit again. Tracking code: ${result.trackingCode || result.reportId}.`
+                : `Report saved. Tracking code: ${result.trackingCode || result.reportId}. You can return to your feedback form now.`;
+        }
         const form = document.getElementById('lost-found-form');
         if (form) form.reset();
+        clearLostFoundPhoto();
         const lostOption = document.querySelector('input[name="lost-found-type"][value="lost"]');
         if (lostOption) lostOption.checked = true;
     } catch (error) {
         console.warn('Unable to save Lost & Found report:', error);
-        savePendingLostFoundReport(report, feedbackProgress);
+        if (report && feedbackProgress) savePendingLostFoundReport(report, feedbackProgress);
         if (status) {
             status.textContent = 'Saved on this kiosk. It will sync to admin when the server is available.';
         }
     }
+    updateLostFoundSyncStatus();
     resetInactivityTimer();
 }
 
@@ -739,6 +975,8 @@ function setupLostFoundModal() { // changes made by nick
     if (!modal) return;
 
     syncPendingLostFoundReports();
+    setupLostFoundPhotoPreview();
+    updateLostFoundSyncStatus();
 
     modal.addEventListener('click', (event) => {
         if (event.target === modal) {
@@ -778,6 +1016,7 @@ function showLandingPages() {
     updateRpBearCompanion(null);
     updateLostFoundShortcut(null);
     applyFormUIConfig();
+    loadLandingVisitorCount(); // Refresh live visitor count on start screen (DONE BY NICK)
 }
 
 function showFlowPage(pageId) {
@@ -1389,6 +1628,112 @@ function drawPartyAccessory(ctx, geometry, time) { // changes made by nick
     });
 }
 
+function drawRpShadesAccessory(ctx, geometry) { // RP shades face filter (DONE BY NICK)
+    const lensWidth = geometry.eyeDistance * 0.42;
+    const lensHeight = geometry.eyeDistance * 0.26;
+    const lensOffset = geometry.eyeDistance * 0.33;
+    const center = {
+        x: geometry.eyeCenter.x,
+        y: geometry.eyeCenter.y + geometry.eyeDistance * 0.04
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.strokeStyle = '#0f766e';
+        ctx.lineWidth = Math.max(4, geometry.eyeDistance * 0.04);
+
+        [-lensOffset, lensOffset].forEach((x) => {
+            ctx.beginPath();
+            ctx.roundRect(x - lensWidth / 2, -lensHeight / 2, lensWidth, lensHeight, lensHeight * 0.28);
+            ctx.fill();
+            ctx.stroke();
+        });
+
+        ctx.beginPath();
+        ctx.moveTo(-lensOffset + lensWidth / 2, -lensHeight * 0.08);
+        ctx.lineTo(lensOffset - lensWidth / 2, -lensHeight * 0.08);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `700 ${Math.max(12, geometry.eyeDistance * 0.12)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('RP', 0, 0);
+    });
+}
+
+function drawLeafCrownAccessory(ctx, geometry, time) { // ESG leaf crown face filter (DONE BY NICK)
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * 0.32
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        for (let i = 0; i < 9; i++) {
+            const progress = i / 8;
+            const x = (progress - 0.5) * geometry.eyeDistance * 1.36;
+            const y = -Math.sin(progress * Math.PI) * geometry.eyeDistance * 0.2 + Math.sin(time / 400 + i) * geometry.eyeDistance * 0.02;
+            const rotation = (progress - 0.5) * 0.7;
+            const leafWidth = geometry.eyeDistance * 0.16;
+            const leafHeight = geometry.eyeDistance * 0.28;
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = i % 2 === 0 ? '#16a34a' : '#34d399';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, leafWidth / 2, leafHeight / 2, -0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.lineWidth = Math.max(1, geometry.eyeDistance * 0.012);
+            ctx.beginPath();
+            ctx.moveTo(0, -leafHeight * 0.36);
+            ctx.lineTo(0, leafHeight * 0.36);
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+}
+
+function drawGraduationAccessory(ctx, geometry, time) { // Graduation cap face filter (DONE BY NICK)
+    const center = {
+        x: geometry.forehead.x,
+        y: geometry.forehead.y - geometry.eyeDistance * 0.42
+    };
+
+    withAccessoryTransform(ctx, center, geometry.angle, () => {
+        const capWidth = geometry.eyeDistance * 1.22;
+        const capHeight = geometry.eyeDistance * 0.34;
+        ctx.fillStyle = '#111827';
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = Math.max(2, geometry.eyeDistance * 0.02);
+
+        ctx.beginPath();
+        ctx.moveTo(0, -capHeight * 0.62);
+        ctx.lineTo(capWidth / 2, -capHeight * 0.08);
+        ctx.lineTo(0, capHeight * 0.48);
+        ctx.lineTo(-capWidth / 2, -capHeight * 0.08);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f766e';
+        ctx.fillRect(-capWidth * 0.24, capHeight * 0.04, capWidth * 0.48, capHeight * 0.32);
+
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = Math.max(2, geometry.eyeDistance * 0.018);
+        ctx.beginPath();
+        ctx.moveTo(capWidth * 0.08, -capHeight * 0.14);
+        ctx.quadraticCurveTo(capWidth * 0.28, capHeight * 0.18, capWidth * 0.25, capHeight * (0.7 + Math.sin(time / 260) * 0.08));
+        ctx.stroke();
+
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(capWidth * 0.25, capHeight * 0.72, geometry.eyeDistance * 0.045, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
 function drawFaceAccessory(ctx, landmarks, width, height, time = performance.now()) {
     if (selectedFaceAccessory === 'none' || !landmarks) {
         return;
@@ -1415,6 +1760,12 @@ function drawFaceAccessory(ctx, landmarks, width, height, time = performance.now
         drawBlushAccessory(ctx, geometry, time);
     } else if (selectedFaceAccessory === 'party') {
         drawPartyAccessory(ctx, geometry, time);
+    } else if (selectedFaceAccessory === 'rp-shades') {
+        drawRpShadesAccessory(ctx, geometry);
+    } else if (selectedFaceAccessory === 'leaf-crown') {
+        drawLeafCrownAccessory(ctx, geometry, time);
+    } else if (selectedFaceAccessory === 'graduation') {
+        drawGraduationAccessory(ctx, geometry, time);
     }
 }
 
@@ -1507,6 +1858,7 @@ function selectFaceAccessory(accessory, shouldScroll = true) {
     }
 
     selectedFaceAccessory = accessory;
+    userData.selectedFaceAccessory = accessory; // Store face filter choice for Nick analytics (DONE BY NICK)
     updateFaceAccessoryButtons();
     if (shouldScroll) {
         scrollSelectedFaceFilterIntoView();
@@ -1657,6 +2009,58 @@ function startQrRefreshLoop() {
     }, 25000);
 }
 
+function setLandingVisitorCount(totalVisitors, nextVisitorNumber) { // Render start-screen live visitor count (DONE BY NICK)
+    const totalText = formatVisitorCount(totalVisitors);
+    const nextText = formatVisitorCount(nextVisitorNumber);
+
+    document.querySelectorAll('.landing-visitor-count').forEach((element) => {
+        element.classList.remove('is-loaded');
+        void element.offsetWidth;
+        element.classList.add('is-loaded');
+    });
+    document.querySelectorAll('[data-visitor-count-value]').forEach((element) => {
+        element.textContent = totalText;
+    });
+    document.querySelectorAll('[data-next-visitor-value]').forEach((element) => {
+        element.textContent = nextText;
+    });
+}
+
+async function loadLandingVisitorCount() { // Fetch live count for landing page (DONE BY NICK)
+    try {
+        const response = await fetch('/api/feedback/visitor-count', {
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Visitor count unavailable');
+        }
+
+        setLandingVisitorCount(data.totalVisitors, data.nextVisitorNumber);
+    } catch (error) {
+        try {
+            const treeResponse = await fetch('/api/tree', {
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            const treeVisitors = await treeResponse.json();
+            const totalVisitors = Array.isArray(treeVisitors) ? treeVisitors.length : null;
+            setLandingVisitorCount(totalVisitors, Number.isFinite(Number(totalVisitors)) ? Number(totalVisitors) + 1 : null);
+        } catch (fallbackError) {
+            console.warn('Landing visitor count unavailable:', error.message, fallbackError.message);
+            setLandingVisitorCount(null, null);
+        }
+    }
+}
+
+function startLandingVisitorCountLoop() { // Keep start-screen count live (DONE BY NICK)
+    if (landingVisitorCountTimer) {
+        clearInterval(landingVisitorCountTimer);
+    }
+
+    loadLandingVisitorCount();
+    landingVisitorCountTimer = setInterval(loadLandingVisitorCount, 30000);
+}
+
 // Detect if user is on mobile or desktop
 function detectDeviceType() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1708,6 +2112,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dynamic QR code
     loadDynamicQRCode();
     startQrRefreshLoop();
+    startLandingVisitorCountLoop(); // Start-screen live visitor count (DONE BY NICK)
     initializeProgressIndicators();
     updateCaptureModeButtons();
     
@@ -1866,7 +2271,12 @@ function returnToLandingPage() {
     photoData = null;
     captureMode = 'photo';
     boomerangFrames = [];
+    clearRestorableBoomerang();
+    selectedFaceAccessory = 'none'; // Reset face filter between visitors (DONE BY NICK)
+    userData.selectedFaceAccessory = 'none'; // Reset filter analytics state (DONE BY NICK)
     updateCaptureModeButtons();
+    updateFaceAccessoryButtons();
+    setupKeepsakeDownload({}); // Clear previous visitor download state (DONE BY NICK)
     updateFaceAccessoryButtons();
     scrollSelectedFaceFilterIntoView('auto');
     
@@ -2499,7 +2909,9 @@ function clearPhotoCaptureData() {
     userData.processedPhoto = null;
     userData.processedBoomerangFrames = null; // Clear backend GIF frame payload - changes made by nick
     userData.boomerangFrameDelayMs = null; // Clear backend GIF timing payload - changes made by nick
+    userData.boomerangQuality = null; // Clear GIF quality metadata (DONE BY NICK)
     boomerangFrames = [];
+    clearRestorableBoomerang();
     stopBoomerangPreview();
     stopFaceAccessoryPreview();
 }
@@ -2687,7 +3099,9 @@ async function handlePhotoUpload(event) {
         // Uploaded mobile photos are treated as normal photos - changes made by nick
         userData.photoSkipped = false;
         userData.captureMode = 'photo';
+        userData.boomerangQuality = null; // Uploaded still photos are not GIF quality tracked (DONE BY NICK)
         boomerangFrames = [];
+        clearRestorableBoomerang();
         userData.processedBoomerangFrames = null; // Clear backend GIF frames for uploaded still photos - changes made by nick
         userData.boomerangFrameDelayMs = null; // Clear backend GIF timing for uploaded still photos - changes made by nick
 
@@ -2740,8 +3154,10 @@ function retakePhotoFromUpload() {
     photoData = null;
     // Clear boomerang preview frames when retaking an uploaded photo - changes made by nick
     boomerangFrames = [];
+    clearRestorableBoomerang();
     userData.processedBoomerangFrames = null; // Clear backend GIF frames on upload retake - changes made by nick
     userData.boomerangFrameDelayMs = null; // Clear backend GIF timing on upload retake - changes made by nick
+    userData.boomerangQuality = null; // Clear GIF quality metadata on upload retake (DONE BY NICK)
 
     // Trigger click on file input again
     document.getElementById('photo-input').click();
@@ -2946,6 +3362,7 @@ function selectCaptureMode(mode) {
 
     captureMode = mode;
     userData.captureMode = mode;
+    userData.boomerangQuality = mode === 'boomerang' ? getBoomerangQualityPreset() : null; // Track quality only for boomerangs (DONE BY NICK)
     updateCaptureModeButtons();
     setRpBearSpeech(
         mode === 'boomerang'
@@ -2962,6 +3379,9 @@ function stopBoomerangPreview() {
         clearInterval(boomerangPreviewInterval);
         boomerangPreviewInterval = null;
     }
+    boomerangPreviewPaused = false;
+    boomerangPreviewPhotoElement = null;
+    updateBoomerangPreviewControls(false);
 }
 
 // Capture one current camera frame for photo or boomerang - changes made by nick
@@ -3000,6 +3420,95 @@ function getBoomerangFrameDelayMs() {
     return Math.max(40, Math.min(300, configuredDelay));
 }
 
+function getBoomerangQualityPreset() { // Read admin-controlled boomerang quality (DONE BY NICK)
+    const preset = String(kioskParameters.photoSettings?.boomerangQuality || 'medium').toLowerCase();
+    return BOOMERANG_QUALITY_PRESETS[preset] ? preset : 'medium';
+}
+
+function getBoomerangMaxFrames() { // Quality preset to GIF frame cap (DONE BY NICK)
+    return BOOMERANG_QUALITY_PRESETS[getBoomerangQualityPreset()] || BOOMERANG_GIF_MAX_FRAMES;
+}
+
+function hasRestorableBoomerang() { // Check if still-photo preview can return to GIF preview (DONE BY NICK)
+    return restorableBoomerangFrames.length > 0;
+}
+
+function clearRestorableBoomerang() { // Clear stored GIF preview frames when replacing capture (DONE BY NICK)
+    restorableBoomerangFrames = [];
+}
+
+function updateBoomerangPreviewControls(visible = (userData.captureMode === 'boomerang' && boomerangFrames.length > 0) || hasRestorableBoomerang()) { // Style preview controls (DONE BY NICK)
+    const controls = document.getElementById('boomerang-preview-controls');
+    const toggleBtn = document.getElementById('boomerang-toggle-preview-btn');
+    const retakeBtn = document.getElementById('boomerang-retake-btn');
+    const useStillBtn = document.getElementById('boomerang-use-still-btn');
+    const useVideoBtn = document.getElementById('boomerang-use-video-btn');
+    const showingBoomerang = userData.captureMode === 'boomerang' && boomerangFrames.length > 0;
+    const canRestoreBoomerang = userData.captureMode !== 'boomerang' && hasRestorableBoomerang();
+    const shouldShowControls = Boolean(visible && (showingBoomerang || canRestoreBoomerang));
+
+    if (controls) controls.hidden = !shouldShowControls;
+    if (toggleBtn) {
+        toggleBtn.hidden = !showingBoomerang;
+        toggleBtn.innerHTML = boomerangPreviewPaused
+            ? '<i class="fa-solid fa-play" aria-hidden="true"></i><span>Play GIF Preview</span>'
+            : '<i class="fa-solid fa-pause" aria-hidden="true"></i><span>Pause GIF Preview</span>';
+    }
+    if (retakeBtn) retakeBtn.hidden = !shouldShowControls;
+    if (useStillBtn) useStillBtn.hidden = !showingBoomerang;
+    if (useVideoBtn) useVideoBtn.hidden = !canRestoreBoomerang;
+}
+
+function toggleBoomerangPreviewPlayback() { // Pause or resume animated preview (DONE BY NICK)
+    const previewPhoto = boomerangPreviewPhotoElement || document.getElementById('preview-photo');
+    if (!previewPhoto || !boomerangFrames.length) return;
+
+    if (boomerangPreviewInterval) {
+        clearInterval(boomerangPreviewInterval);
+        boomerangPreviewInterval = null;
+        boomerangPreviewPaused = true;
+        updateBoomerangPreviewControls(true);
+        return;
+    }
+
+    boomerangPreviewPaused = false;
+    startBoomerangPreview(previewPhoto);
+}
+
+function switchBoomerangToStillPhoto() { // Convert boomerang capture to still preview (DONE BY NICK)
+    if (!boomerangFrames.length) return;
+    restorableBoomerangFrames = boomerangFrames.slice(); // Preserve GIF so visitor can switch back (DONE BY NICK)
+    photoData = restorableBoomerangFrames[Math.floor(restorableBoomerangFrames.length / 2)] || restorableBoomerangFrames[0];
+    boomerangFrames = [];
+    userData.captureMode = 'photo';
+    userData.boomerangQuality = null;
+    userData.processedBoomerangFrames = null;
+    userData.boomerangFrameDelayMs = null;
+    captureMode = 'photo';
+    stopBoomerangPreview();
+    updateCaptureModeButtons();
+    updatePreviewWithCutout();
+    updateBoomerangPreviewControls(true);
+    setRpBearSpeech('Switched to a still photo. You can keep this frame or retake it.', true);
+    resetInactivityTimer();
+}
+
+function switchStillPhotoToBoomerang() { // Restore moving GIF preview after using still photo (DONE BY NICK)
+    if (!hasRestorableBoomerang()) return;
+
+    boomerangFrames = restorableBoomerangFrames.slice();
+    photoData = boomerangFrames[Math.floor(boomerangFrames.length / 2)] || boomerangFrames[0];
+    userData.captureMode = 'boomerang';
+    userData.boomerangQuality = getBoomerangQualityPreset();
+    userData.processedBoomerangFrames = null;
+    userData.boomerangFrameDelayMs = null;
+    captureMode = 'boomerang';
+    updateCaptureModeButtons();
+    updatePreviewWithCutout();
+    setRpBearSpeech('Boomerang restored. Your keepsake will move again.', true);
+    resetInactivityTimer();
+}
+
 // Capture a short forward/backward boomerang sequence - changes made by nick
 async function captureBoomerangIfFaceDetected() {
     try {
@@ -3028,8 +3537,10 @@ async function captureBoomerangIfFaceDetected() {
         }
 
         boomerangFrames = frames.concat(frames.slice(1, -1).reverse());
+        clearRestorableBoomerang();
         userData.photoSkipped = false;
         userData.captureMode = 'boomerang';
+        userData.boomerangQuality = getBoomerangQualityPreset(); // Store selected quality for analytics (DONE BY NICK)
         userData.processedBoomerangFrames = null; // Rebuild backend GIF frames from this new recording - changes made by nick
         userData.boomerangFrameDelayMs = null; // Rebuild backend GIF timing from this new recording - changes made by nick
         photoData = frames[Math.floor(frames.length / 2)] || frames[0];
@@ -3082,6 +3593,7 @@ function updateBeautyFilterSettings() {
     const video = document.getElementById('video');
     const settingValue = beautyFilterEnabled ? beautyFilterStrength : 'off';
     const settingControls = document.querySelectorAll('#beauty-filter-setting, #upload-beauty-filter-setting');
+    userData.beautyFilterStrength = settingValue; // Store visitor beauty setting for Nick analytics (DONE BY NICK)
 
     if (video) {
         video.style.filter = beautyFilterEnabled ? getBeautyFilterPreset().liveFilter : '';
@@ -3258,8 +3770,10 @@ async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { 
     userData.photoSkipped = false;
     userData.captureMode = 'photo';
     boomerangFrames = [];
+    clearRestorableBoomerang();
     userData.processedBoomerangFrames = null; // Clear backend GIF frames for normal photo mode - changes made by nick
     userData.boomerangFrameDelayMs = null; // Clear backend GIF timing for normal photo mode - changes made by nick
+    userData.boomerangQuality = null; // Clear GIF quality metadata for normal photo mode (DONE BY NICK)
     stopFaceAccessoryPreview();
     
     // Stop camera stream after taking photo
@@ -3629,6 +4143,9 @@ async function startBoomerangPreview(previewPhoto) {
         return;
     }
 
+    boomerangPreviewPhotoElement = previewPhoto;
+    boomerangPreviewPaused = false;
+    updateBoomerangPreviewControls(true);
     let frameIndex = 0;
     await renderPreviewPhotoFrame(boomerangFrames[frameIndex], previewPhoto);
 
@@ -3652,6 +4169,7 @@ function updatePreviewWithCutout() {
     }
 
     stopBoomerangPreview();
+    updateBoomerangPreviewControls(hasRestorableBoomerang());
     renderPreviewPhotoFrame(photoData, previewPhoto);
 }
 
@@ -3836,7 +4354,7 @@ async function createBoomerangProcessedFrames() { // Backend-ready boomerang fra
     const ctx = canvas.getContext('2d');
     const overlayPath = getOverlayPathForCurrentTheme();
     const overlayImg = await loadImageElement(overlayPath);
-    const frameStep = Math.max(1, Math.ceil(boomerangFrames.length / BOOMERANG_GIF_MAX_FRAMES));
+    const frameStep = Math.max(1, Math.ceil(boomerangFrames.length / getBoomerangMaxFrames()));
     const selectedFrames = boomerangFrames.filter((_, index) => index % frameStep === 0);
     const frameImageDataList = [];
 
@@ -4028,6 +4546,12 @@ function showDetailsPage() {
 
 // Retake photo from style page
 function retakePhotoFromStyle() {
+    boomerangFrames = [];
+    clearRestorableBoomerang();
+    userData.processedBoomerangFrames = null; // Clear previous GIF payload when retaking from style page (DONE BY NICK)
+    userData.boomerangFrameDelayMs = null; // Clear previous GIF timing when retaking from style page (DONE BY NICK)
+    stopBoomerangPreview();
+
     // Show appropriate photo page based on device
     if (currentDevice === 'mobile') {
         // For mobile users, go to file upload page
@@ -4180,6 +4704,7 @@ function finalSubmit() {
         // Show visitor number and milestone confetti on thank-you page - changes made by nick
         setupVisitorMilestone(submissionData);
         setupJourneyPassport(submissionData);
+        setupKeepsakeDownload(submissionData); // Downloadable visitor keepsake (DONE BY NICK)
 
         // Set up social share content for the thank-you page based on combined email queue status.
         setupSocialShare(submissionData);
@@ -4203,6 +4728,45 @@ function finalSubmit() {
         // Restart timer since submission failed
         startInactivityTimer();
     });
+}
+
+function setupKeepsakeDownload(data = {}) { // Thank-you page downloadable keepsake (DONE BY NICK)
+    const button = document.getElementById('keepsake-download-btn');
+    if (!button) return;
+
+    const processedId = userData.processedPhotoId || data.processedPhotoId;
+    const rawId = userData.photoId || data.photoId;
+    const captureLabel = userData.captureMode === 'boomerang' ? 'boomerang' : 'photo';
+    const downloadPath = processedId
+        ? `/uploads/processed/${processedId}`
+        : rawId
+        ? `/uploads/photos/${rawId}`
+        : '';
+
+    if (!downloadPath) {
+        button.hidden = true;
+        button.dataset.downloadUrl = '';
+        return;
+    }
+
+    button.hidden = false;
+    button.dataset.downloadUrl = downloadPath;
+    button.dataset.downloadName = `rp-esg-${captureLabel}-keepsake`;
+}
+
+function downloadVisitorKeepsake() { // Download saved keepsake from thank-you page (DONE BY NICK)
+    const button = document.getElementById('keepsake-download-btn');
+    const downloadUrl = button?.dataset.downloadUrl || '';
+    if (!downloadUrl) return;
+
+    const extension = downloadUrl.split('.').pop() || (userData.captureMode === 'boomerang' ? 'gif' : 'png');
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${button.dataset.downloadName || 'rp-esg-keepsake'}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    resetInactivityTimer();
 }
 
 // Build share text and social media links for the final thank-you page
@@ -5119,7 +5683,12 @@ function submitAnother() {
     photoData = null;
     captureMode = 'photo';
     boomerangFrames = [];
+    clearRestorableBoomerang();
+    selectedFaceAccessory = 'none'; // Reset face filter between visitors (DONE BY NICK)
+    userData.selectedFaceAccessory = 'none'; // Reset filter analytics state (DONE BY NICK)
     updateCaptureModeButtons();
+    updateFaceAccessoryButtons();
+    setupKeepsakeDownload({}); // Clear previous visitor download state (DONE BY NICK)
     
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
@@ -5173,7 +5742,12 @@ function goHomeFromFeedbackForm() {
     photoData = null;
     captureMode = 'photo';
     boomerangFrames = [];
+    clearRestorableBoomerang();
+    selectedFaceAccessory = 'none'; // Reset face filter when returning home (DONE BY NICK)
+    userData.selectedFaceAccessory = 'none'; // Reset filter analytics state (DONE BY NICK)
     updateCaptureModeButtons();
+    updateFaceAccessoryButtons();
+    setupKeepsakeDownload({}); // Clear previous visitor download state (DONE BY NICK)
 
     document.querySelectorAll('form').forEach(form => form.reset());
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
@@ -6139,6 +6713,7 @@ function applyTranslations() {
     setText('continue-to-photo-text', t.continueToPhoto);
     setText('skip-pledge-text', t.skipPledge);
     setText('back-from-pledge-text', t.back);
+    setText('home-from-pledge-text', getDynamicLanguageText().home); // Home button translation (DONE BY NICK)
 
     setText('photo-choice-title', t.photoChoiceTitle || 'Would you like to take a photo?');
     setText('photo-choice-description', t.photoChoiceDescription || 'You can take a keepsake photo, or skip it and submit your feedback now.');
@@ -6205,6 +6780,9 @@ function setLanguage(lang) {
     localStorage.setItem('kioskLanguage', lang);
     document.documentElement.lang = lang;
     applyTranslations();
+    if (activeFlowPageId) { // Refresh multilingual RP guide after language switch (DONE BY NICK)
+        updateRpBearCompanion(activeFlowPageId);
+    }
 }
 
 // Physical keyboard shortcuts for changing language: Alt+1 English, Alt+2 Chinese, Alt+3 Malay, Alt+4 Tamil. (Done by Caeden)
