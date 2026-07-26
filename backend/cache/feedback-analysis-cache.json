@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-23T14:00:05.619Z",
+  "updatedAt": "2026-07-26T06:10:54.832Z",
   "entries": {
     "02420bdae9a0d7122b76a3532a451c25b10cee6184562a2f98d910c1d5d9110f": {
       "cacheKey": "02420bdae9a0d7122b76a3532a451c25b10cee6184562a2f98d910c1d5d9110f",
@@ -34,6 +34,204 @@
       "hitCount": 1,
       "analyzedAt": "2026-07-23T08:55:24.000Z",
       "lastUsedAt": "2026-07-23T08:55:24.000Z"
+    },
+    "32e0a3bdc459a6eab030d0d6f9c92e2376f15d37aca08a78d37a301ab3e98834": {
+      "cacheKey": "32e0a3bdc459a6eab030d0d6f9c92e2376f15d37aca08a78d37a301ab3e98834",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "there are nothing to learned. this whole exibition is so bad, it fails what is intended, it is the worst exibition i have ever visited. i hope that this school does not open anymore of such useless pathetic event which is so rubbish.",
+      "sourceText": "There are nothing to learned. This whole exibition is so bad, it fails what is intended, it is the worst exibition I have ever visited. I hope that this school does not open anymore of such useless pathetic event which is so rubbish.",
+      "sentiment": "negative",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "7d52684ead9d4bc747df31a3dd98fe4046602ea832f1ca271b300dc0ae89017c": {
+      "cacheKey": "7d52684ead9d4bc747df31a3dd98fe4046602ea832f1ca271b300dc0ae89017c",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "climate change",
+      "sourceText": "Climate Change",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "bad746f4bd8870879de14e75cccc0684c3ac77bf65570805ac5b4736def2c486": {
+      "cacheKey": "bad746f4bd8870879de14e75cccc0684c3ac77bf65570805ac5b4736def2c486",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "bring a reusable bottle for 3 school days this week. nope stupid. this is so pathetic asking students to signed all this useless pledge.",
+      "sourceText": "Bring a reusable bottle for 3 school days this week. Nope stupid. This is so pathetic asking students to signed all this useless pledge.",
+      "sentiment": "negative",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "e7b18e0cb3c4e8757f5a4f8ab311d6c2fe863900e8a9b759b15c89239eb57366": {
+      "cacheKey": "e7b18e0cb3c4e8757f5a4f8ab311d6c2fe863900e8a9b759b15c89239eb57366",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i learned about environmental protection",
+      "sourceText": "I learned about environmental protection",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "59504d9025ba532756db23a1544e451ac3e5ce17134f20275973093a3fa41d23": {
+      "cacheKey": "59504d9025ba532756db23a1544e451ac3e5ce17134f20275973093a3fa41d23",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "sustainability",
+      "sourceText": "Sustainability",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "e9e9c26e8467c7522b634ec4a60c584b17abc7fa4c3b3a519125e5dc2a91d92e": {
+      "cacheKey": "e9e9c26e8467c7522b634ec4a60c584b17abc7fa4c3b3a519125e5dc2a91d92e",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i learned about energy conservation",
+      "sourceText": "I learned about energy conservation",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "1b6706c36fbf5e7c2b3d9e60024f6df7bca8724c7a0519c1b0e7597403bd736f": {
+      "cacheKey": "1b6706c36fbf5e7c2b3d9e60024f6df7bca8724c7a0519c1b0e7597403bd736f",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "energy",
+      "sourceText": "Energy",
+      "sentiment": "positive",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "a0f465b7f03e47042b5cec783af35bea65ffd6ba534b5b7f6af9548223ea4b2e": {
+      "cacheKey": "a0f465b7f03e47042b5cec783af35bea65ffd6ba534b5b7f6af9548223ea4b2e",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "conservation",
+      "sourceText": "Conservation",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "d5e1bb549cf5747603d69ecbf75e2d92ff55feef0f596a59de7f0af21afbad38": {
+      "cacheKey": "d5e1bb549cf5747603d69ecbf75e2d92ff55feef0f596a59de7f0af21afbad38",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "climate",
+      "sourceText": "Climate",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "d9385c8d16493e9fe791b498ef85740d575389e68c07a751debfcdaf287c0def": {
+      "cacheKey": "d9385c8d16493e9fe791b498ef85740d575389e68c07a751debfcdaf287c0def",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i discovered sustainable practices",
+      "sourceText": "I discovered sustainable practices",
+      "sentiment": "positive",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "1979f671a12151cef0c38695eeb95a318ca4483da17b867a390849e7226f8349": {
+      "cacheKey": "1979f671a12151cef0c38695eeb95a318ca4483da17b867a390849e7226f8349",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i discovered ways to reduce waste",
+      "sourceText": "I discovered ways to reduce waste",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "aabf2881159be9991cd16b2d7d7e326fb94766a83eaa12920ebafa0d9d06e90a": {
+      "cacheKey": "aabf2881159be9991cd16b2d7d7e326fb94766a83eaa12920ebafa0d9d06e90a",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "recycling",
+      "sourceText": "Recycling",
+      "sentiment": "positive",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "b59ba0dab34ff6691d1aedd4c2d61add5ea699006629c0fbafb4c58f6db60cd8": {
+      "cacheKey": "b59ba0dab34ff6691d1aedd4c2d61add5ea699006629c0fbafb4c58f6db60cd8",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i understood the importance of recycling",
+      "sourceText": "I understood the importance of recycling",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "9383880b4979ed0062d695e29aed1e3f262afbeb4272c6c44c75be4167507e61": {
+      "cacheKey": "9383880b4979ed0062d695e29aed1e3f262afbeb4272c6c44c75be4167507e61",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i commit to recycling daily",
+      "sourceText": "I commit to recycling daily",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "ac8f8f3e3eabea4aabe6437226394331b1bddc512daa919315938f4ff429059f": {
+      "cacheKey": "ac8f8f3e3eabea4aabe6437226394331b1bddc512daa919315938f4ff429059f",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i will use sustainable products",
+      "sourceText": "I will use sustainable products",
+      "sentiment": "positive",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "5e06db79fcbf11c559bfac97c6354fcb1297b7c21652e8cb6ba57659ab3bfd14": {
+      "cacheKey": "5e06db79fcbf11c559bfac97c6354fcb1297b7c21652e8cb6ba57659ab3bfd14",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i promise to conserve water",
+      "sourceText": "I promise to conserve water",
+      "sentiment": "positive",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "0eb16f20a91aca96ac9ee9e856489a257a678f0e6dd63649baeebaa4517d5bca": {
+      "cacheKey": "0eb16f20a91aca96ac9ee9e856489a257a678f0e6dd63649baeebaa4517d5bca",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i pledge to reduce my energy consumption",
+      "sourceText": "I pledge to reduce my energy consumption",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
+    },
+    "5360a984e91aa4bb149d2ce93763de23560bb06b2abca650a3c7ea9dbdbdd03a": {
+      "cacheKey": "5360a984e91aa4bb149d2ce93763de23560bb06b2abca650a3c7ea9dbdbdd03a",
+      "mode": "xenova",
+      "modelName": "Xenova/bert-base-multilingual-uncased-sentiment",
+      "normalizedText": "i will reduce my carbon footprint",
+      "sourceText": "I will reduce my carbon footprint",
+      "sentiment": "neutral",
+      "hitCount": 1,
+      "analyzedAt": "2026-07-25T16:11:25.000Z",
+      "lastUsedAt": "2026-07-25T16:11:25.000Z"
     }
   }
 }

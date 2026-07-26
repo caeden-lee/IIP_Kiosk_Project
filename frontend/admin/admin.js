@@ -4891,7 +4891,7 @@ async function analyzeFeedbackData() {
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <label for="timeRangeSelect" style="font-size: 13px; font-weight: 500;">Range:</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="font-size: 13px; font-weight: 500;">Range:</span>
+                        <span style="font-size: 13px; font-weight: 500;"></span>
                         <div class="btn-group" id="timeRangeButtons" style="display: flex; gap: 4px;">
                             <button class="btn-range" data-range="weekly">Weekly</button>
                             <button class="btn-range" data-range="monthly">Monthly</button>

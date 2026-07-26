@@ -84,7 +84,7 @@
     "leafFallDuration": 0,
     "leafDisplayScale": 1,
     "vipLeafDisplayScale": 1,
-    "showTitleBox": false,
+    "showTitleBox": true,
     "leafThresholds": {
       "stage1": 1,
       "stage2": 10,
@@ -92,13 +92,13 @@
       "stage4": 50
     },
     "treeTitleBox": {
-      "showTitleBox": false,
+      "showTitleBox": true,
       "opacity": 0.25,
       "blur": 6,
       "radius": 25,
       "top": 20,
-      "paddingX": 30,
-      "paddingY": 15,
+      "paddingX": 10,
+      "paddingY": 10,
       "position": "top-center",
       "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
