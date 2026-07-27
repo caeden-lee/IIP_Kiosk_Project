@@ -97,8 +97,8 @@
       "blur": 6,
       "radius": 25,
       "top": 20,
-      "paddingX": 10,
-      "paddingY": 10,
+      "paddingX": 30,
+      "paddingY": 15,
       "position": "top-center",
       "titleText": "🌳 ESG Digital Tree",
       "subtitleText": "Growing with every visitor's contribution this year"
